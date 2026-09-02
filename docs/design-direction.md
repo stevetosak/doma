@@ -2,7 +2,7 @@
 
 Locked via `/impeccable shape doma` (Milestone 0), mode **Operate**, direction-seed key
 `fb35f7a9`. This brief is the design contract M1–M4 build against neutrally and M5 onward
-builds *into* directly — the anchor surface described here (the app shell / Today dashboard)
+builds _into_ directly — the anchor surface described here (the app shell / Today dashboard)
 is the first UI written once M4's household/module foundation exists.
 
 ## 1. Job and audience
@@ -16,7 +16,7 @@ there is no marketing surface to design.
 ## 2. Outcome and proof
 
 Primary task: see what's due/assigned today across every active module (chores + shopping at
-v1) and act on it in one tap. Success is daily habitual use — the app has to feel like *theirs*,
+v1) and act on it in one tap. Success is daily habitual use — the app has to feel like _theirs_,
 not like logging into a work tool. Real evidence at v1: none yet (greenfield) — no fabricated
 testimonials, benchmarks, or sample "family" data; empty/first-run states are real content, not
 filler.
@@ -26,8 +26,8 @@ filler.
 **World:** doma reads as the household's own recipe/index-card file box on the counter. Cream
 cardstock cards under tabbed kraft dividers, a rust/terracotta ink for what's active or due, a
 quiet graphite-blue for settled/typed metadata, ruled baseline lines, a rounded-corner card
-silhouette. Category tabs run down one edge — *Chores*, *Shopping*, and honest blank tabs
-reserved for *Meals*, *Bills*, *Maintenance* — making doma's real architecture (a module is a
+silhouette. Category tabs run down one edge — _Chores_, _Shopping_, and honest blank tabs
+reserved for _Meals_, _Bills_, _Maintenance_ — making doma's real architecture (a module is a
 new folder, never a redesign) physically legible as "a box that grows one divider at a time."
 
 **Structural/interaction thesis:** the box, not a dashboard. Nav is the tab spine. A "screen" is
@@ -49,12 +49,13 @@ to show off.
 
 **Raises carried into the build** (each donated by a challenger weighed and set aside during the
 direction round — see §7 for the full record):
-- *Cascade discipline* (declined: rail-concourse split-flap board) — any live SSE update settles
+
+- _Cascade discipline_ (declined: rail-concourse split-flap board) — any live SSE update settles
   with the same unhurried, disciplined per-character cascade a departure board gives, never an
   abrupt snap.
-- *Ambient time-of-day wash* (declined: stage cyclorama) — the box's background tint shifts
+- _Ambient time-of-day wash_ (declined: stage cyclorama) — the box's background tint shifts
   gently with real local time, atmosphere only, never load-bearing for meaning or state.
-- *Stamp, don't delete* (competitive: jet-age ticket wallet) — completed and skipped occurrences
+- _Stamp, don't delete_ (competitive: jet-age ticket wallet) — completed and skipped occurrences
   are stamped/filed, never hard-deleted from view, matching doma's own append-only activity log
   (§5.3 of the execution plan).
 
