@@ -16,3 +16,10 @@ dist/
 *.swp
 .idea/
 .vscode/
+
+# impeccable design tooling — track config.json/DESIGN.md when present, ignore working state
+.impeccable/build/
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/questions/
+.impeccable/live/
