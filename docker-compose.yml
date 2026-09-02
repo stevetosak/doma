@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: doma
+      POSTGRES_PASSWORD: doma_dev_password
+      POSTGRES_DB: doma
+    ports:
+      # Host 5432/5433 are already taken by other local projects on this
+      # machine — 5434 on the host, still 5432 inside the container/network.
+      - '5434:5432'
+    volumes:
+      - doma-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U doma -d doma']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  doma-postgres-data:

@@ -5,17 +5,23 @@ node_modules/
 .env
 .env.local
 .env.*.local
+*.local
 
 # build output
 dist/
+dist-ssr/
 .output/
-.vite/
+.vinxi/
+.nitro/
+.tanstack/
+.wrangler/
+__unconfig*
+todos.json
 
 # editor / OS
 .DS_Store
 *.swp
 .idea/
-.vscode/
 
 # impeccable design tooling — track config.json/DESIGN.md when present, ignore working state
 .impeccable/build/
