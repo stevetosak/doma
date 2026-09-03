@@ -1,0 +1,96 @@
+name: Build & Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['main']
+
+env:
+  IMAGE_VERSION_PATTERN: 'alpha-${{ github.sha }}'
+  DOCKERHUB_NAMESPACE: 'stevetosak'
+
+jobs:
+  # doma's own gate — there's no shared e2e workflow here (unlike Authos),
+  # so typecheck/lint/test stand in as the thing nothing ships without.
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm run check
+      - run: npm run test
+
+  build-push:
+    needs: check
+    runs-on: ubuntu-22.04
+    outputs:
+      IMAGE_LATEST: ${{ steps.image_tags.outputs.IMAGE_LATEST }}
+      IMAGE_VERSION: ${{ steps.image_tags.outputs.IMAGE_VERSION }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Set image tags
+        id: image_tags
+        run: |
+          IMAGE_LATEST="${{ env.DOCKERHUB_NAMESPACE }}/doma:latest"
+          IMAGE_VERSION="${{ env.DOCKERHUB_NAMESPACE }}/doma:${{ env.IMAGE_VERSION_PATTERN }}"
+          echo "IMAGE_LATEST=$IMAGE_LATEST" >> $GITHUB_OUTPUT
+          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build & push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image_tags.outputs.IMAGE_LATEST }}
+            ${{ steps.image_tags.outputs.IMAGE_VERSION }}
+
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2.1.0
+
+      - name: Checkout infra repo
+        uses: actions/checkout@v4
+        with:
+          repository: 'stevetosak/${{ vars.INFRA_REPO_NAME }}'
+          token: '${{ secrets.INFRA_REPO_TOKEN }}'
+          path: '${{ vars.INFRA_REPO_NAME }}'
+
+      - name: Update Overlay
+        run: |
+          cd ${{ vars.INFRA_REPO_NAME }}/${{ vars.INFRA_REPO_DOMA_OVERLAY_DIR }}
+          kustomize edit set image ${{ needs.build-push.outputs.IMAGE_VERSION }}
+
+      - name: Commit and Push Changes
+        run: |
+          cd ${{ vars.INFRA_REPO_NAME }}
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --cached --quiet || git commit -m "Update doma image"
+          git push origin HEAD

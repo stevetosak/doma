@@ -1,0 +1,14 @@
+node_modules
+.git
+k8s
+*.md
+
+# Never let a local secret end up in a build layer.
+.env
+.env.*
+
+# Build/dev tooling output — rebuilt fresh inside the image.
+.output
+.vinxi
+.nitro
+.tanstack
