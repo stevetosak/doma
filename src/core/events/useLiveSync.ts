@@ -5,6 +5,33 @@ const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30_000
 
 /**
+ * The focal moment (§3 of the direction brief): a live update arriving
+ * from the other person settles in with an unhurried, disciplined cascade
+ * — never an abrupt snap. Backed by the View Transitions API where the
+ * browser supports it; falls straight through to a plain invalidate
+ * otherwise (and respects prefers-reduced-motion, since a view transition
+ * still runs a snapshot crossfade the browser doesn't itself suppress).
+ */
+function settledInvalidate(router: ReturnType<typeof useRouter>) {
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  if (
+    prefersReducedMotion ||
+    typeof document === 'undefined' ||
+    !('startViewTransition' in document)
+  ) {
+    void router.invalidate({ sync: true })
+    return
+  }
+
+  document.startViewTransition(async () => {
+    await router.invalidate({ sync: true })
+  })
+}
+
+/**
  * Subscribes to `/api/events` for as long as the calling component is
  * mounted, invalidating the router (§5.6 — plain `router.invalidate()`,
  * not TanStack Query key targeting; see the M7 architecture decision in
@@ -31,7 +58,7 @@ export function useLiveSync(): void {
       }
 
       source.onmessage = () => {
-        void router.invalidate({ sync: true })
+        settledInvalidate(router)
       }
 
       source.onerror = () => {

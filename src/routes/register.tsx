@@ -52,66 +52,79 @@ function RegisterPage() {
   }
 
   return (
-    <div className="p-8 max-w-sm">
-      <h1 className="text-2xl font-bold">
+    <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
+      <h1 className="font-display text-4xl text-ink">
         {bootstrap ? 'Create the first account' : 'Join with an invite code'}
       </h1>
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
-        <label>
-          Email
+      <form
+        onSubmit={handleSubmit}
+        className="ruled mt-6 flex flex-col gap-4 rounded-card border border-line bg-card p-6 shadow-card"
+      >
+        <label className="flex flex-col gap-1">
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Email
+          </span>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="block w-full border p-1"
+            className="field"
           />
         </label>
-        <label>
-          Password
+        <label className="flex flex-col gap-1">
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Password
+          </span>
           <input
             type="password"
             required
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="block w-full border p-1"
+            className="field"
           />
         </label>
-        <label>
-          Name (optional)
+        <label className="flex flex-col gap-1">
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Name (optional)
+          </span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="block w-full border p-1"
+            className="field"
           />
         </label>
         {bootstrap ? (
-          <label>
-            Household name
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-xs tracking-wide text-ink-dim">
+              Household name
+            </span>
             <input
               required
               value={householdName}
               onChange={(e) => setHouseholdName(e.target.value)}
-              className="block w-full border p-1"
+              className="field"
             />
           </label>
         ) : (
-          <label>
-            Invite code
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-xs tracking-wide text-ink-dim">
+              Invite code
+            </span>
             <input
               required
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
-              className="block w-full border p-1"
+              className="field"
             />
           </label>
         )}
-        {error && <p className="text-red-700">{error}</p>}
+        {error && <p className="text-sm text-error">{error}</p>}
         <button
           type="submit"
           disabled={submitting}
-          className="border px-3 py-1"
+          className="rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
         >
           {bootstrap ? 'Create account' : 'Join'}
         </button>

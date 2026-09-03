@@ -1,6 +1,10 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { AppShell } from '#/core/ui/AppShell'
+import { DoneStack } from '#/core/ui/DoneStack'
+import { FlipCard } from '#/core/ui/FlipCard'
+import { MutationStatus } from '#/core/ui/MutationStatus'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
@@ -46,60 +50,97 @@ function ChoresPage() {
     await router.invalidate({ sync: true })
   }
 
-  return (
-    <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold">Chores</h1>
+  const memberName = new Map(
+    data.members.map((m) => [m.userId, m.name ?? m.email]),
+  )
 
-      <ChoreList chores={data.chores} onChange={refresh} />
+  return (
+    <AppShell>
+      <h1 className="font-display text-4xl text-ink">Chores</h1>
+
+      {data.chores.length === 0 ? (
+        <p className="mt-8 text-ink-dim">
+          The chores divider is empty — add the first one below.
+        </p>
+      ) : (
+        <div className="mt-8 flex flex-col gap-10">
+          {data.chores.map((chore) => (
+            <ChoreSection
+              key={chore.id}
+              chore={chore}
+              memberName={memberName}
+              onChange={refresh}
+            />
+          ))}
+        </div>
+      )}
+
       <NewChoreForm members={data.members} onCreated={refresh} />
-    </div>
+    </AppShell>
   )
 }
 
-function ChoreList({
-  chores,
+function ChoreSection({
+  chore,
+  memberName,
   onChange,
 }: {
-  chores: ChoreView[]
+  chore: ChoreView
+  memberName: Map<string, string>
   onChange: () => Promise<void>
 }) {
-  if (chores.length === 0) {
-    return <p className="mt-6 text-sm">No chores yet — add one below.</p>
-  }
+  const pending = chore.occurrences.filter((o) => o.status === 'pending')
+  const filed = chore.occurrences.filter((o) => o.status !== 'pending')
 
   return (
-    <div className="mt-6 flex flex-col gap-6">
-      {chores.map((chore) => (
-        <section key={chore.id} className="border p-4">
-          <h2 className="text-lg font-semibold">{chore.title}</h2>
-          {chore.notes && <p className="mt-1 text-sm">{chore.notes}</p>}
-          <ul className="mt-3 flex flex-col gap-1">
-            {chore.occurrences.length === 0 ? (
-              <li className="text-sm">No upcoming occurrences.</li>
-            ) : (
-              chore.occurrences.map((occ) => (
-                <OccurrenceRow
-                  key={occ.id}
-                  occurrence={occ}
-                  onChange={onChange}
-                />
-              ))
-            )}
-          </ul>
-        </section>
-      ))}
-    </div>
+    <section>
+      <h2 className="font-display text-2xl text-ink">{chore.title}</h2>
+      {chore.notes && <p className="mt-1 text-sm text-ink-dim">{chore.notes}</p>}
+
+      {pending.length === 0 ? (
+        <p className="mt-3 text-sm text-ink-faint">No upcoming occurrences.</p>
+      ) : (
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {pending.map((occ) => (
+            <OccurrenceCard
+              key={occ.id}
+              occurrence={occ}
+              assignee={
+                occ.assigneeUserId ? memberName.get(occ.assigneeUserId) : undefined
+              }
+              onChange={onChange}
+            />
+          ))}
+        </div>
+      )}
+
+      <DoneStack
+        label="filed"
+        items={filed.map((occ) => ({
+          id: occ.id,
+          content: `${occ.dueOn} — ${occ.status}${
+            occ.assigneeUserId
+              ? ` (${memberName.get(occ.assigneeUserId) ?? 'someone'})`
+              : ''
+          }`,
+        }))}
+      />
+    </section>
   )
 }
 
-function OccurrenceRow({
+function OccurrenceCard({
   occurrence,
+  assignee,
   onChange,
 }: {
   occurrence: ChoreOccurrenceView
+  assignee: string | undefined
   onChange: () => Promise<void>
 }) {
   const { status, error, run } = useHouseholdMutation()
+  const today = new Date().toISOString().slice(0, 10)
+  const overdue = occurrence.dueOn < today
 
   async function setStatus(next: 'done' | 'skipped') {
     await run(() =>
@@ -110,35 +151,54 @@ function OccurrenceRow({
     await onChange()
   }
 
+  const busy = status === 'pending' || status === 'retrying'
+
   return (
-    <li className="flex items-center gap-3 text-sm">
-      <span className="w-28">{occurrence.dueOn}</span>
-      <span className="w-20">{occurrence.status}</span>
-      {occurrence.status === 'pending' && (
-        <div className="flex items-center gap-2">
-          <button
-            className="border px-2 py-0.5"
-            disabled={status === 'pending' || status === 'retrying'}
-            onClick={() => setStatus('done')}
+    <FlipCard
+      accent={overdue ? 'rust' : 'neutral'}
+      flipLabel="assignee & actions"
+      front={
+        <>
+          <span
+            className={`font-mono text-xs font-semibold tracking-wide ${
+              overdue ? 'text-rust' : 'text-ink-dim'
+            }`}
           >
-            Done
-          </button>
-          <button
-            className="border px-2 py-0.5"
-            disabled={status === 'pending' || status === 'retrying'}
-            onClick={() => setStatus('skipped')}
-          >
-            Skip
-          </button>
-          {status === 'retrying' && (
-            <span className="text-amber-700">not saved — retrying…</span>
-          )}
-          {status === 'error' && error && (
-            <span className="text-red-700">{error}</span>
-          )}
+            {overdue ? 'OVERDUE' : occurrence.dueOn === today ? 'TODAY' : occurrence.dueOn}
+          </span>
+          <p className="mt-2 text-lg text-ink">Whose turn?</p>
+        </>
+      }
+      back={
+        <div className="flex flex-col gap-3">
+          <p className="text-lg text-ink">
+            {assignee ? assignee : 'Unassigned'}
+          </p>
+          <p className="font-mono text-xs tracking-wide text-blue">
+            due {occurrence.dueOn}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setStatus('done')}
+              className="rounded-tab bg-rust px-3 py-1 text-sm font-medium text-card disabled:opacity-50"
+            >
+              Done
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setStatus('skipped')}
+              className="rounded-tab border border-kraft px-3 py-1 text-sm font-medium text-ink disabled:opacity-50"
+            >
+              Skip
+            </button>
+          </div>
+          <MutationStatus status={status} error={error} />
         </div>
-      )}
-    </li>
+      }
+    />
   )
 }
 
@@ -214,23 +274,21 @@ function NewChoreForm({
   }
 
   return (
-    <section className="mt-8 border-t pt-6">
-      <h2 className="text-lg font-semibold">New chore</h2>
-      <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-3">
-        <label className="flex flex-col gap-1">
-          Title
+    <section className="ruled mt-10 rounded-card border border-line bg-card p-6 shadow-card">
+      <h2 className="font-display text-2xl text-ink">New chore</h2>
+      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+        <Field label="Title">
           <input
-            className="border p-1"
+            className="field"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
           />
-        </label>
+        </Field>
 
-        <label className="flex flex-col gap-1">
-          Repeats
+        <Field label="Repeats">
           <select
-            className="border p-1"
+            className="field"
             value={recurrenceKind}
             onChange={(e) =>
               setRecurrenceKind(
@@ -243,30 +301,35 @@ function NewChoreForm({
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
           </select>
-        </label>
+        </Field>
 
         {recurrenceKind !== 'once' && (
-          <label className="flex flex-col gap-1">
-            Every N{' '}
-            {recurrenceKind === 'daily'
-              ? 'days'
-              : recurrenceKind === 'weekly'
-                ? 'weeks'
-                : 'months'}
+          <Field
+            label={`Every N ${
+              recurrenceKind === 'daily'
+                ? 'days'
+                : recurrenceKind === 'weekly'
+                  ? 'weeks'
+                  : 'months'
+            }`}
+          >
             <input
               type="number"
               min={1}
-              className="border p-1 w-20"
+              className="field w-24"
               value={interval}
               onChange={(e) => setInterval_(Number(e.target.value))}
             />
-          </label>
+          </Field>
         )}
 
         {recurrenceKind === 'weekly' && (
-          <fieldset className="flex gap-3">
+          <fieldset className="flex flex-wrap gap-3">
             {WEEKDAY_LABELS.map((wd) => (
-              <label key={wd.value} className="flex items-center gap-1 text-sm">
+              <label
+                key={wd.value}
+                className="flex items-center gap-1.5 font-mono text-sm text-ink"
+              >
                 <input
                   type="checkbox"
                   checked={weekdays.includes(wd.value)}
@@ -279,33 +342,30 @@ function NewChoreForm({
         )}
 
         {recurrenceKind === 'monthly' && (
-          <label className="flex flex-col gap-1">
-            Day of month
+          <Field label="Day of month">
             <input
               type="number"
               min={1}
               max={31}
-              className="border p-1 w-20"
+              className="field w-24"
               value={dayOfMonth}
               onChange={(e) => setDayOfMonth(Number(e.target.value))}
             />
-          </label>
+          </Field>
         )}
 
-        <label className="flex flex-col gap-1">
-          Starts on
+        <Field label="Starts on">
           <input
             type="date"
-            className="border p-1"
+            className="field"
             value={startsOn}
             onChange={(e) => setStartsOn(e.target.value)}
           />
-        </label>
+        </Field>
 
-        <label className="flex flex-col gap-1">
-          Assignment
+        <Field label="Assignment">
           <select
-            className="border p-1"
+            className="field"
             value={assignmentMode}
             onChange={(e) =>
               setAssignmentMode(e.target.value as 'fixed' | 'rotating')
@@ -314,13 +374,12 @@ function NewChoreForm({
             <option value="fixed">One person</option>
             <option value="rotating">Rotates</option>
           </select>
-        </label>
+        </Field>
 
         {assignmentMode === 'fixed' ? (
-          <label className="flex flex-col gap-1">
-            Assignee
+          <Field label="Assignee">
             <select
-              className="border p-1"
+              className="field"
               value={assigneeUserId}
               onChange={(e) => setAssigneeUserId(e.target.value)}
             >
@@ -330,12 +389,17 @@ function NewChoreForm({
                 </option>
               ))}
             </select>
-          </label>
+          </Field>
         ) : (
-          <fieldset className="flex flex-col gap-1">
-            Rotation order
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1 font-mono text-xs tracking-wide text-ink-dim">
+              Rotation order
+            </legend>
             {members.map((m) => (
-              <label key={m.userId} className="flex items-center gap-1 text-sm">
+              <label
+                key={m.userId}
+                className="flex items-center gap-1.5 text-sm text-ink"
+              >
                 <input
                   type="checkbox"
                   checked={rotation.includes(m.userId)}
@@ -350,12 +414,29 @@ function NewChoreForm({
         <button
           type="submit"
           disabled={submitting}
-          className="border px-3 py-1 self-start"
+          className="self-start rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
         >
           Add chore
         </button>
       </form>
-      {error && <p className="mt-2 text-red-700">{error}</p>}
+      {error && <p className="mt-2 text-sm text-error">{error}</p>}
     </section>
+  )
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="font-mono text-xs tracking-wide text-ink-dim">
+        {label}
+      </span>
+      {children}
+    </label>
   )
 }

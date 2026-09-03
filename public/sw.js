@@ -14,7 +14,7 @@
 //    stream breaks it), /auth/* (session-mutating), and every non-GET
 //    request
 
-const VERSION = 'v1'
+const VERSION = 'v2'
 const ASSET_CACHE = `doma-assets-${VERSION}`
 const DATA_CACHE = `doma-data-${VERSION}`
 const OWN_CACHES = [ASSET_CACHE, DATA_CACHE]
@@ -24,9 +24,11 @@ const NEVER_INTERCEPT_PREFIXES = ['/api/events', '/auth/']
 const OFFLINE_HTML = `<!doctype html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>doma — offline</title></head>
-<body style="font-family:sans-serif;padding:2rem;max-width:32rem;margin:0 auto">
-<h1>You're offline</h1>
-<p>doma needs a connection to load this page. Reconnect and reload.</p>
+<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#eadfc6;color:#2a241c;font-family:system-ui,sans-serif">
+<div style="max-width:24rem;padding:2rem;text-align:center;background:#faf6ea;border-top:4px solid #a1401a;border-radius:0.85rem;box-shadow:0 8px 20px -6px rgba(74,54,32,0.28)">
+<h1 style="margin:0;font-size:1.5rem">The box needs a signal</h1>
+<p style="margin-top:0.75rem;color:#6f6353">doma needs a connection to load this page. Reconnect and reload.</p>
+</div>
 </body>
 </html>`
 
