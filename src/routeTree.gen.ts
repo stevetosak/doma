@@ -15,6 +15,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ShoppingRouteImport } from './routes/shopping'
+import { Route as UnregisterSwRouteImport } from './routes/unregister-sw'
+import { Route as ApiEventsRouteImport } from './routes/api/events'
 import { Route as AuthGoogleRouteImport } from './routes/auth/google'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
@@ -51,6 +53,16 @@ const SettingsRoute = SettingsRouteImport.update({
 const ShoppingRoute = ShoppingRouteImport.update({
   id: '/shopping',
   path: '/shopping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnregisterSwRoute = UnregisterSwRouteImport.update({
+  id: '/unregister-sw',
+  path: '/unregister-sw',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEventsRoute = ApiEventsRouteImport.update({
+  id: '/api/events',
+  path: '/api/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthGoogleRoute = AuthGoogleRouteImport.update({
@@ -96,6 +108,8 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/shopping': typeof ShoppingRoute
+  '/unregister-sw': typeof UnregisterSwRoute
+  '/api/events': typeof ApiEventsRoute
   '/auth/google': typeof AuthGoogleRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -111,6 +125,8 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/shopping': typeof ShoppingRoute
+  '/unregister-sw': typeof UnregisterSwRoute
+  '/api/events': typeof ApiEventsRoute
   '/auth/google': typeof AuthGoogleRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -127,6 +143,8 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/shopping': typeof ShoppingRoute
+  '/unregister-sw': typeof UnregisterSwRoute
+  '/api/events': typeof ApiEventsRoute
   '/auth/google': typeof AuthGoogleRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -144,6 +162,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/shopping'
+    | '/unregister-sw'
+    | '/api/events'
     | '/auth/google'
     | '/auth/login'
     | '/auth/logout'
@@ -159,6 +179,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/shopping'
+    | '/unregister-sw'
+    | '/api/events'
     | '/auth/google'
     | '/auth/login'
     | '/auth/logout'
@@ -174,6 +196,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/shopping'
+    | '/unregister-sw'
+    | '/api/events'
     | '/auth/google'
     | '/auth/login'
     | '/auth/logout'
@@ -190,6 +214,8 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
   ShoppingRoute: typeof ShoppingRoute
+  UnregisterSwRoute: typeof UnregisterSwRoute
+  ApiEventsRoute: typeof ApiEventsRoute
   AuthGoogleRoute: typeof AuthGoogleRouteWithChildren
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
@@ -240,6 +266,20 @@ declare module '@tanstack/react-router' {
       path: '/shopping'
       fullPath: '/shopping'
       preLoaderRoute: typeof ShoppingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unregister-sw': {
+      id: '/unregister-sw'
+      path: '/unregister-sw'
+      fullPath: '/unregister-sw'
+      preLoaderRoute: typeof UnregisterSwRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/events': {
+      id: '/api/events'
+      path: '/api/events'
+      fullPath: '/api/events'
+      preLoaderRoute: typeof ApiEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/google': {
@@ -313,6 +353,8 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
   ShoppingRoute: ShoppingRoute,
+  UnregisterSwRoute: UnregisterSwRoute,
+  ApiEventsRoute: ApiEventsRoute,
   AuthGoogleRoute: AuthGoogleRouteWithChildren,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,

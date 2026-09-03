@@ -4,6 +4,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import appCss from '../styles.css?url'
 import { getAuthContext } from '#/core/auth/auth-context.functions'
+import { ServiceWorkerRegistrar } from '#/core/pwa/ServiceWorkerRegistrar'
 
 export const Route = createRootRoute({
   // §5.4: resolved server-side before the first byte, so authenticated
@@ -24,11 +25,28 @@ export const Route = createRootRoute({
       {
         title: 'doma',
       },
+      {
+        name: 'theme-color',
+        content: '#3a3a38',
+      },
     ],
     links: [
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      {
+        rel: 'manifest',
+        href: '/manifest.webmanifest',
+      },
+      {
+        rel: 'apple-touch-icon',
+        href: '/icons/apple-touch-icon.png',
+      },
+      {
+        rel: 'icon',
+        href: '/icons/icon-192.png',
+        type: 'image/png',
       },
     ],
   }),
@@ -43,6 +61,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {children}
+        <ServiceWorkerRegistrar />
         <TanStackDevtools
           config={{
             position: 'bottom-right',

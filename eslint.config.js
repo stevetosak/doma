@@ -15,6 +15,8 @@ export default [
     },
   },
   {
-    ignores: ['eslint.config.js', 'prettier.config.js'],
+    // public/sw.js is a plain-JS static asset served as-is (self.* /
+    // ServiceWorkerGlobalScope, not part of the app's tsconfig project).
+    ignores: ['eslint.config.js', 'prettier.config.js', 'public/sw.js'],
   },
 ]

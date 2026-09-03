@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { resolveAuthContext } from '#/core/auth/context'
+import { publish } from '#/core/events/hub'
 import { listMembers } from '#/core/household/members-repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 import { materializeChoreOccurrences } from '#/modules/chores/materialize'
@@ -104,6 +105,11 @@ export const createChoreAction = createServerFn({ method: 'POST' })
     const { household } = await requireMember()
     const choreId = await createChore({ householdId: household.id, ...data })
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
+    publish(household.id, {
+      module: 'chores',
+      entity: 'chore',
+      action: 'created',
+    })
     return { id: choreId }
   })
 
@@ -122,5 +128,10 @@ export const setOccurrenceStatusAction = createServerFn({ method: 'POST' })
       data.status,
       userId,
     )
+    publish(household.id, {
+      module: 'chores',
+      entity: 'occurrence',
+      action: 'updated',
+    })
     return { ok: true as const }
   })
