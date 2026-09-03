@@ -30,6 +30,11 @@ function Home() {
               : ' (no household yet)'}
           </p>
           <div className="mt-2 flex gap-3">
+            {auth.household && (
+              <a href="/chores" className="border px-3 py-1">
+                Chores
+              </a>
+            )}
             {auth.household?.role === 'owner' && (
               <a href="/settings" className="border px-3 py-1">
                 Settings
