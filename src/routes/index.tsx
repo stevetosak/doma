@@ -15,9 +15,10 @@ function Home() {
     <div className="p-8">
       <h1 className="text-4xl font-bold">doma</h1>
       <p className="mt-4 text-lg">
-        The household hub is under construction. Milestone 2 (auth) — the real
-        UI lands from Milestone 5 onward, built into the locked direction in{' '}
-        <code>docs/design-direction.md</code>.
+        The household hub is under construction. Milestone 4 (households,
+        invites, module registry) — the real UI lands from Milestone 5 onward,
+        built into the locked direction in <code>docs/design-direction.md</code>
+        .
       </p>
 
       {auth.user ? (
@@ -28,9 +29,16 @@ function Home() {
               ? ` — ${auth.household.role} of ${auth.household.name}`
               : ' (no household yet)'}
           </p>
-          <button onClick={handleLogout} className="mt-2 border px-3 py-1">
-            Log out
-          </button>
+          <div className="mt-2 flex gap-3">
+            {auth.household?.role === 'owner' && (
+              <a href="/settings" className="border px-3 py-1">
+                Settings
+              </a>
+            )}
+            <button onClick={handleLogout} className="border px-3 py-1">
+              Log out
+            </button>
+          </div>
         </div>
       ) : (
         <div className="mt-6 flex gap-3">
