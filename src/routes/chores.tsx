@@ -95,7 +95,9 @@ function ChoreSection({
   return (
     <section>
       <h2 className="font-display text-2xl text-ink">{chore.title}</h2>
-      {chore.notes && <p className="mt-1 text-sm text-ink-dim">{chore.notes}</p>}
+      {chore.notes && (
+        <p className="mt-1 text-sm text-ink-dim">{chore.notes}</p>
+      )}
 
       {pending.length === 0 ? (
         <p className="mt-3 text-sm text-ink-faint">No upcoming occurrences.</p>
@@ -106,7 +108,9 @@ function ChoreSection({
               key={occ.id}
               occurrence={occ}
               assignee={
-                occ.assigneeUserId ? memberName.get(occ.assigneeUserId) : undefined
+                occ.assigneeUserId
+                  ? memberName.get(occ.assigneeUserId)
+                  : undefined
               }
               onChange={onChange}
             />
@@ -164,7 +168,11 @@ function OccurrenceCard({
               overdue ? 'text-rust' : 'text-ink-dim'
             }`}
           >
-            {overdue ? 'OVERDUE' : occurrence.dueOn === today ? 'TODAY' : occurrence.dueOn}
+            {overdue
+              ? 'OVERDUE'
+              : occurrence.dueOn === today
+                ? 'TODAY'
+                : occurrence.dueOn}
           </span>
           <p className="mt-2 text-lg text-ink">Whose turn?</p>
         </>

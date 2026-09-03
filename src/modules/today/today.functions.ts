@@ -3,10 +3,7 @@ import { resolveAuthContext } from '#/core/auth/context'
 import { listMembers } from '#/core/household/members-repo'
 import { listChoresWithOccurrences } from '#/modules/chores/repo'
 import { todayInZone } from '#/modules/chores/time'
-import {
-  getOrCreateDefaultList,
-  listItems,
-} from '#/modules/shopping/repo'
+import { getOrCreateDefaultList, listItems } from '#/modules/shopping/repo'
 
 export class TodayAccessError extends Error {}
 

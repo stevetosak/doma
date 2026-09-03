@@ -8,81 +8,202 @@
         "role": "primary",
         "displayName": "Terracotta Rust",
         "canonical": "#a1401a",
-        "tonalRamp": ["#3d1a0d", "#5c2812", "#7c3113", "#a1401a", "#c25a30", "#d98a5f", "#ecd8c3", "#f4e5d2"]
+        "tonalRamp": [
+          "#3d1a0d",
+          "#5c2812",
+          "#7c3113",
+          "#a1401a",
+          "#c25a30",
+          "#d98a5f",
+          "#ecd8c3",
+          "#f4e5d2"
+        ]
       },
       "blue": {
         "role": "secondary",
         "displayName": "Graphite Blue",
         "canonical": "#3d5266",
-        "tonalRamp": ["#161c22", "#232f39", "#2f3f4f", "#3d5266", "#5a7288", "#8aa3b5", "#c2d1db", "#dde5e8"]
+        "tonalRamp": [
+          "#161c22",
+          "#232f39",
+          "#2f3f4f",
+          "#3d5266",
+          "#5a7288",
+          "#8aa3b5",
+          "#c2d1db",
+          "#dde5e8"
+        ]
       },
       "ground": {
         "role": "neutral",
         "displayName": "Counter Ground",
         "canonical": "#eadfc6",
-        "tonalRamp": ["#4a3d24", "#6b5a35", "#8c7748", "#ab9260", "#c7b287", "#ddcda8", "#eadfc6", "#f5eeda"]
+        "tonalRamp": [
+          "#4a3d24",
+          "#6b5a35",
+          "#8c7748",
+          "#ab9260",
+          "#c7b287",
+          "#ddcda8",
+          "#eadfc6",
+          "#f5eeda"
+        ]
       },
       "card": {
         "role": "neutral",
         "displayName": "Cardstock Cream",
         "canonical": "#faf6ea",
-        "tonalRamp": ["#4a4636", "#6b6448", "#8c8460", "#aaa17c", "#c7bfa0", "#e0d9c1", "#f2ead6", "#faf6ea"]
+        "tonalRamp": [
+          "#4a4636",
+          "#6b6448",
+          "#8c8460",
+          "#aaa17c",
+          "#c7bfa0",
+          "#e0d9c1",
+          "#f2ead6",
+          "#faf6ea"
+        ]
       },
       "card-back": {
         "role": "neutral",
         "displayName": "Cardstock Back",
         "canonical": "#f2ead6",
-        "tonalRamp": ["#463f28", "#655a38", "#83764a", "#a1905f", "#c0ab7f", "#dccca0", "#eadfc0", "#f2ead6"]
+        "tonalRamp": [
+          "#463f28",
+          "#655a38",
+          "#83764a",
+          "#a1905f",
+          "#c0ab7f",
+          "#dccca0",
+          "#eadfc0",
+          "#f2ead6"
+        ]
       },
       "kraft": {
         "role": "neutral",
         "displayName": "Kraft Tab",
         "canonical": "#ab8352",
-        "tonalRamp": ["#2c2113", "#4a3620", "#7c5c34", "#ab8352", "#c4a074", "#d7bd9c", "#e8dac3", "#f3ece0"]
+        "tonalRamp": [
+          "#2c2113",
+          "#4a3620",
+          "#7c5c34",
+          "#ab8352",
+          "#c4a074",
+          "#d7bd9c",
+          "#e8dac3",
+          "#f3ece0"
+        ]
       },
       "kraft-dark": {
         "role": "neutral",
         "displayName": "Kraft Spine Dark",
         "canonical": "#7c5c34",
-        "tonalRamp": ["#1f160c", "#332512", "#4a3620", "#63482c", "#7c5c34", "#a3824f", "#c7a875", "#e5d3ab"]
+        "tonalRamp": [
+          "#1f160c",
+          "#332512",
+          "#4a3620",
+          "#63482c",
+          "#7c5c34",
+          "#a3824f",
+          "#c7a875",
+          "#e5d3ab"
+        ]
       },
       "ink": {
         "role": "neutral",
         "displayName": "Primary Ink",
         "canonical": "#2a241c",
-        "tonalRamp": ["#0f0d09", "#1a1611", "#2a241c", "#403627", "#524a40", "#686056", "#8a8074", "#b3aa9c"]
+        "tonalRamp": [
+          "#0f0d09",
+          "#1a1611",
+          "#2a241c",
+          "#403627",
+          "#524a40",
+          "#686056",
+          "#8a8074",
+          "#b3aa9c"
+        ]
       },
       "line": {
         "role": "neutral",
         "displayName": "Ruled Line",
         "canonical": "#d9c8a3",
-        "tonalRamp": ["#3f371f", "#5e5230", "#7d6c40", "#a08b5c", "#c2ab7c", "#d9c8a3", "#e6dabb", "#f1e9d5"]
+        "tonalRamp": [
+          "#3f371f",
+          "#5e5230",
+          "#7d6c40",
+          "#a08b5c",
+          "#c2ab7c",
+          "#d9c8a3",
+          "#e6dabb",
+          "#f1e9d5"
+        ]
       },
       "error": {
         "role": "error",
         "displayName": "Error Ink",
         "canonical": "#9a2c1d",
-        "tonalRamp": ["#320e08", "#4c150e", "#661d13", "#9a2c1d", "#c04a34", "#dc7860", "#eeb5a5", "#f7dcd3"]
+        "tonalRamp": [
+          "#320e08",
+          "#4c150e",
+          "#661d13",
+          "#9a2c1d",
+          "#c04a34",
+          "#dc7860",
+          "#eeb5a5",
+          "#f7dcd3"
+        ]
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Handwritten Display", "purpose": "Every h1/h2/h3, hero card title. Never body copy or labels." },
-      "body": { "displayName": "Grotesk Body", "purpose": "Card prose, form content, empty-state and list copy." },
-      "label": { "displayName": "Mono Metadata", "purpose": "Dates, statuses, captions, form labels, counts — anything read as a system-generated fact." }
+      "display": {
+        "displayName": "Handwritten Display",
+        "purpose": "Every h1/h2/h3, hero card title. Never body copy or labels."
+      },
+      "body": {
+        "displayName": "Grotesk Body",
+        "purpose": "Card prose, form content, empty-state and list copy."
+      },
+      "label": {
+        "displayName": "Mono Metadata",
+        "purpose": "Dates, statuses, captions, form labels, counts — anything read as a system-generated fact."
+      }
     },
     "shadows": [
-      { "name": "card", "value": "0 1px 2px rgba(74,54,32,0.12), 0 8px 20px -6px rgba(74,54,32,0.28)", "purpose": "Resting elevation for every card, panel, filed item." },
-      { "name": "card-lifted", "value": "0 4px 6px rgba(74,54,32,0.14), 0 20px 34px -10px rgba(74,54,32,0.38)", "purpose": "Hero card at rest; any card's hover/focus state." },
-      { "name": "spine", "value": "2px 0 10px rgba(74,54,32,0.18)", "purpose": "Fixed desktop spine and mobile bottom nav bar." }
+      {
+        "name": "card",
+        "value": "0 1px 2px rgba(74,54,32,0.12), 0 8px 20px -6px rgba(74,54,32,0.28)",
+        "purpose": "Resting elevation for every card, panel, filed item."
+      },
+      {
+        "name": "card-lifted",
+        "value": "0 4px 6px rgba(74,54,32,0.14), 0 20px 34px -10px rgba(74,54,32,0.38)",
+        "purpose": "Hero card at rest; any card's hover/focus state."
+      },
+      {
+        "name": "spine",
+        "value": "2px 0 10px rgba(74,54,32,0.18)",
+        "purpose": "Fixed desktop spine and mobile bottom nav bar."
+      }
     ],
     "motion": [
-      { "name": "flip", "value": "transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1)", "purpose": "The card-flip signature interaction; snaps instead under prefers-reduced-motion." },
-      { "name": "view-transition-settle", "value": "0.6s cubic-bezier(0.2, 0.7, 0.2, 1)", "purpose": "The live-update focal moment (useLiveSync's View Transitions crossfade on SSE events)." },
-      { "name": "card-fan-hover", "value": "transform 0.2s ease", "purpose": "Card-fan tile lift on hover." }
+      {
+        "name": "flip",
+        "value": "transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1)",
+        "purpose": "The card-flip signature interaction; snaps instead under prefers-reduced-motion."
+      },
+      {
+        "name": "view-transition-settle",
+        "value": "0.6s cubic-bezier(0.2, 0.7, 0.2, 1)",
+        "purpose": "The live-update focal moment (useLiveSync's View Transitions crossfade on SSE events)."
+      },
+      {
+        "name": "card-fan-hover",
+        "value": "transform 0.2s ease",
+        "purpose": "Card-fan tile lift on hover."
+      }
     ],
-    "breakpoints": [
-      { "name": "md", "value": "768px" }
-    ]
+    "breakpoints": [{ "name": "md", "value": "768px" }]
   },
   "components": [
     {
@@ -145,10 +266,26 @@
       "Completed work is filed, not deleted — the 'done' stack pattern"
     ],
     "rules": [
-      { "name": "The Ink-Not-Border Rule", "body": "Status (overdue, active) is carried by text color and a small corner stamp-dot, never a thick accent border competing with the card's rounded silhouette.", "section": "colors" },
-      { "name": "The One Warm, One Cool Rule", "body": "Rust marks what needs attention; blue marks what's already settled. No third status color exists in the shipped system.", "section": "colors" },
-      { "name": "The Metadata-Is-Mono Rule", "body": "Any text that reads as a system-generated fact rather than authored content — dates, statuses, counts, captions — renders in font-mono at a small tracked-out size.", "section": "typography" },
-      { "name": "The Lift-On-Front Rule", "body": "Elevation increases only when a card becomes (or is about to become) the frontmost thing. Elevation is never used as ambient screen-wide decoration.", "section": "elevation" }
+      {
+        "name": "The Ink-Not-Border Rule",
+        "body": "Status (overdue, active) is carried by text color and a small corner stamp-dot, never a thick accent border competing with the card's rounded silhouette.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Warm, One Cool Rule",
+        "body": "Rust marks what needs attention; blue marks what's already settled. No third status color exists in the shipped system.",
+        "section": "colors"
+      },
+      {
+        "name": "The Metadata-Is-Mono Rule",
+        "body": "Any text that reads as a system-generated fact rather than authored content — dates, statuses, counts, captions — renders in font-mono at a small tracked-out size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Lift-On-Front Rule",
+        "body": "Elevation increases only when a card becomes (or is about to become) the frontmost thing. Elevation is never used as ambient screen-wide decoration.",
+        "section": "elevation"
+      }
     ],
     "dos": [
       "Do keep the display face (Architects Daughter) to headings only; route every metadata, date, status, and caption string through font-mono.",
