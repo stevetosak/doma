@@ -16,6 +16,7 @@
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
     "db:studio": "drizzle-kit studio",
+    "create-invite": "node scripts/create-invite.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint",
@@ -23,6 +24,7 @@
     "check": "prettier --check ."
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-devtools": "latest",
     "@tanstack/react-router": "latest",
@@ -34,7 +36,8 @@
     "pg": "^8.16.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.1.18",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@tanstack/devtools-vite": "latest",
