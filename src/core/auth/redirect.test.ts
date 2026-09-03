@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sanitizeRedirectTarget } from './redirect'
+import { redirectResponse, sanitizeRedirectTarget } from './redirect'
 
 describe('sanitizeRedirectTarget', () => {
   it('accepts a root-relative path', () => {
@@ -22,5 +22,23 @@ describe('sanitizeRedirectTarget', () => {
 
   it('refuses a target with no leading slash', () => {
     expect(sanitizeRedirectTarget('settings')).toBe('/')
+  })
+})
+
+describe('redirectResponse', () => {
+  it('sets status and Location', () => {
+    const res = redirectResponse('https://example.com/x')
+    expect(res.status).toBe(302)
+    expect(res.headers.get('Location')).toBe('https://example.com/x')
+  })
+
+  it('defaults to a mutable Headers object, unlike Response.redirect()', () => {
+    const res = redirectResponse('https://example.com/x')
+    expect(() => res.headers.delete('Location')).not.toThrow()
+  })
+
+  it('accepts a custom status', () => {
+    const res = redirectResponse('/login', 303)
+    expect(res.status).toBe(303)
   })
 })

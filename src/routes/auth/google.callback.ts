@@ -10,6 +10,7 @@ import {
 import { checkInviteCode, redeemInvite } from '#/core/auth/invites-repo'
 import { OAUTH_STATE_COOKIE_NAME } from '#/core/auth/oauth-state'
 import type { OAuthStatePayload } from '#/core/auth/oauth-state'
+import { redirectResponse } from '#/core/auth/redirect'
 import { verifySignedPayload } from '#/core/auth/signed-cookie'
 import {
   createSession,
@@ -26,10 +27,7 @@ import { addMembership } from '#/core/household/repo'
 
 /** Every failure path lands back on /login with a reason — never a 500 for user-facing OAuth flow errors. */
 function loginFailure(reason: string): Response {
-  return Response.redirect(
-    new URL(`/login?error=${reason}`, currentAppOrigin()),
-    302,
-  )
+  return redirectResponse(new URL(`/login?error=${reason}`, currentAppOrigin()))
 }
 
 function currentAppOrigin(): string {
@@ -106,18 +104,12 @@ export const Route = createFileRoute('/auth/google/callback')({
         switch (decision.action) {
           case 'sign_in': {
             await signInAs(decision.userId, request)
-            return Response.redirect(
-              new URL(statePayload.returnTo, appOrigin),
-              302,
-            )
+            return redirectResponse(new URL(statePayload.returnTo, appOrigin))
           }
           case 'link_and_sign_in': {
             await linkGoogleAccount(decision.userId, claims.sub)
             await signInAs(decision.userId, request)
-            return Response.redirect(
-              new URL(statePayload.returnTo, appOrigin),
-              302,
-            )
+            return redirectResponse(new URL(statePayload.returnTo, appOrigin))
           }
           case 'signup': {
             const inviteResult = await checkInviteCode(decision.inviteCode)
@@ -138,10 +130,7 @@ export const Route = createFileRoute('/auth/google/callback')({
             await redeemInvite(inviteResult.invite.id, user.id)
             await linkGoogleAccount(user.id, claims.sub)
             await signInAs(user.id, request)
-            return Response.redirect(
-              new URL(statePayload.returnTo, appOrigin),
-              302,
-            )
+            return redirectResponse(new URL(statePayload.returnTo, appOrigin))
           }
           case 'refuse': {
             return loginFailure(
