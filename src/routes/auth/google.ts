@@ -6,7 +6,7 @@ import {
   generatePkce,
   generateState,
 } from '#/core/auth/google-oauth'
-import { sanitizeRedirectTarget } from '#/core/auth/redirect'
+import { redirectResponse, sanitizeRedirectTarget } from '#/core/auth/redirect'
 import { signPayload } from '#/core/auth/signed-cookie'
 import { OAUTH_STATE_COOKIE_NAME } from '#/core/auth/oauth-state'
 import type { OAuthStatePayload } from '#/core/auth/oauth-state'
@@ -51,7 +51,7 @@ export const Route = createFileRoute('/auth/google')({
           codeChallenge,
         })
 
-        return Response.redirect(authUrl, 302)
+        return redirectResponse(authUrl)
       },
     },
   },
