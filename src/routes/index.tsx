@@ -29,8 +29,8 @@ function Home() {
       <div className="mx-auto max-w-lg px-6 py-16 text-center">
         <h1 className="font-display text-4xl text-ink">doma</h1>
         <p className="mt-4 text-ink-dim">
-          You're signed in but not part of a household yet. Ask whoever set
-          up doma for an invite code, and register with it.
+          You're signed in but not part of a household yet. Ask whoever set up
+          doma for an invite code, and register with it.
         </p>
       </div>
     )
@@ -53,8 +53,8 @@ function LoggedOutSplash() {
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
       <h1 className="font-display text-5xl text-ink">doma</h1>
       <p className="mt-3 text-ink-dim">
-        The household's own recipe-box of what needs doing — chores,
-        shopping, and whatever comes next.
+        The household's own recipe-box of what needs doing — chores, shopping,
+        and whatever comes next.
       </p>
       <div className="mt-8 flex gap-3">
         <Link

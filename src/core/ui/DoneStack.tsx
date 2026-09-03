@@ -25,7 +25,10 @@ export function DoneStack({
         aria-expanded={open}
         className="flex items-center gap-2 font-mono text-xs tracking-wide text-ink-faint"
       >
-        <span aria-hidden="true" className="relative flex h-7 w-9 items-center justify-center">
+        <span
+          aria-hidden="true"
+          className="relative flex h-7 w-9 items-center justify-center"
+        >
           <span className="absolute h-5 w-6 -translate-x-1 -translate-y-0.5 -rotate-12 rounded-sm border border-kraft/60 bg-card-back" />
           <span className="absolute h-5 w-6 translate-x-1 translate-y-0.5 rotate-6 rounded-sm border border-kraft/60 bg-card shadow-card" />
         </span>

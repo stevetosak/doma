@@ -1,8 +1,9 @@
 ---
 version: 1
-slug: "src-routes-index-tsx"
-primary_target: "src/routes/index.tsx"
-related_targets: ["src/routes/__root.tsx","src/routes/chores.tsx","src/routes/shopping.tsx"]
+slug: 'src-routes-index-tsx'
+primary_target: 'src/routes/index.tsx'
+related_targets:
+  ['src/routes/__root.tsx', 'src/routes/chores.tsx', 'src/routes/shopping.tsx']
 ---
 
 ## Direction contract

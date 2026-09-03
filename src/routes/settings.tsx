@@ -128,8 +128,8 @@ function InviteGenerator() {
       {error && <p className="mt-2 text-sm text-error">{error}</p>}
       {code && (
         <p className="mt-3 font-mono text-sm text-ink">
-          Invite code: <strong className="text-rust">{code}</strong> — share
-          it with them; it works once.
+          Invite code: <strong className="text-rust">{code}</strong> — share it
+          with them; it works once.
         </p>
       )}
     </section>
