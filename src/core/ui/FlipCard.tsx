@@ -35,6 +35,15 @@ export function FlipCard({
   const backId = useId()
   const dot = ACCENT_DOT[accent]
 
+  // Tapping anywhere on the back that isn't itself a control flips back
+  // to the front — the "flip back" link stays as an explicit fallback,
+  // but it shouldn't be the only way back.
+  function handleBackClick(event: React.MouseEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement
+    if (target.closest('button, input, a, label')) return
+    setFlipped(false)
+  }
+
   return (
     <div className={`flip-scene ${className}`}>
       <div className="flip-card relative" data-flipped={flipped}>
@@ -61,6 +70,7 @@ export function FlipCard({
         <div
           id={backId}
           aria-hidden={!flipped}
+          onClick={handleBackClick}
           className="ruled flip-face flip-face-back absolute inset-0 flex flex-col rounded-card border border-line bg-card-back p-5 shadow-card"
         >
           <div className="flex-1">{back}</div>

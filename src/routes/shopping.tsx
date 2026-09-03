@@ -316,7 +316,7 @@ function NewItemForm({
         </label>
         <label className="flex flex-col gap-1">
           <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Aisle
+            Category
           </span>
           <input
             className="field"
@@ -348,7 +348,7 @@ function CategoryOrder({
 
   return (
     <section className="mt-10">
-      <h2 className="font-display text-2xl text-ink">Aisle order</h2>
+      <h2 className="font-display text-2xl text-ink">Category order</h2>
       <ul className="mt-3 flex flex-col gap-1.5">
         {categories.map((category, index) => (
           <li
