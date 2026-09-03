@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-03T00:00:00Z",
+  "title": "Design System: doma",
+  "extensions": {
+    "colorMeta": {
+      "rust": {
+        "role": "primary",
+        "displayName": "Terracotta Rust",
+        "canonical": "#a1401a",
+        "tonalRamp": ["#3d1a0d", "#5c2812", "#7c3113", "#a1401a", "#c25a30", "#d98a5f", "#ecd8c3", "#f4e5d2"]
+      },
+      "blue": {
+        "role": "secondary",
+        "displayName": "Graphite Blue",
+        "canonical": "#3d5266",
+        "tonalRamp": ["#161c22", "#232f39", "#2f3f4f", "#3d5266", "#5a7288", "#8aa3b5", "#c2d1db", "#dde5e8"]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Counter Ground",
+        "canonical": "#eadfc6",
+        "tonalRamp": ["#4a3d24", "#6b5a35", "#8c7748", "#ab9260", "#c7b287", "#ddcda8", "#eadfc6", "#f5eeda"]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Cardstock Cream",
+        "canonical": "#faf6ea",
+        "tonalRamp": ["#4a4636", "#6b6448", "#8c8460", "#aaa17c", "#c7bfa0", "#e0d9c1", "#f2ead6", "#faf6ea"]
+      },
+      "card-back": {
+        "role": "neutral",
+        "displayName": "Cardstock Back",
+        "canonical": "#f2ead6",
+        "tonalRamp": ["#463f28", "#655a38", "#83764a", "#a1905f", "#c0ab7f", "#dccca0", "#eadfc0", "#f2ead6"]
+      },
+      "kraft": {
+        "role": "neutral",
+        "displayName": "Kraft Tab",
+        "canonical": "#ab8352",
+        "tonalRamp": ["#2c2113", "#4a3620", "#7c5c34", "#ab8352", "#c4a074", "#d7bd9c", "#e8dac3", "#f3ece0"]
+      },
+      "kraft-dark": {
+        "role": "neutral",
+        "displayName": "Kraft Spine Dark",
+        "canonical": "#7c5c34",
+        "tonalRamp": ["#1f160c", "#332512", "#4a3620", "#63482c", "#7c5c34", "#a3824f", "#c7a875", "#e5d3ab"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Primary Ink",
+        "canonical": "#2a241c",
+        "tonalRamp": ["#0f0d09", "#1a1611", "#2a241c", "#403627", "#524a40", "#686056", "#8a8074", "#b3aa9c"]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Ruled Line",
+        "canonical": "#d9c8a3",
+        "tonalRamp": ["#3f371f", "#5e5230", "#7d6c40", "#a08b5c", "#c2ab7c", "#d9c8a3", "#e6dabb", "#f1e9d5"]
+      },
+      "error": {
+        "role": "error",
+        "displayName": "Error Ink",
+        "canonical": "#9a2c1d",
+        "tonalRamp": ["#320e08", "#4c150e", "#661d13", "#9a2c1d", "#c04a34", "#dc7860", "#eeb5a5", "#f7dcd3"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Handwritten Display", "purpose": "Every h1/h2/h3, hero card title. Never body copy or labels." },
+      "body": { "displayName": "Grotesk Body", "purpose": "Card prose, form content, empty-state and list copy." },
+      "label": { "displayName": "Mono Metadata", "purpose": "Dates, statuses, captions, form labels, counts — anything read as a system-generated fact." }
+    },
+    "shadows": [
+      { "name": "card", "value": "0 1px 2px rgba(74,54,32,0.12), 0 8px 20px -6px rgba(74,54,32,0.28)", "purpose": "Resting elevation for every card, panel, filed item." },
+      { "name": "card-lifted", "value": "0 4px 6px rgba(74,54,32,0.14), 0 20px 34px -10px rgba(74,54,32,0.38)", "purpose": "Hero card at rest; any card's hover/focus state." },
+      { "name": "spine", "value": "2px 0 10px rgba(74,54,32,0.18)", "purpose": "Fixed desktop spine and mobile bottom nav bar." }
+    ],
+    "motion": [
+      { "name": "flip", "value": "transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1)", "purpose": "The card-flip signature interaction; snaps instead under prefers-reduced-motion." },
+      { "name": "view-transition-settle", "value": "0.6s cubic-bezier(0.2, 0.7, 0.2, 1)", "purpose": "The live-update focal moment (useLiveSync's View Transitions crossfade on SSE events)." },
+      { "name": "card-fan-hover", "value": "transform 0.2s ease", "purpose": "Card-fan tile lift on hover." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single most-committal action per surface (Sign in, Add chore, Done).",
+      "html": "<button class=\"ds-btn-primary\">Add chore</button>",
+      "css": ".ds-btn-primary { background: #a1401a; color: #faf6ea; padding: 0.5rem 1rem; font-family: 'Public Sans Variable', system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; border: none; border-radius: 0.5rem; transition: opacity 0.15s; } .ds-btn-primary:hover { opacity: 0.92; } .ds-btn-primary:focus-visible { outline: 2px solid #a1401a; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The lower-commitment sibling action (Skip, Register).",
+      "html": "<button class=\"ds-btn-ghost\">Skip</button>",
+      "css": ".ds-btn-ghost { background: #faf6ea; color: #2a241c; padding: 0.5rem 1rem; font-family: 'Public Sans Variable', system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; border: 1px solid #ab8352; border-radius: 0.5rem; } .ds-btn-ghost:focus-visible { outline: 2px solid #a1401a; outline-offset: 2px; }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "The shared cardstock input, used across every form.",
+      "html": "<input class=\"ds-field\" placeholder=\"Title\" />",
+      "css": ".ds-field { background: #faf6ea; border: 1px solid #d9c8a3; border-radius: 0.5rem; padding: 0.4rem 0.65rem; color: #2a241c; font-family: 'Public Sans Variable', system-ui, sans-serif; font-size: 0.9rem; } .ds-field:focus { border-color: #a1401a; outline: 2px solid #a1401a; outline-offset: 2px; }"
+    },
+    {
+      "name": "Flip Card (front)",
+      "kind": "card",
+      "refersTo": "card-front",
+      "description": "The signature per-item card — ruled cardstock front with a status label, corner stamp-dot, and a flip hint.",
+      "html": "<button class=\"ds-flipcard-front\"><span class=\"ds-dot\"></span><span class=\"ds-status\">OVERDUE</span><p class=\"ds-title\">Whose turn?</p><span class=\"ds-hint\">tap to flip — assignee &amp; actions</span></button>",
+      "css": ".ds-flipcard-front { position: relative; text-align: left; width: 100%; background-color: #faf6ea; background-image: repeating-linear-gradient(to bottom, transparent, transparent 27px, #e6dabb 27px, #e6dabb 28px); border: 1px solid #d9c8a3; border-radius: 0.85rem; padding: 1.25rem; box-shadow: 0 1px 2px rgba(74,54,32,0.12), 0 8px 20px -6px rgba(74,54,32,0.28); transition: box-shadow 0.15s; } .ds-flipcard-front:hover, .ds-flipcard-front:focus-visible { box-shadow: 0 4px 6px rgba(74,54,32,0.14), 0 20px 34px -10px rgba(74,54,32,0.38); } .ds-dot { position: absolute; top: 1rem; right: 1rem; width: 0.625rem; height: 0.625rem; border-radius: 9999px; background: #a1401a; } .ds-status { font-family: 'JetBrains Mono Variable', monospace; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; color: #a1401a; } .ds-title { margin-top: 0.5rem; font-size: 1.125rem; color: #2a241c; } .ds-hint { display: block; margin-top: 0.75rem; font-family: 'JetBrains Mono Variable', monospace; font-size: 11px; letter-spacing: 0.02em; color: #686056; }"
+    },
+    {
+      "name": "Done Stack (collapsed)",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The 'stamp, don't delete' filed-items toggle — two overlapping riffled card corners plus a mono count line.",
+      "html": "<button class=\"ds-donestack\"><span class=\"ds-donestack-icon\"><span class=\"ds-donestack-back\"></span><span class=\"ds-donestack-front\"></span></span>3 filed — riffle through</button>",
+      "css": ".ds-donestack { display: flex; align-items: center; gap: 0.5rem; background: none; border: none; font-family: 'JetBrains Mono Variable', monospace; font-size: 0.75rem; letter-spacing: 0.02em; color: #686056; } .ds-donestack-icon { position: relative; display: inline-flex; width: 2.25rem; height: 1.75rem; } .ds-donestack-back, .ds-donestack-front { position: absolute; width: 1.5rem; height: 1.25rem; border: 1px solid rgba(171,131,82,0.6); border-radius: 2px; } .ds-donestack-back { background: #f2ead6; transform: translate(-0.25rem, -0.125rem) rotate(-12deg); } .ds-donestack-front { background: #faf6ea; box-shadow: 0 1px 2px rgba(74,54,32,0.12), 0 8px 20px -6px rgba(74,54,32,0.28); transform: translate(0.25rem, 0.125rem) rotate(6deg); }"
+    },
+    {
+      "name": "Nav Spine Tab (desktop)",
+      "kind": "nav",
+      "refersTo": null,
+      "description": "One module tab on the fixed left spine — vertical text at rest, horizontal + card-colored panel when active.",
+      "html": "<a class=\"ds-spinetab ds-spinetab-active\">Chores</a>",
+      "css": ".ds-spinetab { display: flex; height: 5rem; align-items: center; justify-content: center; padding: 0 0.25rem; font-family: 'Architects Daughter', cursive; font-size: 0.875rem; color: rgba(250,246,234,0.9); writing-mode: vertical-rl; } .ds-spinetab-active { writing-mode: horizontal-tb; background: #faf6ea; color: #2a241c; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Recipe Box",
+    "overview": "doma reads as the household's own recipe/index-card file box left open on the counter, not a productivity dashboard. Cream cardstock cards sit under kraft-brown tab dividers; a rust/terracotta ink marks whatever is active or due, and a quiet graphite-blue marks settled, already-typed metadata. Every card face is ruled like real index-card stock. The box is genuinely a box — a 'screen' is a stack of cards you flip through, and navigation is a tab spine down the left edge (a bottom bar on mobile), not a sidebar-and-card-grid SaaS layout. This build shipped the world essentially as specified in docs/design-direction.md — no material divergence between the locked direction and the built surfaces. The one thing the build adds beyond the brief's letter is an ambient time-of-day background wash that tints the page behind the cards on a 4-part day cycle, confirmed in the brief's raises list as atmosphere-only, never load-bearing for meaning or state. doma is explicitly not corporate/SaaS, not clinical, and not twee/scrapbook — it avoids both the sidebar-dashboard genre and the cream-paper-plus-serif-plus-lamplight default a 'warm domestic app' brief reaches for by habit.",
+    "keyCharacteristics": [
+      "Cardstock-cream palette with kraft-brown structure and one warm accent (rust) plus one cool accent (blue) — no third hue",
+      "A handwritten display face (Architects Daughter) reserved for headings only; body and metadata stay in a clean grotesk/mono pairing",
+      "Status reads through ink color and a small corner dot, never a heavy accent border",
+      "Depth comes from warm, brown-tinted drop shadows (never neutral-gray), never from a bevel or gradient fill",
+      "Completed work is filed, not deleted — the 'done' stack pattern"
+    ],
+    "rules": [
+      { "name": "The Ink-Not-Border Rule", "body": "Status (overdue, active) is carried by text color and a small corner stamp-dot, never a thick accent border competing with the card's rounded silhouette.", "section": "colors" },
+      { "name": "The One Warm, One Cool Rule", "body": "Rust marks what needs attention; blue marks what's already settled. No third status color exists in the shipped system.", "section": "colors" },
+      { "name": "The Metadata-Is-Mono Rule", "body": "Any text that reads as a system-generated fact rather than authored content — dates, statuses, counts, captions — renders in font-mono at a small tracked-out size.", "section": "typography" },
+      { "name": "The Lift-On-Front Rule", "body": "Elevation increases only when a card becomes (or is about to become) the frontmost thing. Elevation is never used as ambient screen-wide decoration.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the display face (Architects Daughter) to headings only; route every metadata, date, status, and caption string through font-mono.",
+      "Do carry status through ink color and a small corner dot, matching the shipped rust-overdue / blue-settled pair — don't add a third status color without collapsing it into this system.",
+      "Do use warm, kraft/ink-tinted shadow color (rgba(74,54,32,…)) for any new elevation, never neutral gray.",
+      "Do render a not-yet-built module as a blank, same-weight reserved tab (spine band or bar slot with only a screen-reader label) — never gray it out, disable-style it, or hide it.",
+      "Do keep the ruled-baseline background-image as the system's only texture; it belongs on card faces (front and back), not as a general decorative device.",
+      "Do use the two-step radius scale only (rounded-tab 0.5rem for controls, rounded-card 0.85rem for cards/panels) — no third radius."
+    ],
+    "donts": [
+      "Don't put the primary flow inside a sidebar-and-card-grid dashboard layout. The tab spine plus card-fan/deck is the system's only navigation-plus-content topology; a settings-style two-pane admin layout is out of world.",
+      "Don't fade a card flip or a live-update settle. Both have named, deliberate motion (a real 3D rotate; a View Transitions crossfade), never a plain opacity fade, and both must respect prefers-reduced-motion by snapping instead of animating.",
+      "Don't hard-delete a completed item from view. It files into a DoneStack; the interaction vocabulary has no 'vanish' state for finished work.",
+      "Don't use the ambient time-of-day wash for anything but atmosphere — it must never be the only signal for a state or a piece of information (per the direction brief's own raise)."
+    ]
+  }
+}

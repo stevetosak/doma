@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { AppShell } from '#/core/ui/AppShell'
 import {
   createInviteAction,
   getSettingsData,
@@ -30,15 +31,18 @@ function SettingsPage() {
   const router = useRouter()
 
   return (
-    <div className="p-8 max-w-lg">
-      <h1 className="text-2xl font-bold">{data.household.name} — settings</h1>
+    <AppShell>
+      <h1 className="font-display text-4xl text-ink">
+        {data.household.name} — settings
+      </h1>
 
-      <section className="mt-6">
-        <h2 className="text-lg font-semibold">Members</h2>
-        <ul className="mt-2">
+      <section className="ruled mt-8 rounded-card border border-line bg-card p-6 shadow-card">
+        <h2 className="font-display text-2xl text-ink">Members</h2>
+        <ul className="mt-3 flex flex-col gap-1">
           {data.members.map((member) => (
-            <li key={member.userId}>
-              {member.name ?? member.email} — {member.role}
+            <li key={member.userId} className="font-mono text-sm text-ink">
+              {member.name ?? member.email}
+              <span className="text-ink-dim"> — {member.role}</span>
             </li>
           ))}
         </ul>
@@ -46,15 +50,15 @@ function SettingsPage() {
 
       <InviteGenerator />
 
-      <section className="mt-6">
-        <h2 className="text-lg font-semibold">Modules</h2>
+      <section className="ruled mt-8 rounded-card border border-line bg-card p-6 shadow-card">
+        <h2 className="font-display text-2xl text-ink">Modules</h2>
         {data.modules.length === 0 ? (
-          <p className="mt-2 text-sm">No optional modules yet.</p>
+          <p className="mt-2 text-sm text-ink-dim">No optional modules yet.</p>
         ) : (
-          <ul className="mt-2">
+          <ul className="mt-3 flex flex-col gap-1.5">
             {data.modules.map((mod) => (
               <li key={mod.id}>
-                <label>
+                <label className="flex items-center gap-2 text-sm text-ink">
                   <input
                     type="checkbox"
                     checked={mod.enabled}
@@ -64,7 +68,7 @@ function SettingsPage() {
                       })
                       await router.invalidate({ sync: true })
                     }}
-                  />{' '}
+                  />
                   {mod.name}
                 </label>
               </li>
@@ -72,7 +76,7 @@ function SettingsPage() {
           </ul>
         )}
       </section>
-    </div>
+    </AppShell>
   )
 }
 
@@ -97,15 +101,17 @@ function InviteGenerator() {
   }
 
   return (
-    <section className="mt-6">
-      <h2 className="text-lg font-semibold">Invite someone</h2>
-      <form onSubmit={handleSubmit} className="mt-2 flex items-end gap-3">
-        <label>
-          Role
+    <section className="ruled mt-8 rounded-card border border-line bg-card p-6 shadow-card">
+      <h2 className="font-display text-2xl text-ink">Invite someone</h2>
+      <form onSubmit={handleSubmit} className="mt-3 flex items-end gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Role
+          </span>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as 'owner' | 'member')}
-            className="block border p-1"
+            className="field"
           >
             <option value="member">Member</option>
             <option value="owner">Owner</option>
@@ -114,16 +120,16 @@ function InviteGenerator() {
         <button
           type="submit"
           disabled={submitting}
-          className="border px-3 py-1"
+          className="rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
         >
           Generate invite code
         </button>
       </form>
-      {error && <p className="mt-2 text-red-700">{error}</p>}
+      {error && <p className="mt-2 text-sm text-error">{error}</p>}
       {code && (
-        <p className="mt-2">
-          Invite code: <strong>{code}</strong> — share it with them; it works
-          once.
+        <p className="mt-3 font-mono text-sm text-ink">
+          Invite code: <strong className="text-rust">{code}</strong> — share
+          it with them; it works once.
         </p>
       )}
     </section>

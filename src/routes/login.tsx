@@ -57,52 +57,62 @@ function LoginPage() {
   }
 
   return (
-    <div className="p-8 max-w-sm">
-      <h1 className="text-2xl font-bold">Sign in</h1>
+    <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
+      <h1 className="font-display text-4xl text-ink">Sign in</h1>
       {oauthError && (
-        <p className="text-red-700 mt-2">
+        <p className="mt-3 text-sm text-error">
           {ERROR_MESSAGES[oauthError] ?? 'Something went wrong.'}
         </p>
       )}
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
-        <label>
-          Email
+      <form
+        onSubmit={handleSubmit}
+        className="ruled mt-6 flex flex-col gap-4 rounded-card border border-line bg-card p-6 shadow-card"
+      >
+        <label className="flex flex-col gap-1">
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Email
+          </span>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="block w-full border p-1"
+            className="field"
           />
         </label>
-        <label>
-          Password
+        <label className="flex flex-col gap-1">
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Password
+          </span>
           <input
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="block w-full border p-1"
+            className="field"
           />
         </label>
-        {error && <p className="text-red-700">{error}</p>}
+        {error && <p className="text-sm text-error">{error}</p>}
         <button
           type="submit"
           disabled={submitting}
-          className="border px-3 py-1"
+          className="rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
         >
           Sign in
         </button>
       </form>
       <a
         href={`/auth/google?returnTo=${encodeURIComponent(returnTo)}`}
-        className="mt-4 block border px-3 py-1 text-center"
+        className="mt-3 block rounded-tab border border-kraft/50 bg-card px-4 py-2 text-center text-sm text-ink shadow-card"
       >
         Sign in with Google
       </a>
-      <p className="mt-4 text-sm">
-        No account? <a href="/register">Register</a> (needs an invite code,
-        unless this is the very first account).
+      <p className="mt-6 font-mono text-xs text-ink-dim">
+        No account?{' '}
+        <a href="/register" className="text-rust underline decoration-dotted">
+          Register
+        </a>{' '}
+        (needs an invite code, unless this is the very first account).
       </p>
     </div>
   )

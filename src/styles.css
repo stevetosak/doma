@@ -1,4 +1,48 @@
 @import 'tailwindcss';
+@import '@fontsource/architects-daughter';
+@import '@fontsource-variable/public-sans';
+@import '@fontsource-variable/jetbrains-mono';
+
+/*
+ * The Recipe Box — doma's visual world (docs/design-direction.md, seed
+ * fb35f7a9). Cream cardstock cards on a kraft counter, rust/terracotta for
+ * what's active or due, graphite-blue for settled metadata.
+ */
+@theme {
+  --color-ground: #eadfc6;
+  --color-ground-deep: #ddcda8;
+  --color-card: #faf6ea;
+  --color-card-back: #f2ead6;
+  --color-kraft: #ab8352;
+  --color-kraft-dark: #7c5c34;
+  --color-kraft-ink: #4a3620;
+  --color-ink: #2a241c;
+  --color-ink-dim: #524a40;
+  --color-ink-faint: #686056;
+  --color-rust: #a1401a;
+  --color-rust-ink: #7c3113;
+  --color-rust-soft: #ecd8c3;
+  --color-rust-wash: #f4e5d2;
+  --color-blue: #3d5266;
+  --color-blue-soft: #dde5e8;
+  --color-line: #d9c8a3;
+  --color-line-soft: #e6dabb;
+  --color-error: #9a2c1d;
+
+  --font-display: 'Architects Daughter', 'Segoe Print', cursive;
+  --font-sans: 'Public Sans Variable', 'Public Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace,
+    monospace;
+
+  --radius-card: 0.85rem;
+  --radius-tab: 0.5rem;
+
+  --shadow-card: 0 1px 2px rgba(74, 54, 32, 0.12), 0 8px 20px -6px
+    rgba(74, 54, 32, 0.28);
+  --shadow-card-lifted: 0 4px 6px rgba(74, 54, 32, 0.14), 0 20px 34px -10px
+    rgba(74, 54, 32, 0.38);
+  --shadow-spine: 2px 0 10px rgba(74, 54, 32, 0.18);
+}
 
 * {
   box-sizing: border-box;
@@ -12,4 +56,133 @@ body,
 
 body {
   margin: 0;
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  accent-color: var(--color-rust);
+  scrollbar-color: var(--color-kraft) var(--color-ground-deep);
+}
+
+/* Form fields, shared across every household surface — cardstock input,
+   never a browser-default box. */
+.field {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-tab);
+  padding: 0.4rem 0.65rem;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+}
+
+.field:focus {
+  border-color: var(--color-rust);
+}
+
+/* Ruled baseline lines (OWN-WORLD) — the index-card material itself, on
+   every card face. background-image only, so it layers over whichever
+   bg-card/bg-card-back utility colors the element. */
+.ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    var(--color-line-soft) 27px,
+    var(--color-line-soft) 28px
+  );
+}
+
+::selection {
+  background: var(--color-rust);
+  color: var(--color-card);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-rust);
+  outline-offset: 2px;
+}
+
+/* The card flip (§3 signature interaction) — a real 3D rotation, never a
+   fade. Respect reduced-motion by snapping instead of spinning. */
+.flip-scene {
+  perspective: 1600px;
+}
+
+.flip-card {
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.flip-card[data-flipped='true'] {
+  transform: rotateY(180deg);
+}
+
+.flip-face {
+  backface-visibility: hidden;
+}
+
+.flip-face-back {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-card {
+    transition: none;
+  }
+}
+
+/* The fanned rest of today's cards behind the hero (§3 first viewport) —
+   cards genuinely overlap and recede (negative margin + descending scale
+   + z-index), not a same-plane row with a tilt; mobile stays a plain
+   stacked deck. */
+@media (min-width: 768px) {
+  .card-fan {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .card-fan > * {
+    flex: 0 0 15rem;
+    width: 15rem;
+    transition: transform 0.2s ease;
+    transform-origin: top left;
+  }
+
+  .card-fan > * + * {
+    margin-left: -4.5rem;
+  }
+
+  .card-fan > *:nth-child(1) {
+    z-index: 4;
+    transform: rotate(-2deg);
+  }
+
+  .card-fan > *:nth-child(2) {
+    z-index: 3;
+    transform: rotate(1.5deg) translateY(14px) scale(0.96);
+  }
+
+  .card-fan > *:nth-child(3) {
+    z-index: 2;
+    transform: rotate(-1deg) translateY(26px) scale(0.93);
+  }
+
+  .card-fan > *:nth-child(n + 4) {
+    z-index: 1;
+    transform: rotate(0.5deg) translateY(36px) scale(0.9);
+  }
+
+  .card-fan > *:hover {
+    z-index: 10;
+    transform: translateY(-6px) scale(1.02);
+  }
+}
+
+/* The live-update settle (§3 focal moment) — driven by the View
+   Transitions API in useLiveSync; disciplined, never abrupt. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.6s;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
 }

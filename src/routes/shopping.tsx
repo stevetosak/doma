@@ -1,6 +1,10 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { AppShell } from '#/core/ui/AppShell'
+import { DoneStack } from '#/core/ui/DoneStack'
+import { FlipCard } from '#/core/ui/FlipCard'
+import { MutationStatus } from '#/core/ui/MutationStatus'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
@@ -37,6 +41,14 @@ function capitalize(s: string): string {
   return s.length > 0 ? s[0]!.toUpperCase() + s.slice(1) : s
 }
 
+function itemLine(item: ItemView): string {
+  const qty =
+    item.quantity != null
+      ? ` — ${item.quantity}${item.unit ? ` ${item.unit}` : ''}`
+      : ''
+  return `${item.name}${qty}`
+}
+
 function ShoppingPage() {
   const data = Route.useLoaderData()
   const router = useRouter()
@@ -48,6 +60,7 @@ function ShoppingPage() {
 
   const grouped = new Map<string | null, ItemView[]>()
   for (const item of data.items) {
+    if (item.isChecked) continue
     const key = item.categoryId
     const list = grouped.get(key) ?? []
     list.push(item)
@@ -65,11 +78,41 @@ function ShoppingPage() {
         : []),
     ].filter((g) => g.items.length > 0)
 
-  return (
-    <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold">Shopping</h1>
+  const checkedItems = data.items.filter((i) => i.isChecked)
 
-      <ItemGroups groups={orderedGroups} onChange={refresh} />
+  return (
+    <AppShell>
+      <h1 className="font-display text-4xl text-ink">Shopping</h1>
+
+      {orderedGroups.length === 0 ? (
+        <p className="mt-8 text-ink-dim">
+          The list is empty — add something below.
+        </p>
+      ) : (
+        <div className="mt-8 flex flex-col gap-10">
+          {orderedGroups.map((group) => (
+            <section key={group.category?.id ?? 'uncategorized'}>
+              <h2 className="font-mono text-xs font-semibold tracking-wide text-kraft-ink uppercase">
+                {group.category?.name ?? 'Uncategorized'}
+              </h2>
+              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {group.items.map((item) => (
+                  <ItemCard key={item.id} item={item} onChange={refresh} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      <DoneStack
+        label="already bought"
+        items={checkedItems.map((item) => ({
+          id: item.id,
+          content: itemLine(item),
+        }))}
+      />
+
       <RecentlyBought
         listId={data.listId}
         suggestions={data.recentlyBought}
@@ -77,42 +120,11 @@ function ShoppingPage() {
       />
       <NewItemForm listId={data.listId} onCreated={refresh} />
       <CategoryOrder categories={data.categories} onChange={refresh} />
-    </div>
+    </AppShell>
   )
 }
 
-function ItemGroups({
-  groups,
-  onChange,
-}: {
-  groups: { category: CategoryView | null; items: ItemView[] }[]
-  onChange: () => Promise<void>
-}) {
-  if (groups.length === 0) {
-    return (
-      <p className="mt-6 text-sm">The list is empty — add something below.</p>
-    )
-  }
-
-  return (
-    <div className="mt-6 flex flex-col gap-6">
-      {groups.map((group) => (
-        <section key={group.category?.id ?? 'uncategorized'}>
-          <h2 className="text-lg font-semibold">
-            {group.category?.name ?? 'Uncategorized'}
-          </h2>
-          <ul className="mt-2 flex flex-col gap-1">
-            {group.items.map((item) => (
-              <ItemRow key={item.id} item={item} onChange={onChange} />
-            ))}
-          </ul>
-        </section>
-      ))}
-    </div>
-  )
-}
-
-function ItemRow({
+function ItemCard({
   item,
   onChange,
 }: {
@@ -133,30 +145,45 @@ function ItemRow({
     await onChange()
   }
 
+  const busy = status === 'pending' || status === 'retrying'
+
   return (
-    <li className="flex items-center gap-3 text-sm">
-      <input
-        type="checkbox"
-        checked={item.isChecked}
-        disabled={status === 'pending' || status === 'retrying'}
-        onChange={(e) => toggleChecked(e.target.checked)}
-      />
-      <span className={item.isChecked ? 'line-through' : ''}>
-        {item.name}
-        {item.quantity != null &&
-          ` — ${item.quantity}${item.unit ? ` ${item.unit}` : ''}`}
-        {item.note && ` (${item.note})`}
-      </span>
-      {status === 'retrying' && (
-        <span className="text-amber-700">not saved — retrying…</span>
-      )}
-      {status === 'error' && error && (
-        <span className="text-red-700">{error}</span>
-      )}
-      <button className="border px-2 py-0.5 ml-auto" onClick={handleRemove}>
-        Remove
-      </button>
-    </li>
+    <FlipCard
+      accent="neutral"
+      flipLabel="details"
+      front={
+        <>
+          <p className="text-lg text-ink">{item.name}</p>
+          {(item.quantity != null || item.unit) && (
+            <p className="mt-1 font-mono text-xs text-ink-dim">
+              {item.quantity ?? ''} {item.unit ?? ''}
+            </p>
+          )}
+        </>
+      }
+      back={
+        <div className="flex flex-col gap-3">
+          {item.note && <p className="text-sm text-ink-dim">{item.note}</p>}
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={item.isChecked}
+              disabled={busy}
+              onChange={(e) => toggleChecked(e.target.checked)}
+            />
+            Got it
+          </label>
+          <button
+            type="button"
+            onClick={handleRemove}
+            className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+          >
+            remove
+          </button>
+          <MutationStatus status={status} error={error} />
+        </div>
+      }
+    />
   )
 }
 
@@ -172,13 +199,13 @@ function RecentlyBought({
   if (suggestions.length === 0) return null
 
   return (
-    <section className="mt-8 border-t pt-6">
-      <h2 className="text-lg font-semibold">Recently bought</h2>
-      <div className="mt-2 flex flex-wrap gap-2">
+    <section className="mt-10">
+      <h2 className="font-display text-2xl text-ink">Recently bought</h2>
+      <div className="mt-3 flex flex-wrap gap-2">
         {suggestions.map((s) => (
           <button
             key={s.nameNormalized}
-            className="border px-2 py-1 text-sm"
+            className="rounded-tab border border-kraft/50 bg-card px-3 py-1 font-mono text-xs text-ink"
             onClick={async () => {
               await reAddItemAction({
                 data: { listId, name: s.nameNormalized },
@@ -237,52 +264,62 @@ function NewItemForm({
   }
 
   return (
-    <section className="mt-8 border-t pt-6">
-      <h2 className="text-lg font-semibold">Add item</h2>
+    <section className="ruled mt-10 rounded-card border border-line bg-card p-6 shadow-card">
+      <h2 className="font-display text-2xl text-ink">Add item</h2>
       <form
         onSubmit={handleSubmit}
-        className="mt-3 flex flex-wrap gap-2 items-end"
+        className="mt-4 flex flex-wrap items-end gap-3"
       >
         <label className="flex flex-col gap-1">
-          Name
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Name
+          </span>
           <input
-            className="border p-1"
+            className="field"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
           />
         </label>
         <label className="flex flex-col gap-1">
-          Qty
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Qty
+          </span>
           <input
             type="number"
             step="any"
             min={0}
-            className="border p-1 w-20"
+            className="field w-20"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
           />
         </label>
         <label className="flex flex-col gap-1">
-          Unit
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Unit
+          </span>
           <input
-            className="border p-1 w-20"
+            className="field w-20"
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
           />
         </label>
         <label className="flex flex-col gap-1">
-          Note
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Note
+          </span>
           <input
-            className="border p-1"
+            className="field"
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
         </label>
         <label className="flex flex-col gap-1">
-          Category (aisle)
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Aisle
+          </span>
           <input
-            className="border p-1"
+            className="field"
             value={categoryName}
             onChange={(e) => setCategoryName(e.target.value)}
           />
@@ -290,12 +327,12 @@ function NewItemForm({
         <button
           type="submit"
           disabled={submitting}
-          className="border px-3 py-1"
+          className="rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
         >
           Add
         </button>
       </form>
-      {error && <p className="mt-2 text-red-700">{error}</p>}
+      {error && <p className="mt-2 text-sm text-error">{error}</p>}
     </section>
   )
 }
@@ -310,14 +347,17 @@ function CategoryOrder({
   if (categories.length === 0) return null
 
   return (
-    <section className="mt-8 border-t pt-6">
-      <h2 className="text-lg font-semibold">Aisle order</h2>
-      <ul className="mt-2 flex flex-col gap-1">
+    <section className="mt-10">
+      <h2 className="font-display text-2xl text-ink">Aisle order</h2>
+      <ul className="mt-3 flex flex-col gap-1.5">
         {categories.map((category, index) => (
-          <li key={category.id} className="flex items-center gap-2 text-sm">
+          <li
+            key={category.id}
+            className="flex items-center gap-2 font-mono text-sm text-ink"
+          >
             <span className="w-40">{category.name}</span>
             <button
-              className="border px-2 py-0.5"
+              className="rounded-tab border border-kraft/50 px-2 py-0.5 text-xs disabled:opacity-30"
               disabled={index === 0}
               onClick={async () => {
                 await reorderCategoryAction({
@@ -329,7 +369,7 @@ function CategoryOrder({
               Up
             </button>
             <button
-              className="border px-2 py-0.5"
+              className="rounded-tab border border-kraft/50 px-2 py-0.5 text-xs disabled:opacity-30"
               disabled={index === categories.length - 1}
               onClick={async () => {
                 await reorderCategoryAction({
