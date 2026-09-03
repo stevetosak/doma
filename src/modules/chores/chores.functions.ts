@@ -6,9 +6,12 @@ import { listMembers } from '#/core/household/members-repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 import { materializeChoreOccurrences } from '#/modules/chores/materialize'
 import {
+  archiveChore,
   createChore,
+  deletePendingOccurrencesFrom,
   listChoresWithOccurrences,
   setOccurrenceStatus,
+  updateChore,
 } from '#/modules/chores/repo'
 import { addDays, todayInZone } from '#/modules/chores/time'
 import type { ChoreView } from '#/modules/chores/repo'
@@ -102,8 +105,12 @@ const createChoreInput = z
 export const createChoreAction = createServerFn({ method: 'POST' })
   .validator((input: unknown) => createChoreInput.parse(input))
   .handler(async ({ data }) => {
-    const { household } = await requireMember()
-    const choreId = await createChore({ householdId: household.id, ...data })
+    const { userId, household } = await requireMember()
+    const choreId = await createChore({
+      householdId: household.id,
+      createdBy: userId,
+      ...data,
+    })
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
     publish(household.id, {
       module: 'chores',
@@ -111,6 +118,45 @@ export const createChoreAction = createServerFn({ method: 'POST' })
       action: 'created',
     })
     return { id: choreId }
+  })
+
+const updateChoreInput = createChoreInput.and(
+  z.object({ choreId: z.string().uuid() }),
+)
+
+export const updateChoreAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => updateChoreInput.parse(input))
+  .handler(async ({ data }) => {
+    const { household } = await requireMember()
+    const { choreId, ...fields } = data
+    await updateChore(choreId, household.id, fields)
+    await deletePendingOccurrencesFrom(
+      choreId,
+      household.id,
+      todayInZone(household.timezone),
+    )
+    await materializeChoreOccurrences(choreId, household.id, household.timezone)
+    publish(household.id, {
+      module: 'chores',
+      entity: 'chore',
+      action: 'updated',
+    })
+    return { ok: true as const }
+  })
+
+const archiveChoreInput = z.object({ choreId: z.string().uuid() })
+
+export const archiveChoreAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => archiveChoreInput.parse(input))
+  .handler(async ({ data }) => {
+    const { household } = await requireMember()
+    await archiveChore(data.choreId, household.id)
+    publish(household.id, {
+      module: 'chores',
+      entity: 'chore',
+      action: 'deleted',
+    })
+    return { ok: true as const }
   })
 
 const setOccurrenceStatusInput = z.object({

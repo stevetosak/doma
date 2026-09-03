@@ -1,4 +1,4 @@
-import { eq, lte, or } from 'drizzle-orm'
+import { and, eq, gte, lte, or } from 'drizzle-orm'
 import { db } from '#/core/db/client'
 import { householdScope } from '#/core/db/household-scope'
 import { choreOccurrences, chores } from './schema'
@@ -17,6 +17,7 @@ export interface CreateChoreInput {
   assignmentMode: AssignmentMode
   assigneeUserId?: string
   rotation?: string[]
+  createdBy: string
 }
 
 export async function createChore(input: CreateChoreInput): Promise<string> {
@@ -35,10 +36,74 @@ export async function createChore(input: CreateChoreInput): Promise<string> {
       assignmentMode: input.assignmentMode,
       assigneeUserId: input.assigneeUserId ?? null,
       rotation: input.rotation ?? null,
+      createdBy: input.createdBy,
     })
     .returning({ id: chores.id })
   if (!row) throw new Error('Insert did not return a row')
   return row.id
+}
+
+export type UpdateChoreInput = Omit<
+  CreateChoreInput,
+  'householdId' | 'createdBy'
+>
+
+export async function updateChore(
+  choreId: string,
+  householdId: string,
+  input: UpdateChoreInput,
+): Promise<void> {
+  await db
+    .update(chores)
+    .set({
+      title: input.title,
+      notes: input.notes ?? null,
+      recurrenceKind: input.recurrenceKind,
+      interval: input.interval,
+      weekdays: input.weekdays ?? null,
+      dayOfMonth: input.dayOfMonth ?? null,
+      startsOn: input.startsOn,
+      endsOn: input.endsOn ?? null,
+      assignmentMode: input.assignmentMode,
+      assigneeUserId: input.assigneeUserId ?? null,
+      rotation: input.rotation ?? null,
+    })
+    .where(householdScope(chores, householdId, eq(chores.id, choreId)))
+}
+
+export async function archiveChore(
+  choreId: string,
+  householdId: string,
+): Promise<void> {
+  await db
+    .update(chores)
+    .set({ isArchived: true })
+    .where(householdScope(chores, householdId, eq(chores.id, choreId)))
+}
+
+/**
+ * Clears not-yet-due-or-decided occurrences from `fromDate` on so an edit
+ * (recurrence/assignment change) can re-materialize a consistent future —
+ * `done`/`skipped` history is never touched, only `pending` rows.
+ */
+export async function deletePendingOccurrencesFrom(
+  choreId: string,
+  householdId: string,
+  fromDate: string,
+): Promise<void> {
+  await db
+    .delete(choreOccurrences)
+    .where(
+      householdScope(
+        choreOccurrences,
+        householdId,
+        and(
+          eq(choreOccurrences.choreId, choreId),
+          eq(choreOccurrences.status, 'pending'),
+          gte(choreOccurrences.dueOn, fromDate),
+        ),
+      ),
+    )
 }
 
 export interface ChoreRow {
@@ -55,6 +120,7 @@ export interface ChoreRow {
   assignmentMode: AssignmentMode
   assigneeUserId: string | null
   rotation: string[] | null
+  createdBy: string | null
 }
 
 export async function getChore(
@@ -80,7 +146,15 @@ export interface ChoreView {
   title: string
   notes: string | null
   recurrenceKind: RecurrenceKind
+  interval: number
+  weekdays: number[] | null
+  dayOfMonth: number | null
+  startsOn: string
+  endsOn: string | null
   assignmentMode: AssignmentMode
+  assigneeUserId: string | null
+  rotation: string[] | null
+  createdBy: string | null
   occurrences: ChoreOccurrenceView[]
 }
 
@@ -132,7 +206,15 @@ export async function listChoresWithOccurrences(
     title: chore.title,
     notes: chore.notes,
     recurrenceKind: chore.recurrenceKind,
+    interval: chore.interval,
+    weekdays: chore.weekdays,
+    dayOfMonth: chore.dayOfMonth,
+    startsOn: chore.startsOn,
+    endsOn: chore.endsOn,
     assignmentMode: chore.assignmentMode,
+    assigneeUserId: chore.assigneeUserId,
+    rotation: chore.rotation,
+    createdBy: chore.createdBy,
     occurrences: occurrencesByChore.get(chore.id) ?? [],
   }))
 }

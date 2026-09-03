@@ -14,6 +14,7 @@ import {
   removeItemAction,
   reorderCategoryAction,
   setItemCheckedAction,
+  updateItemAction,
 } from '#/modules/shopping/shopping.functions'
 import type {
   CategoryView,
@@ -79,6 +80,9 @@ function ShoppingPage() {
     ].filter((g) => g.items.length > 0)
 
   const checkedItems = data.items.filter((i) => i.isChecked)
+  const memberName = new Map(
+    data.members.map((m) => [m.userId, m.name ?? m.email]),
+  )
 
   return (
     <AppShell>
@@ -97,7 +101,13 @@ function ShoppingPage() {
               </h2>
               <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {group.items.map((item) => (
-                  <ItemCard key={item.id} item={item} onChange={refresh} />
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    categories={data.categories}
+                    memberName={memberName}
+                    onChange={refresh}
+                  />
                 ))}
               </div>
             </section>
@@ -126,12 +136,17 @@ function ShoppingPage() {
 
 function ItemCard({
   item,
+  categories,
+  memberName,
   onChange,
 }: {
   item: ItemView
+  categories: CategoryView[]
+  memberName: Map<string, string>
   onChange: () => Promise<void>
 }) {
   const { status, error, run } = useHouseholdMutation()
+  const [editing, setEditing] = useState(false)
 
   async function toggleChecked(checked: boolean) {
     await run(() =>
@@ -146,6 +161,22 @@ function ItemCard({
   }
 
   const busy = status === 'pending' || status === 'retrying'
+
+  if (editing) {
+    return (
+      <ItemEditForm
+        item={item}
+        currentCategoryName={
+          categories.find((c) => c.id === item.categoryId)?.name
+        }
+        onSaved={async () => {
+          setEditing(false)
+          await onChange()
+        }}
+        onCancel={() => setEditing(false)}
+      />
+    )
+  }
 
   return (
     <FlipCard
@@ -164,6 +195,11 @@ function ItemCard({
       back={
         <div className="flex flex-col gap-3">
           {item.note && <p className="text-sm text-ink-dim">{item.note}</p>}
+          {item.addedBy && memberName.get(item.addedBy) && (
+            <p className="font-mono text-[11px] tracking-wide text-ink-faint">
+              added by {memberName.get(item.addedBy)}
+            </p>
+          )}
           <label className="flex items-center gap-2 text-sm text-ink">
             <input
               type="checkbox"
@@ -173,17 +209,150 @@ function ItemCard({
             />
             Got it
           </label>
-          <button
-            type="button"
-            onClick={handleRemove}
-            className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
-          >
-            remove
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+            >
+              edit
+            </button>
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+            >
+              remove
+            </button>
+          </div>
           <MutationStatus status={status} error={error} />
         </div>
       }
     />
+  )
+}
+
+function ItemEditForm({
+  item,
+  currentCategoryName,
+  onSaved,
+  onCancel,
+}: {
+  item: ItemView
+  currentCategoryName: string | undefined
+  onSaved: () => Promise<void>
+  onCancel: () => void
+}) {
+  const [name, setName] = useState(item.name)
+  const [quantity, setQuantity] = useState(item.quantity?.toString() ?? '')
+  const [unit, setUnit] = useState(item.unit ?? '')
+  const [note, setNote] = useState(item.note ?? '')
+  const [categoryName, setCategoryName] = useState(currentCategoryName ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      await updateItemAction({
+        data: {
+          itemId: item.id,
+          name,
+          quantity: quantity ? Number(quantity) : undefined,
+          unit: unit || undefined,
+          note: note || undefined,
+          categoryName: categoryName || undefined,
+        },
+      })
+      await onSaved()
+    } catch {
+      setError('Could not save changes — check the fields above.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="ruled flex flex-col gap-3 rounded-card border border-line bg-card p-5 shadow-card"
+    >
+      <label className="flex flex-col gap-1">
+        <span className="font-mono text-xs tracking-wide text-ink-dim">
+          Name
+        </span>
+        <input
+          className="field"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </label>
+      <div className="flex gap-3">
+        <label className="flex flex-1 flex-col gap-1">
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Qty
+          </span>
+          <input
+            type="number"
+            step="any"
+            min={0}
+            className="field"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+          />
+        </label>
+        <label className="flex flex-1 flex-col gap-1">
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Unit
+          </span>
+          <input
+            className="field"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+          />
+        </label>
+      </div>
+      <label className="flex flex-col gap-1">
+        <span className="font-mono text-xs tracking-wide text-ink-dim">
+          Note
+        </span>
+        <input
+          className="field"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="font-mono text-xs tracking-wide text-ink-dim">
+          Category
+        </span>
+        <input
+          className="field"
+          value={categoryName}
+          onChange={(e) => setCategoryName(e.target.value)}
+        />
+      </label>
+      {error && <p className="text-sm text-error">{error}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="self-start rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
+        >
+          Save changes
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+        >
+          cancel
+        </button>
+      </div>
+    </form>
   )
 }
 

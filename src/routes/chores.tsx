@@ -8,9 +8,11 @@ import { MutationStatus } from '#/core/ui/MutationStatus'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
+  archiveChoreAction,
   createChoreAction,
   getChoresData,
   setOccurrenceStatusAction,
+  updateChoreAction,
 } from '#/modules/chores/chores.functions'
 import type { ChoreOccurrenceView, ChoreView } from '#/modules/chores/repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
@@ -68,6 +70,7 @@ function ChoresPage() {
             <ChoreSection
               key={chore.id}
               chore={chore}
+              members={data.members}
               memberName={memberName}
               onChange={refresh}
             />
@@ -75,29 +78,82 @@ function ChoresPage() {
         </div>
       )}
 
-      <NewChoreForm members={data.members} onCreated={refresh} />
+      <section className="ruled mt-10 rounded-card border border-line bg-card p-6 shadow-card">
+        <h2 className="font-display text-2xl text-ink">New chore</h2>
+        <ChoreForm members={data.members} onSaved={refresh} />
+      </section>
     </AppShell>
   )
 }
 
 function ChoreSection({
   chore,
+  members,
   memberName,
   onChange,
 }: {
   chore: ChoreView
+  members: HouseholdMember[]
   memberName: Map<string, string>
   onChange: () => Promise<void>
 }) {
+  const [editing, setEditing] = useState(false)
   const pending = chore.occurrences.filter((o) => o.status === 'pending')
   const filed = chore.occurrences.filter((o) => o.status !== 'pending')
 
+  async function handleDelete() {
+    await archiveChoreAction({ data: { choreId: chore.id } })
+    await onChange()
+  }
+
+  if (editing) {
+    return (
+      <section className="ruled rounded-card border border-line bg-card p-6 shadow-card">
+        <h2 className="font-display text-2xl text-ink">Edit chore</h2>
+        <ChoreForm
+          members={members}
+          initial={chore}
+          onSaved={async () => {
+            setEditing(false)
+            await onChange()
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      </section>
+    )
+  }
+
   return (
     <section>
-      <h2 className="font-display text-2xl text-ink">{chore.title}</h2>
-      {chore.notes && (
-        <p className="mt-1 text-sm text-ink-dim">{chore.notes}</p>
-      )}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-display text-2xl text-ink">{chore.title}</h2>
+          {chore.notes && (
+            <p className="mt-1 text-sm text-ink-dim">{chore.notes}</p>
+          )}
+          {chore.createdBy && memberName.get(chore.createdBy) && (
+            <p className="mt-1 font-mono text-[11px] tracking-wide text-ink-faint">
+              added by {memberName.get(chore.createdBy)}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-3 font-mono text-[11px] tracking-wide text-ink-faint">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="underline decoration-dotted underline-offset-4"
+          >
+            edit
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="underline decoration-dotted underline-offset-4"
+          >
+            delete
+          </button>
+        </div>
+      </div>
 
       {pending.length === 0 ? (
         <p className="mt-3 text-sm text-ink-faint">No upcoming occurrences.</p>
@@ -210,29 +266,35 @@ function OccurrenceCard({
   )
 }
 
-function NewChoreForm({
+function ChoreForm({
   members,
-  onCreated,
+  initial,
+  onSaved,
+  onCancel,
 }: {
   members: HouseholdMember[]
-  onCreated: () => Promise<void>
+  initial?: ChoreView
+  onSaved: () => Promise<void>
+  onCancel?: () => void
 }) {
-  const [title, setTitle] = useState('')
+  const [title, setTitle] = useState(initial?.title ?? '')
   const [recurrenceKind, setRecurrenceKind] = useState<
     'once' | 'daily' | 'weekly' | 'monthly'
-  >('weekly')
-  const [interval, setInterval_] = useState(1)
-  const [weekdays, setWeekdays] = useState<number[]>([1])
-  const [dayOfMonth, setDayOfMonth] = useState(1)
-  const [startsOn, setStartsOn] = useState(() =>
-    new Date().toISOString().slice(0, 10),
+  >(initial?.recurrenceKind ?? 'weekly')
+  const [interval, setInterval_] = useState(initial?.interval ?? 1)
+  const [weekdays, setWeekdays] = useState<number[]>(initial?.weekdays ?? [1])
+  const [dayOfMonth, setDayOfMonth] = useState(initial?.dayOfMonth ?? 1)
+  const [startsOn, setStartsOn] = useState(
+    () => initial?.startsOn ?? new Date().toISOString().slice(0, 10),
   )
   const [assignmentMode, setAssignmentMode] = useState<'fixed' | 'rotating'>(
-    'fixed',
+    initial?.assignmentMode ?? 'fixed',
   )
-  const [assigneeUserId, setAssigneeUserId] = useState(members[0]?.userId ?? '')
+  const [assigneeUserId, setAssigneeUserId] = useState(
+    initial?.assigneeUserId ?? members[0]?.userId ?? '',
+  )
   const [rotation, setRotation] = useState<string[]>(
-    members[0] ? [members[0].userId] : [],
+    initial?.rotation ?? (members[0] ? [members[0].userId] : []),
   )
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -258,32 +320,37 @@ function NewChoreForm({
     setError(null)
     setSubmitting(true)
     try {
-      await createChoreAction({
-        data: {
-          title,
-          recurrenceKind,
-          interval,
-          weekdays: recurrenceKind === 'weekly' ? weekdays : undefined,
-          dayOfMonth: recurrenceKind === 'monthly' ? dayOfMonth : undefined,
-          startsOn,
-          assignmentMode,
-          assigneeUserId:
-            assignmentMode === 'fixed' ? assigneeUserId : undefined,
-          rotation: assignmentMode === 'rotating' ? rotation : undefined,
-        },
-      })
-      setTitle('')
-      await onCreated()
+      const fields = {
+        title,
+        recurrenceKind,
+        interval,
+        weekdays: recurrenceKind === 'weekly' ? weekdays : undefined,
+        dayOfMonth: recurrenceKind === 'monthly' ? dayOfMonth : undefined,
+        startsOn,
+        assignmentMode,
+        assigneeUserId: assignmentMode === 'fixed' ? assigneeUserId : undefined,
+        rotation: assignmentMode === 'rotating' ? rotation : undefined,
+      }
+      if (initial) {
+        await updateChoreAction({ data: { choreId: initial.id, ...fields } })
+      } else {
+        await createChoreAction({ data: fields })
+        setTitle('')
+      }
+      await onSaved()
     } catch {
-      setError('Could not create the chore — check the fields above.')
+      setError(
+        initial
+          ? 'Could not save changes — check the fields above.'
+          : 'Could not create the chore — check the fields above.',
+      )
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <section className="ruled mt-10 rounded-card border border-line bg-card p-6 shadow-card">
-      <h2 className="font-display text-2xl text-ink">New chore</h2>
+    <>
       <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
         <Field label="Title">
           <input
@@ -419,16 +486,27 @@ function NewChoreForm({
           </fieldset>
         )}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="self-start rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
-        >
-          Add chore
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="self-start rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
+          >
+            {initial ? 'Save changes' : 'Add chore'}
+          </button>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+            >
+              cancel
+            </button>
+          )}
+        </div>
       </form>
       {error && <p className="mt-2 text-sm text-error">{error}</p>}
-    </section>
+    </>
   )
 }
 

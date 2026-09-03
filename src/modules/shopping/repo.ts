@@ -118,6 +118,7 @@ export interface ItemView {
   note: string | null
   categoryId: string | null
   isChecked: boolean
+  addedBy: string | null
 }
 
 export async function listItems(
@@ -133,6 +134,7 @@ export async function listItems(
       note: shoppingItems.note,
       categoryId: shoppingItems.categoryId,
       isChecked: shoppingItems.isChecked,
+      addedBy: shoppingItems.addedBy,
     })
     .from(shoppingItems)
     .where(
@@ -176,6 +178,39 @@ export async function addItem(input: AddItemInput): Promise<string> {
     .returning({ id: shoppingItems.id })
   if (!row) throw new Error('Insert did not return a row')
   return row.id
+}
+
+export interface UpdateItemInput {
+  householdId: string
+  itemId: string
+  name: string
+  quantity?: number
+  unit?: string
+  note?: string
+  categoryName?: string
+}
+
+export async function updateItem(input: UpdateItemInput): Promise<void> {
+  const categoryId = input.categoryName
+    ? await getOrCreateCategory(input.householdId, input.categoryName)
+    : null
+
+  await db
+    .update(shoppingItems)
+    .set({
+      name: input.name.trim(),
+      quantity: input.quantity ?? null,
+      unit: input.unit ?? null,
+      note: input.note ?? null,
+      categoryId,
+    })
+    .where(
+      householdScope(
+        shoppingItems,
+        input.householdId,
+        eq(shoppingItems.id, input.itemId),
+      ),
+    )
 }
 
 export async function setItemChecked(

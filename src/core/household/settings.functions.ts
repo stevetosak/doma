@@ -2,7 +2,12 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { resolveAuthContext } from '#/core/auth/context'
 import { createInvite } from '#/core/auth/invites-repo'
-import { listMembers } from '#/core/household/members-repo'
+import { wouldLeaveHouseholdOwnerless } from '#/core/household/member-rules'
+import {
+  listMembers,
+  removeMember,
+  setMemberRole,
+} from '#/core/household/members-repo'
 import {
   listModuleToggles,
   setModuleEnabled,
@@ -77,6 +82,48 @@ export const createInviteAction = createServerFn({ method: 'POST' })
       role: data.role,
       createdBy: userId,
     })
+  })
+
+/**
+ * Shared guard for both member-management actions below: a household must
+ * always keep at least one owner, so removing or demoting the last one is
+ * refused rather than silently leaving the household ownerless.
+ */
+async function assertNotLastOwner(
+  householdId: string,
+  targetUserId: string,
+): Promise<void> {
+  const members = await listMembers(householdId)
+  if (wouldLeaveHouseholdOwnerless(members, targetUserId)) {
+    throw new SettingsAccessError('The household needs at least one owner.')
+  }
+}
+
+const removeMemberInput = z.object({ userId: z.string().uuid() })
+
+export const removeMemberAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => removeMemberInput.parse(input))
+  .handler(async ({ data }) => {
+    const { household } = await requireOwner()
+    await assertNotLastOwner(household.id, data.userId)
+    await removeMember(household.id, data.userId)
+    return { ok: true as const }
+  })
+
+const changeMemberRoleInput = z.object({
+  userId: z.string().uuid(),
+  role: z.enum(['owner', 'member']),
+})
+
+export const changeMemberRoleAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => changeMemberRoleInput.parse(input))
+  .handler(async ({ data }) => {
+    const { household } = await requireOwner()
+    if (data.role === 'member') {
+      await assertNotLastOwner(household.id, data.userId)
+    }
+    await setMemberRole(household.id, data.userId, data.role)
+    return { ok: true as const }
   })
 
 const setModuleEnabledInput = z.object({

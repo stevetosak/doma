@@ -56,6 +56,9 @@ export const chores = pgTable('chores', {
     onDelete: 'set null',
   }),
   rotation: uuid('rotation').array(),
+  createdBy: uuid('created_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
   isArchived: boolean('is_archived').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
