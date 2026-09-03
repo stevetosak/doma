@@ -1,6 +1,8 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useLiveSync } from '#/core/events/useLiveSync'
+import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
   addItemAction,
   getShoppingData,
@@ -38,6 +40,7 @@ function capitalize(s: string): string {
 function ShoppingPage() {
   const data = Route.useLoaderData()
   const router = useRouter()
+  useLiveSync()
 
   async function refresh() {
     await router.invalidate({ sync: true })
@@ -100,38 +103,60 @@ function ItemGroups({
           </h2>
           <ul className="mt-2 flex flex-col gap-1">
             {group.items.map((item) => (
-              <li key={item.id} className="flex items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={item.isChecked}
-                  onChange={async (e) => {
-                    await setItemCheckedAction({
-                      data: { itemId: item.id, checked: e.target.checked },
-                    })
-                    await onChange()
-                  }}
-                />
-                <span className={item.isChecked ? 'line-through' : ''}>
-                  {item.name}
-                  {item.quantity != null &&
-                    ` — ${item.quantity}${item.unit ? ` ${item.unit}` : ''}`}
-                  {item.note && ` (${item.note})`}
-                </span>
-                <button
-                  className="border px-2 py-0.5 ml-auto"
-                  onClick={async () => {
-                    await removeItemAction({ data: { itemId: item.id } })
-                    await onChange()
-                  }}
-                >
-                  Remove
-                </button>
-              </li>
+              <ItemRow key={item.id} item={item} onChange={onChange} />
             ))}
           </ul>
         </section>
       ))}
     </div>
+  )
+}
+
+function ItemRow({
+  item,
+  onChange,
+}: {
+  item: ItemView
+  onChange: () => Promise<void>
+}) {
+  const { status, error, run } = useHouseholdMutation()
+
+  async function toggleChecked(checked: boolean) {
+    await run(() =>
+      setItemCheckedAction({ data: { itemId: item.id, checked } }),
+    )
+    await onChange()
+  }
+
+  async function handleRemove() {
+    await removeItemAction({ data: { itemId: item.id } })
+    await onChange()
+  }
+
+  return (
+    <li className="flex items-center gap-3 text-sm">
+      <input
+        type="checkbox"
+        checked={item.isChecked}
+        disabled={status === 'pending' || status === 'retrying'}
+        onChange={(e) => toggleChecked(e.target.checked)}
+      />
+      <span className={item.isChecked ? 'line-through' : ''}>
+        {item.name}
+        {item.quantity != null &&
+          ` — ${item.quantity}${item.unit ? ` ${item.unit}` : ''}`}
+        {item.note && ` (${item.note})`}
+      </span>
+      {status === 'retrying' && (
+        <span className="text-amber-700">not saved — retrying…</span>
+      )}
+      {status === 'error' && error && (
+        <span className="text-red-700">{error}</span>
+      )}
+      <button className="border px-2 py-0.5 ml-auto" onClick={handleRemove}>
+        Remove
+      </button>
+    </li>
   )
 }
 

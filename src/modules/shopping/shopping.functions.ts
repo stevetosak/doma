@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { resolveAuthContext } from '#/core/auth/context'
+import { publish } from '#/core/events/hub'
 import {
   addItem,
   getOrCreateDefaultList,
@@ -66,6 +67,11 @@ export const addItemAction = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { userId, householdId } = await requireMember()
     const id = await addItem({ householdId, addedBy: userId, ...data })
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'item',
+      action: 'created',
+    })
     return { id }
   })
 
@@ -79,6 +85,11 @@ export const setItemCheckedAction = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { userId, householdId } = await requireMember()
     await setItemChecked(data.itemId, householdId, data.checked, userId)
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'item',
+      action: 'updated',
+    })
     return { ok: true as const }
   })
 
@@ -91,6 +102,11 @@ export const removeItemAction = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { householdId } = await requireMember()
     await removeItem(data.itemId, householdId)
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'item',
+      action: 'deleted',
+    })
     return { ok: true as const }
   })
 
@@ -104,6 +120,11 @@ export const reorderCategoryAction = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { householdId } = await requireMember()
     await reorderCategory(householdId, data.categoryId, data.direction)
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'category',
+      action: 'updated',
+    })
     return { ok: true as const }
   })
 
@@ -121,6 +142,11 @@ export const reAddItemAction = createServerFn({ method: 'POST' })
       listId: data.listId,
       name: data.name,
       addedBy: userId,
+    })
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'item',
+      action: 'created',
     })
     return { id }
   })

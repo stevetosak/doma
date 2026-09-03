@@ -1,12 +1,14 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useLiveSync } from '#/core/events/useLiveSync'
+import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
   createChoreAction,
   getChoresData,
   setOccurrenceStatusAction,
 } from '#/modules/chores/chores.functions'
-import type { ChoreView } from '#/modules/chores/repo'
+import type { ChoreOccurrenceView, ChoreView } from '#/modules/chores/repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 
 export const Route = createFileRoute('/chores')({
@@ -38,6 +40,7 @@ const WEEKDAY_LABELS = [
 function ChoresPage() {
   const data = Route.useLoaderData()
   const router = useRouter()
+  useLiveSync()
 
   async function refresh() {
     await router.invalidate({ sync: true })
@@ -75,42 +78,67 @@ function ChoreList({
               <li className="text-sm">No upcoming occurrences.</li>
             ) : (
               chore.occurrences.map((occ) => (
-                <li key={occ.id} className="flex items-center gap-3 text-sm">
-                  <span className="w-28">{occ.dueOn}</span>
-                  <span className="w-20">{occ.status}</span>
-                  {occ.status === 'pending' && (
-                    <div className="flex gap-2">
-                      <button
-                        className="border px-2 py-0.5"
-                        onClick={async () => {
-                          await setOccurrenceStatusAction({
-                            data: { occurrenceId: occ.id, status: 'done' },
-                          })
-                          await onChange()
-                        }}
-                      >
-                        Done
-                      </button>
-                      <button
-                        className="border px-2 py-0.5"
-                        onClick={async () => {
-                          await setOccurrenceStatusAction({
-                            data: { occurrenceId: occ.id, status: 'skipped' },
-                          })
-                          await onChange()
-                        }}
-                      >
-                        Skip
-                      </button>
-                    </div>
-                  )}
-                </li>
+                <OccurrenceRow
+                  key={occ.id}
+                  occurrence={occ}
+                  onChange={onChange}
+                />
               ))
             )}
           </ul>
         </section>
       ))}
     </div>
+  )
+}
+
+function OccurrenceRow({
+  occurrence,
+  onChange,
+}: {
+  occurrence: ChoreOccurrenceView
+  onChange: () => Promise<void>
+}) {
+  const { status, error, run } = useHouseholdMutation()
+
+  async function setStatus(next: 'done' | 'skipped') {
+    await run(() =>
+      setOccurrenceStatusAction({
+        data: { occurrenceId: occurrence.id, status: next },
+      }),
+    )
+    await onChange()
+  }
+
+  return (
+    <li className="flex items-center gap-3 text-sm">
+      <span className="w-28">{occurrence.dueOn}</span>
+      <span className="w-20">{occurrence.status}</span>
+      {occurrence.status === 'pending' && (
+        <div className="flex items-center gap-2">
+          <button
+            className="border px-2 py-0.5"
+            disabled={status === 'pending' || status === 'retrying'}
+            onClick={() => setStatus('done')}
+          >
+            Done
+          </button>
+          <button
+            className="border px-2 py-0.5"
+            disabled={status === 'pending' || status === 'retrying'}
+            onClick={() => setStatus('skipped')}
+          >
+            Skip
+          </button>
+          {status === 'retrying' && (
+            <span className="text-amber-700">not saved — retrying…</span>
+          )}
+          {status === 'error' && error && (
+            <span className="text-red-700">{error}</span>
+          )}
+        </div>
+      )}
+    </li>
   )
 }
 
