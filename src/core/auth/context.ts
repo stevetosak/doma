@@ -13,7 +13,12 @@ export interface AuthContext {
     name: string | null
     picture: string | null
   } | null
-  household: { id: string; name: string; role: 'owner' | 'member' } | null
+  household: {
+    id: string
+    name: string
+    role: 'owner' | 'member'
+    timezone: string
+  } | null
 }
 
 const ANONYMOUS: AuthContext = { user: null, household: null }
@@ -52,6 +57,7 @@ export async function resolveAuthContext(): Promise<AuthContext> {
           id: membership.household.id,
           name: membership.household.name,
           role: membership.role,
+          timezone: membership.household.timezone,
         }
       : null,
   }
