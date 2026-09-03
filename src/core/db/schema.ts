@@ -9,3 +9,4 @@
 export * from '#/core/auth/schema'
 export * from '#/core/household/schema'
 export * from '#/modules/chores/schema'
+export * from '#/modules/shopping/schema'
