@@ -35,6 +35,11 @@ function Home() {
                 Chores
               </a>
             )}
+            {auth.household && (
+              <a href="/shopping" className="border px-3 py-1">
+                Shopping
+              </a>
+            )}
             {auth.household?.role === 'owner' && (
               <a href="/settings" className="border px-3 py-1">
                 Settings

@@ -1,11 +1,12 @@
 import { choresModule } from '#/modules/chores/module'
+import { shoppingModule } from '#/modules/shopping/module'
 import type { ModuleManifest } from '#/modules/types'
 
 /**
- * Every registered module. Shopping (M6) adds one more import line here
- * when it lands. "Adding a module = a new folder + one import line" (§5.2).
+ * Every registered module. "Adding a module = a new folder + one import
+ * line" (§5.2).
  */
-export const modules: ModuleManifest[] = [choresModule]
+export const modules: ModuleManifest[] = [choresModule, shoppingModule]
 
 export function getModule(id: string): ModuleManifest | undefined {
   return modules.find((m) => m.id === id)
