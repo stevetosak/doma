@@ -3,8 +3,15 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import appCss from '../styles.css?url'
+import { getAuthContext } from '#/core/auth/auth-context.functions'
 
 export const Route = createRootRoute({
+  // §5.4: resolved server-side before the first byte, so authenticated
+  // HTML renders on first load rather than flashing logged-out.
+  beforeLoad: async () => {
+    const auth = await getAuthContext()
+    return { auth }
+  },
   head: () => ({
     meta: [
       {
