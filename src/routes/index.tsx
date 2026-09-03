@@ -102,7 +102,7 @@ function TodayDashboard({
             })}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1 font-mono text-xs tracking-wide text-ink-faint">
+        <div className="flex flex-col items-end gap-3 font-mono text-xs tracking-wide text-ink-faint">
           {isOwner && (
             <Link
               to="/settings"

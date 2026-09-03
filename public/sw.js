@@ -5,7 +5,13 @@
 //
 // Rules:
 //  - cache-first for content-hashed /assets/* (immutable — safe to cache hard)
-//  - stale-while-revalidate for GET server-function data reads (/_serverFn/*)
+//  - network-first (falling back to the cache only when the network fails)
+//    for GET server-function data reads (/_serverFn/*) — these back the
+//    app's own auth/session and list state, so a client that's online
+//    must always see the current answer (stale-while-revalidate served a
+//    round-trip-old cached response first, which read as "have to
+//    refresh to see it" after sign-in or after any list mutation); the
+//    cache fallback keeps last-known reads working while offline
 //  - navigations (HTML documents) always hit the network, no caching at
 //    all — authenticated-route HTML is never cached, full stop; a cold
 //    app-open while offline shows a plain offline page instead of a
@@ -14,7 +20,7 @@
 //    stream breaks it), /auth/* (session-mutating), and every non-GET
 //    request
 
-const VERSION = 'v2'
+const VERSION = 'v3'
 const ASSET_CACHE = `doma-assets-${VERSION}`
 const DATA_CACHE = `doma-data-${VERSION}`
 const OWN_CACHES = [ASSET_CACHE, DATA_CACHE]
@@ -85,7 +91,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.pathname.startsWith('/_serverFn/')) {
-    event.respondWith(staleWhileRevalidate(request))
+    event.respondWith(networkFirst(request))
     return
   }
 })
@@ -110,17 +116,14 @@ async function networkOnlyWithOfflineFallback(request) {
   }
 }
 
-async function staleWhileRevalidate(request) {
+async function networkFirst(request) {
   const cache = await caches.open(DATA_CACHE)
-  const cached = await cache.match(request)
-  const networkFetch = fetch(request)
-    .then((response) => {
-      if (response.ok) cache.put(request, response.clone())
-      return response
-    })
-    .catch(() => undefined)
-
-  if (cached) return cached
-  const fresh = await networkFetch
-  return fresh ?? new Response('Offline', { status: 503 })
+  try {
+    const response = await fetch(request)
+    if (response.ok) cache.put(request, response.clone())
+    return response
+  } catch {
+    const cached = await cache.match(request)
+    return cached ?? new Response('Offline', { status: 503 })
+  }
 }
