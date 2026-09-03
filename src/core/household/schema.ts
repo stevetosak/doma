@@ -1,4 +1,6 @@
 import {
+  boolean,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -9,9 +11,8 @@ import {
 import { users } from '#/core/auth/schema'
 
 /**
- * Household + membership + invite tables. Minimal at M2 — just enough for
- * invite-gated registration and the owner/member split. `household_modules`
- * (per-household toggles) and the members/invite-generation UI are M4.
+ * Household + membership + invite tables. `household_modules` (per-household
+ * toggles) and the members/invite-generation UI are M4.
  */
 
 export const householdRole = pgEnum('household_role', ['owner', 'member'])
@@ -63,3 +64,24 @@ export const invites = pgTable('invites', {
     onDelete: 'set null',
   }),
 })
+
+/**
+ * Per-household module toggles (§5.2). No row for a given (household,
+ * module) means "enabled" — a newly shipped module is visible by default
+ * without needing to backfill every existing household; a row only
+ * records an explicit override. Feature tables for a module always exist
+ * once its migration lands, regardless of toggle state — only nav,
+ * dashboard widgets, route guards and job scheduling are gated on this.
+ */
+export const householdModules = pgTable(
+  'household_modules',
+  {
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    moduleId: text('module_id').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    settings: jsonb('settings').notNull().default({}),
+  },
+  (table) => [primaryKey({ columns: [table.householdId, table.moduleId] })],
+)
