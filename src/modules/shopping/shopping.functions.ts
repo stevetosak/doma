@@ -6,6 +6,7 @@ import { listMembers } from '#/core/household/members-repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 import {
   addItem,
+  deleteCategory,
   getOrCreateDefaultList,
   listCategories,
   listItems,
@@ -151,6 +152,23 @@ export const reorderCategoryAction = createServerFn({ method: 'POST' })
       module: 'shopping',
       entity: 'category',
       action: 'updated',
+    })
+    return { ok: true as const }
+  })
+
+const deleteCategoryInput = z.object({
+  categoryId: z.string().uuid(),
+})
+
+export const deleteCategoryAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => deleteCategoryInput.parse(input))
+  .handler(async ({ data }) => {
+    const { householdId } = await requireMember()
+    await deleteCategory(householdId, data.categoryId)
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'category',
+      action: 'deleted',
     })
     return { ok: true as const }
   })

@@ -42,3 +42,14 @@ calendar-grid). No seed key; this is not a direction round.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the
 verdict, DESIGN.md, and every shipping raster carrying its provenance.
+
+## Revision (bucket 4, 2026-09-04)
+
+Real-usage feedback after bucket 3 shipped. Card front now also carries the chore's assignee
+(moved from back) and its `notes`/description (new field, form gained a "Description" textarea).
+Card back holds nothing but Done/Skip + edit/delete — formalizes what was already mostly true
+into DESIGN.md's new Front-Is-Info, Back-Is-Actions Rule. The explicit "← flip back" link is
+gone (redundant since bucket 1's tap-anywhere-on-back-flips-back); filed occurrences in the
+`DoneStack` gained an `undo` action reverting to `pending`. All dates now render weekday-first
+(`Mon 09-07`) via `formatDateWithWeekday`. Icons (`PlusIcon`/`CheckIcon`/`SkipIcon`/`EditIcon`/
+`TrashIcon`/`UndoIcon`) paired with every action's existing text label.

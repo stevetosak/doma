@@ -4,6 +4,15 @@ import type { FormEvent } from 'react'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
 import { FlipCard } from '#/core/ui/FlipCard'
+import {
+  CheckIcon,
+  CloseIcon,
+  EditIcon,
+  PlusIcon,
+  SkipIcon,
+  TrashIcon,
+  UndoIcon,
+} from '#/core/ui/icons'
 import { MutationStatus } from '#/core/ui/MutationStatus'
 import { Sheet } from '#/core/ui/Sheet'
 import { useLiveSync } from '#/core/events/useLiveSync'
@@ -16,7 +25,11 @@ import {
   updateChoreAction,
 } from '#/modules/chores/chores.functions'
 import { occurrencesBetween } from '#/modules/chores/recurrence'
-import { addDays, todayInZone } from '#/modules/chores/time'
+import {
+  addDays,
+  formatDateWithWeekday,
+  todayInZone,
+} from '#/modules/chores/time'
 import type { ChoreOccurrenceView, ChoreView } from '#/modules/chores/repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 
@@ -75,9 +88,10 @@ function ChoresPage() {
         <button
           type="button"
           onClick={() => setAddOpen(true)}
-          className="shrink-0 rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card"
+          className="flex shrink-0 items-center gap-1.5 rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card"
         >
-          + Add chore
+          <PlusIcon className="h-4 w-4" />
+          Add chore
         </button>
       </div>
 
@@ -118,10 +132,12 @@ function ChoresPage() {
 function OccurrenceStrip({
   dueDates,
   today,
+  timezone,
   activeDate,
 }: {
   dueDates: string[]
   today: string
+  timezone: string
   // The single occurrence actually actionable from this card (the soonest
   // pending one) — filled solid so it reads apart from an overdue backlog
   // that has piled up but isn't reachable via Done/Skip from here.
@@ -144,7 +160,7 @@ function OccurrenceStrip({
             key={d}
             className={`rounded-tab px-1.5 py-0.5 font-mono text-[11px] tracking-wide ${className}`}
           >
-            {d.slice(5)}
+            {formatDateWithWeekday(d, timezone)}
           </span>
         )
       })}
@@ -185,6 +201,17 @@ function ChoreCard({
     await onChange()
   }
 
+  // Reverting a filed occurrence is a secondary, occasional correction (a
+  // mis-tap), not the card's primary tracked action — a plain call+refresh
+  // matches how edit/delete/remove already work elsewhere, not the
+  // honest-retry MutationStatus treatment reserved for Done/Skip.
+  async function handleUndo(occurrenceId: string) {
+    await setOccurrenceStatusAction({
+      data: { occurrenceId, status: 'pending' },
+    })
+    await onChange()
+  }
+
   async function handleDelete() {
     await archiveChoreAction({ data: { choreId: chore.id } })
     await onChange()
@@ -196,7 +223,7 @@ function ChoreCard({
     <div>
       <FlipCard
         accent={overdue ? 'rust' : 'neutral'}
-        flipLabel="assignee & actions"
+        flipLabel="actions"
         front={
           <>
             <h2 className="font-display text-2xl text-ink">{chore.title}</h2>
@@ -210,18 +237,29 @@ function ChoreCard({
                   ? 'OVERDUE'
                   : next.dueOn === today
                     ? 'DUE TODAY'
-                    : `due ${next.dueOn}`}
+                    : `due ${formatDateWithWeekday(next.dueOn, timezone)}`}
               </span>
             ) : (
               <span className="mt-1 block font-mono text-xs text-ink-faint">
                 No upcoming occurrences
               </span>
             )}
+            {next && (
+              <span className="mt-1 block font-mono text-xs text-ink-dim">
+                {next.assigneeUserId
+                  ? (memberName.get(next.assigneeUserId) ?? 'Unassigned')
+                  : 'Unassigned'}
+              </span>
+            )}
             <OccurrenceStrip
               dueDates={upcoming.map((o) => o.dueOn)}
               today={today}
+              timezone={timezone}
               activeDate={next?.dueOn}
             />
+            {chore.notes && (
+              <p className="mt-3 text-sm text-ink-dim">{chore.notes}</p>
+            )}
             {chore.createdBy && memberName.get(chore.createdBy) && (
               <p className="mt-3 font-mono text-[11px] tracking-wide text-ink-faint">
                 added by {memberName.get(chore.createdBy)}
@@ -230,32 +268,26 @@ function ChoreCard({
           </>
         }
         back={
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-1 flex-col gap-3">
             {next ? (
               <>
-                <p className="text-lg text-ink">
-                  {next.assigneeUserId
-                    ? (memberName.get(next.assigneeUserId) ?? 'Unassigned')
-                    : 'Unassigned'}
-                </p>
-                <p className="font-mono text-xs tracking-wide text-blue">
-                  due {next.dueOn}
-                </p>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => setStatus(next.id, 'done')}
-                    className="rounded-tab bg-rust px-3 py-1 text-sm font-medium text-card disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-tab bg-rust px-3 py-1 text-sm font-medium text-card disabled:opacity-50"
                   >
+                    <CheckIcon className="h-4 w-4" />
                     Done
                   </button>
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => setStatus(next.id, 'skipped')}
-                    className="rounded-tab border border-kraft px-3 py-1 text-sm font-medium text-ink disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-tab border border-kraft px-3 py-1 text-sm font-medium text-ink disabled:opacity-50"
                   >
+                    <SkipIcon className="h-4 w-4" />
                     Skip
                   </button>
                 </div>
@@ -264,22 +296,21 @@ function ChoreCard({
             ) : (
               <p className="text-sm text-ink-faint">Nothing due right now.</p>
             )}
-            {chore.notes && (
-              <p className="text-sm text-ink-dim">{chore.notes}</p>
-            )}
-            <div className="mt-1 flex gap-3 border-t border-line pt-3 font-mono text-[11px] tracking-wide text-ink-faint">
+            <div className="mt-auto flex gap-3 border-t border-line pt-3 font-mono text-[11px] tracking-wide text-ink-faint">
               <button
                 type="button"
                 onClick={() => setEditOpen(true)}
-                className="underline decoration-dotted underline-offset-4"
+                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
               >
+                <EditIcon className="h-3.5 w-3.5" />
                 edit
               </button>
               <button
                 type="button"
                 onClick={handleDelete}
-                className="underline decoration-dotted underline-offset-4"
+                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
               >
+                <TrashIcon className="h-3.5 w-3.5" />
                 delete
               </button>
             </div>
@@ -291,11 +322,18 @@ function ChoreCard({
         label="filed"
         items={filed.map((occ) => ({
           id: occ.id,
-          content: `${occ.dueOn} — ${occ.status}${
+          content: `${formatDateWithWeekday(occ.dueOn, timezone)} — ${occ.status}${
             occ.assigneeUserId
               ? ` (${memberName.get(occ.assigneeUserId) ?? 'someone'})`
               : ''
           }`,
+          actions: [
+            {
+              label: 'undo',
+              icon: <UndoIcon className="h-3 w-3" />,
+              onClick: () => handleUndo(occ.id),
+            },
+          ],
         }))}
       />
 
@@ -333,6 +371,7 @@ function ChoreForm({
   onCancel?: () => void
 }) {
   const [title, setTitle] = useState(initial?.title ?? '')
+  const [notes, setNotes] = useState(initial?.notes ?? '')
   const [recurrenceKind, setRecurrenceKind] = useState<
     'once' | 'daily' | 'weekly' | 'monthly'
   >(initial?.recurrenceKind ?? 'weekly')
@@ -399,6 +438,7 @@ function ChoreForm({
     try {
       const fields = {
         title,
+        notes: notes || undefined,
         recurrenceKind,
         interval,
         weekdays: recurrenceKind === 'weekly' ? weekdays : undefined,
@@ -413,6 +453,7 @@ function ChoreForm({
       } else {
         await createChoreAction({ data: fields })
         setTitle('')
+        setNotes('')
       }
       await onSaved()
     } catch {
@@ -435,6 +476,15 @@ function ChoreForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
+          />
+        </Field>
+
+        <Field label="Description">
+          <textarea
+            className="field"
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
           />
         </Field>
 
@@ -522,6 +572,7 @@ function ChoreForm({
           <OccurrenceStrip
             dueDates={previewDates}
             today={todayInZone(timezone)}
+            timezone={timezone}
           />
         </div>
 
@@ -585,8 +636,9 @@ function ChoreForm({
             <button
               type="button"
               onClick={onCancel}
-              className="font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+              className="flex items-center gap-1 font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
             >
+              <CloseIcon className="h-3.5 w-3.5" />
               cancel
             </button>
           )}

@@ -88,6 +88,25 @@ async function getOrCreateCategory(
   return created.id
 }
 
+/**
+ * Items pointing at the deleted category fall back to Uncategorized via the
+ * column's own `onDelete: 'set null'` FK — no extra cleanup needed here.
+ */
+export async function deleteCategory(
+  householdId: string,
+  categoryId: string,
+): Promise<void> {
+  await db
+    .delete(shoppingCategories)
+    .where(
+      householdScope(
+        shoppingCategories,
+        householdId,
+        eq(shoppingCategories.id, categoryId),
+      ),
+    )
+}
+
 export async function reorderCategory(
   householdId: string,
   categoryId: string,

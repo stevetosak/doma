@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { AppMark } from '#/core/ui/AppMark'
 
 const MODULES = [
   { id: 'today', label: 'Today', href: '/' as const },
@@ -22,8 +23,11 @@ export function TabSpine() {
     <>
       <nav
         aria-label="Household modules"
-        className="fixed inset-y-0 left-0 z-20 hidden w-16 flex-col items-stretch gap-1 bg-kraft-dark pt-28 shadow-spine md:flex"
+        className="fixed inset-y-0 left-0 z-20 hidden w-16 flex-col items-stretch gap-1 bg-kraft-dark pt-6 shadow-spine md:flex"
       >
+        <div className="flex justify-center pt-2 pb-6" aria-hidden="true">
+          <AppMark className="h-9 w-9" />
+        </div>
         {MODULES.map((tab) => (
           <SpineTab key={tab.id} label={tab.label} href={tab.href} />
         ))}

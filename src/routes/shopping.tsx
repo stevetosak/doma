@@ -1,15 +1,24 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
 import { FlipCard } from '#/core/ui/FlipCard'
+import {
+  CheckIcon,
+  CloseIcon,
+  EditIcon,
+  PlusIcon,
+  TrashIcon,
+  UndoIcon,
+} from '#/core/ui/icons'
 import { MutationStatus } from '#/core/ui/MutationStatus'
 import { Sheet } from '#/core/ui/Sheet'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
   addItemAction,
+  deleteCategoryAction,
   getShoppingData,
   reAddItemAction,
   removeItemAction,
@@ -86,6 +95,16 @@ function ShoppingPage() {
     data.members.map((m) => [m.userId, m.name ?? m.email]),
   )
 
+  async function unmarkBought(itemId: string) {
+    await setItemCheckedAction({ data: { itemId, checked: false } })
+    await refresh()
+  }
+
+  async function removeBought(itemId: string) {
+    await removeItemAction({ data: { itemId } })
+    await refresh()
+  }
+
   return (
     <AppShell>
       <div className="flex items-center justify-between gap-4">
@@ -93,9 +112,10 @@ function ShoppingPage() {
         <button
           type="button"
           onClick={() => setAddOpen(true)}
-          className="shrink-0 rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card"
+          className="flex shrink-0 items-center gap-1.5 rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card"
         >
-          + Add item
+          <PlusIcon className="h-4 w-4" />
+          Add item
         </button>
       </div>
 
@@ -131,6 +151,18 @@ function ShoppingPage() {
         items={checkedItems.map((item) => ({
           id: item.id,
           content: itemLine(item),
+          actions: [
+            {
+              label: 'undo',
+              icon: <UndoIcon className="h-3 w-3" />,
+              onClick: () => unmarkBought(item.id),
+            },
+            {
+              label: 'remove',
+              icon: <TrashIcon className="h-3 w-3" />,
+              onClick: () => removeBought(item.id),
+            },
+          ],
         }))}
       />
 
@@ -144,6 +176,7 @@ function ShoppingPage() {
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Add item">
         <NewItemForm
           listId={data.listId}
+          categories={data.categories}
           onCreated={async () => {
             setAddOpen(false)
             await refresh()
@@ -169,9 +202,9 @@ function ItemCard({
   const { status, error, run } = useHouseholdMutation()
   const [editOpen, setEditOpen] = useState(false)
 
-  async function toggleChecked(checked: boolean) {
+  async function markBought() {
     await run(() =>
-      setItemCheckedAction({ data: { itemId: item.id, checked } }),
+      setItemCheckedAction({ data: { itemId: item.id, checked: true } }),
     )
     await onChange()
   }
@@ -187,58 +220,55 @@ function ItemCard({
     <>
       <FlipCard
         accent="neutral"
-        flipLabel="details"
-        frontInteractive
+        flipLabel="actions"
         front={
           <>
-            <label className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={item.isChecked}
-                disabled={busy}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => toggleChecked(e.target.checked)}
-                className="mt-1 h-5 w-5 shrink-0 accent-rust"
-              />
-              <span>
-                <span className="block text-lg text-ink">{item.name}</span>
-                {(item.quantity != null || item.unit) && (
-                  <span className="mt-1 block font-mono text-xs text-ink-dim">
-                    {item.quantity ?? ''} {item.unit ?? ''}
-                  </span>
-                )}
+            <span className="block text-lg text-ink">{item.name}</span>
+            {(item.quantity != null || item.unit) && (
+              <span className="mt-1 block font-mono text-xs text-ink-dim">
+                {item.quantity ?? ''} {item.unit ?? ''}
               </span>
-            </label>
-            <div className="mt-2 pl-8">
-              <MutationStatus status={status} error={error} />
-            </div>
-          </>
-        }
-        back={
-          <div className="flex flex-col gap-3">
-            {item.note && <p className="text-sm text-ink-dim">{item.note}</p>}
+            )}
+            {item.note && (
+              <p className="mt-2 text-sm text-ink-dim">{item.note}</p>
+            )}
             {item.addedBy && memberName.get(item.addedBy) && (
-              <p className="font-mono text-[11px] tracking-wide text-ink-faint">
+              <p className="mt-3 font-mono text-[11px] tracking-wide text-ink-faint">
                 added by {memberName.get(item.addedBy)}
               </p>
             )}
-            <div className="flex gap-3">
+          </>
+        }
+        back={
+          <div className="flex flex-1 flex-col gap-3">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={markBought}
+              className="flex items-center gap-1.5 self-start rounded-tab bg-rust px-3 py-1 text-sm font-medium text-card disabled:opacity-50"
+            >
+              <CheckIcon className="h-4 w-4" />
+              Got it
+            </button>
+            <MutationStatus status={status} error={error} />
+            <div className="mt-auto flex gap-3 border-t border-line pt-3 font-mono text-[11px] tracking-wide text-ink-faint">
               <button
                 type="button"
                 onClick={() => setEditOpen(true)}
-                className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
               >
+                <EditIcon className="h-3.5 w-3.5" />
                 edit
               </button>
               <button
                 type="button"
                 onClick={handleRemove}
-                className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
               >
+                <TrashIcon className="h-3.5 w-3.5" />
                 remove
               </button>
             </div>
-            <MutationStatus status={status} error={error} />
           </div>
         }
       />
@@ -250,6 +280,7 @@ function ItemCard({
       >
         <ItemEditForm
           item={item}
+          categories={categories}
           currentCategoryName={
             categories.find((c) => c.id === item.categoryId)?.name
           }
@@ -266,15 +297,18 @@ function ItemCard({
 
 function ItemEditForm({
   item,
+  categories,
   currentCategoryName,
   onSaved,
   onCancel,
 }: {
   item: ItemView
+  categories: CategoryView[]
   currentCategoryName: string | undefined
   onSaved: () => Promise<void>
   onCancel: () => void
 }) {
+  const categoryListId = useId()
   const [name, setName] = useState(item.name)
   const [quantity, setQuantity] = useState(item.quantity?.toString() ?? '')
   const [unit, setUnit] = useState(item.unit ?? '')
@@ -360,9 +394,15 @@ function ItemEditForm({
         </span>
         <input
           className="field"
+          list={categoryListId}
           value={categoryName}
           onChange={(e) => setCategoryName(e.target.value)}
         />
+        <datalist id={categoryListId}>
+          {categories.map((c) => (
+            <option key={c.id} value={c.name} />
+          ))}
+        </datalist>
       </label>
       {error && <p className="text-sm text-error">{error}</p>}
       <div className="flex items-center gap-3">
@@ -376,8 +416,9 @@ function ItemEditForm({
         <button
           type="button"
           onClick={onCancel}
-          className="font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+          className="flex items-center gap-1 font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
         >
+          <CloseIcon className="h-3.5 w-3.5" />
           cancel
         </button>
       </div>
@@ -421,13 +462,16 @@ function RecentlyBought({
 
 function NewItemForm({
   listId,
+  categories,
   onCreated,
   onCancel,
 }: {
   listId: string
+  categories: CategoryView[]
   onCreated: () => Promise<void>
   onCancel?: () => void
 }) {
+  const categoryListId = useId()
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState('')
@@ -518,9 +562,15 @@ function NewItemForm({
         </span>
         <input
           className="field"
+          list={categoryListId}
           value={categoryName}
           onChange={(e) => setCategoryName(e.target.value)}
         />
+        <datalist id={categoryListId}>
+          {categories.map((c) => (
+            <option key={c.id} value={c.name} />
+          ))}
+        </datalist>
       </label>
       {error && <p className="text-sm text-error">{error}</p>}
       <div className="flex items-center gap-3">
@@ -535,8 +585,9 @@ function NewItemForm({
           <button
             type="button"
             onClick={onCancel}
-            className="font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+            className="flex items-center gap-1 font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
           >
+            <CloseIcon className="h-3.5 w-3.5" />
             cancel
           </button>
         )}
@@ -587,6 +638,18 @@ function CategoryOrder({
               }}
             >
               Down
+            </button>
+            <button
+              className="flex items-center gap-1 rounded-tab border border-kraft/50 px-2 py-0.5 text-xs text-ink-faint"
+              onClick={async () => {
+                await deleteCategoryAction({
+                  data: { categoryId: category.id },
+                })
+                await onChange()
+              }}
+            >
+              <TrashIcon className="h-3 w-3" />
+              Delete
             </button>
           </li>
         ))}
