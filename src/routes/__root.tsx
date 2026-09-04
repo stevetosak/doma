@@ -5,13 +5,17 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import appCss from '../styles.css?url'
 import { getAuthContext } from '#/core/auth/auth-context.functions'
 import { ServiceWorkerRegistrar } from '#/core/pwa/ServiceWorkerRegistrar'
+import { getAppVersion } from '#/core/version.functions'
 
 export const Route = createRootRoute({
   // §5.4: resolved server-side before the first byte, so authenticated
   // HTML renders on first load rather than flashing logged-out.
   beforeLoad: async () => {
-    const auth = await getAuthContext()
-    return { auth }
+    const [auth, { version }] = await Promise.all([
+      getAuthContext(),
+      getAppVersion(),
+    ])
+    return { auth, version }
   },
   head: () => ({
     meta: [
