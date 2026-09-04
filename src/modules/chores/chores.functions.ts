@@ -43,6 +43,7 @@ const OCCURRENCE_LIST_WINDOW_DAYS = 14
 export interface ChoresData {
   chores: ChoreView[]
   members: HouseholdMember[]
+  timezone: string
 }
 
 export const getChoresData = createServerFn({ method: 'GET' }).handler(
@@ -57,7 +58,7 @@ export const getChoresData = createServerFn({ method: 'GET' }).handler(
       listChoresWithOccurrences(household.id, windowEnd),
       listMembers(household.id),
     ])
-    return { chores: choreList, members }
+    return { chores: choreList, members, timezone: household.timezone }
   },
 )
 

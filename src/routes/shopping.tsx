@@ -5,6 +5,7 @@ import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
 import { FlipCard } from '#/core/ui/FlipCard'
 import { MutationStatus } from '#/core/ui/MutationStatus'
+import { Sheet } from '#/core/ui/Sheet'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
@@ -54,6 +55,7 @@ function ShoppingPage() {
   const data = Route.useLoaderData()
   const router = useRouter()
   useLiveSync()
+  const [addOpen, setAddOpen] = useState(false)
 
   async function refresh() {
     await router.invalidate({ sync: true })
@@ -86,11 +88,20 @@ function ShoppingPage() {
 
   return (
     <AppShell>
-      <h1 className="font-display text-4xl text-ink">Shopping</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="font-display text-4xl text-ink">Shopping</h1>
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="shrink-0 rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card"
+        >
+          + Add item
+        </button>
+      </div>
 
       {orderedGroups.length === 0 ? (
         <p className="mt-8 text-ink-dim">
-          The list is empty — add something below.
+          The list is empty — add something above.
         </p>
       ) : (
         <div className="mt-8 flex flex-col gap-10">
@@ -128,8 +139,18 @@ function ShoppingPage() {
         suggestions={data.recentlyBought}
         onChange={refresh}
       />
-      <NewItemForm listId={data.listId} onCreated={refresh} />
       <CategoryOrder categories={data.categories} onChange={refresh} />
+
+      <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Add item">
+        <NewItemForm
+          listId={data.listId}
+          onCreated={async () => {
+            setAddOpen(false)
+            await refresh()
+          }}
+          onCancel={() => setAddOpen(false)}
+        />
+      </Sheet>
     </AppShell>
   )
 }
@@ -146,7 +167,7 @@ function ItemCard({
   onChange: () => Promise<void>
 }) {
   const { status, error, run } = useHouseholdMutation()
-  const [editing, setEditing] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   async function toggleChecked(checked: boolean) {
     await run(() =>
@@ -162,73 +183,84 @@ function ItemCard({
 
   const busy = status === 'pending' || status === 'retrying'
 
-  if (editing) {
-    return (
-      <ItemEditForm
-        item={item}
-        currentCategoryName={
-          categories.find((c) => c.id === item.categoryId)?.name
-        }
-        onSaved={async () => {
-          setEditing(false)
-          await onChange()
-        }}
-        onCancel={() => setEditing(false)}
-      />
-    )
-  }
-
   return (
-    <FlipCard
-      accent="neutral"
-      flipLabel="details"
-      front={
-        <>
-          <p className="text-lg text-ink">{item.name}</p>
-          {(item.quantity != null || item.unit) && (
-            <p className="mt-1 font-mono text-xs text-ink-dim">
-              {item.quantity ?? ''} {item.unit ?? ''}
-            </p>
-          )}
-        </>
-      }
-      back={
-        <div className="flex flex-col gap-3">
-          {item.note && <p className="text-sm text-ink-dim">{item.note}</p>}
-          {item.addedBy && memberName.get(item.addedBy) && (
-            <p className="font-mono text-[11px] tracking-wide text-ink-faint">
-              added by {memberName.get(item.addedBy)}
-            </p>
-          )}
-          <label className="flex items-center gap-2 text-sm text-ink">
-            <input
-              type="checkbox"
-              checked={item.isChecked}
-              disabled={busy}
-              onChange={(e) => toggleChecked(e.target.checked)}
-            />
-            Got it
-          </label>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
-            >
-              edit
-            </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
-            >
-              remove
-            </button>
+    <>
+      <FlipCard
+        accent="neutral"
+        flipLabel="details"
+        frontInteractive
+        front={
+          <>
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={item.isChecked}
+                disabled={busy}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => toggleChecked(e.target.checked)}
+                className="mt-1 h-5 w-5 shrink-0 accent-rust"
+              />
+              <span>
+                <span className="block text-lg text-ink">{item.name}</span>
+                {(item.quantity != null || item.unit) && (
+                  <span className="mt-1 block font-mono text-xs text-ink-dim">
+                    {item.quantity ?? ''} {item.unit ?? ''}
+                  </span>
+                )}
+              </span>
+            </label>
+            <div className="mt-2 pl-8">
+              <MutationStatus status={status} error={error} />
+            </div>
+          </>
+        }
+        back={
+          <div className="flex flex-col gap-3">
+            {item.note && <p className="text-sm text-ink-dim">{item.note}</p>}
+            {item.addedBy && memberName.get(item.addedBy) && (
+              <p className="font-mono text-[11px] tracking-wide text-ink-faint">
+                added by {memberName.get(item.addedBy)}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+              >
+                edit
+              </button>
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="self-start font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+              >
+                remove
+              </button>
+            </div>
+            <MutationStatus status={status} error={error} />
           </div>
-          <MutationStatus status={status} error={error} />
-        </div>
-      }
-    />
+        }
+      />
+
+      <Sheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit item"
+      >
+        <ItemEditForm
+          item={item}
+          currentCategoryName={
+            categories.find((c) => c.id === item.categoryId)?.name
+          }
+          onSaved={async () => {
+            setEditOpen(false)
+            await onChange()
+          }}
+          onCancel={() => setEditOpen(false)}
+        />
+      </Sheet>
+    </>
   )
 }
 
@@ -275,10 +307,7 @@ function ItemEditForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="ruled flex flex-col gap-3 rounded-card border border-line bg-card p-5 shadow-card"
-    >
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1">
         <span className="font-mono text-xs tracking-wide text-ink-dim">
           Name
@@ -393,9 +422,11 @@ function RecentlyBought({
 function NewItemForm({
   listId,
   onCreated,
+  onCancel,
 }: {
   listId: string
   onCreated: () => Promise<void>
+  onCancel?: () => void
 }) {
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
@@ -424,6 +455,7 @@ function NewItemForm({
       setQuantity('')
       setUnit('')
       setNote('')
+      setCategoryName('')
       await onCreated()
     } catch {
       setError('Could not add the item — check the fields above.')
@@ -433,24 +465,20 @@ function NewItemForm({
   }
 
   return (
-    <section className="ruled mt-10 rounded-card border border-line bg-card p-6 shadow-card">
-      <h2 className="font-display text-2xl text-ink">Add item</h2>
-      <form
-        onSubmit={handleSubmit}
-        className="mt-4 flex flex-wrap items-end gap-3"
-      >
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Name
-          </span>
-          <input
-            className="field"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </label>
-        <label className="flex flex-col gap-1">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <label className="flex flex-col gap-1">
+        <span className="font-mono text-xs tracking-wide text-ink-dim">
+          Name
+        </span>
+        <input
+          className="field"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </label>
+      <div className="flex gap-3">
+        <label className="flex flex-1 flex-col gap-1">
           <span className="font-mono text-xs tracking-wide text-ink-dim">
             Qty
           </span>
@@ -458,51 +486,62 @@ function NewItemForm({
             type="number"
             step="any"
             min={0}
-            className="field w-20"
+            className="field"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
           />
         </label>
-        <label className="flex flex-col gap-1">
+        <label className="flex flex-1 flex-col gap-1">
           <span className="font-mono text-xs tracking-wide text-ink-dim">
             Unit
           </span>
           <input
-            className="field w-20"
+            className="field"
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
           />
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Note
-          </span>
-          <input
-            className="field"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Category
-          </span>
-          <input
-            className="field"
-            value={categoryName}
-            onChange={(e) => setCategoryName(e.target.value)}
-          />
-        </label>
+      </div>
+      <label className="flex flex-col gap-1">
+        <span className="font-mono text-xs tracking-wide text-ink-dim">
+          Note
+        </span>
+        <input
+          className="field"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="font-mono text-xs tracking-wide text-ink-dim">
+          Category
+        </span>
+        <input
+          className="field"
+          value={categoryName}
+          onChange={(e) => setCategoryName(e.target.value)}
+        />
+      </label>
+      {error && <p className="text-sm text-error">{error}</p>}
+      <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
+          className="self-start rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
         >
           Add
         </button>
-      </form>
-      {error && <p className="mt-2 text-sm text-error">{error}</p>}
-    </section>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+          >
+            cancel
+          </button>
+        )}
+      </div>
+    </form>
   )
 }
 
