@@ -132,6 +132,28 @@ body {
   }
 }
 
+/* The sheet (chores/shopping declutter extension) — a card pulled forward
+   out of the box, same easing as the flip. Snaps into place under
+   reduced-motion rather than sliding. */
+@keyframes sheet-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet-panel {
+  animation: sheet-slide-up 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel {
+    animation: none;
+  }
+}
+
 /* The fanned rest of today's cards behind the hero (§3 first viewport) —
    cards genuinely overlap and recede (negative margin + descending scale
    + z-index), not a same-plane row with a tilt; mobile stays a plain

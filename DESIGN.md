@@ -205,7 +205,9 @@ Two radius steps only: `--radius-card` (0.85rem) for every card, panel, and form
 
 ### The Flip Card (signature component)
 
-Every actionable item — a chore occurrence, a shopping item — is a `FlipCard`: front and back are two separately-focusable elements inside a `perspective`-transformed scene, not a single button with swapped content. Tapping the front runs a real 3D `rotateY(180deg)` transform over 0.55s (`cubic-bezier(0.2, 0.7, 0.2, 1)`), snapping instantly instead under `prefers-reduced-motion`. The front carries status (a `font-mono` label plus, for `accent="rust"`, a small corner stamp-dot) and a `tap to flip — {label}` mono hint; the back carries assignee/detail and the actions (Done/Skip, remove, checkbox), plus any `MutationStatus`. Front and back are genuinely different card-back-colored materials (`bg-card` vs `bg-card-back`), not a re-skinned front.
+Every actionable item — a chore occurrence, a shopping item — is a `FlipCard`: front and back are two separately-focusable elements inside a `perspective`-transformed scene, not a single button with swapped content. Tapping the front runs a real 3D `rotateY(180deg)` transform over 0.55s (`cubic-bezier(0.2, 0.7, 0.2, 1)`), snapping instantly instead under `prefers-reduced-motion`. The front carries status (a `font-mono` label plus, for `accent="rust"`, a small corner stamp-dot) and a `tap to flip — {label}` mono hint; the back carries assignee/detail and the actions (Done/Skip, remove, checkbox), plus any `MutationStatus`. Front and back are genuinely different card-back-colored materials (`bg-card` vs `bg-card-back`), not a re-skinned front. Whichever face is hidden is `inert`, so its controls drop out of tab order and can't be triggered while off-screen.
+
+A `frontInteractive` variant (shopping's check-off) swaps the whole-front-button mechanic for a plain front div plus its own small explicit "tap to flip" button, so the front can hold a real control — a native, `accent-rust`-themed checkbox — without nesting a button inside a button. Any `MutationStatus` for a front-face action renders on the front itself, next to that control, not only on the back.
 
 ### The Done Stack (signature component)
 
@@ -214,6 +216,14 @@ Completed/skipped items file face-down into a `DoneStack` instead of disappearin
 ### Mutation Status (signature component)
 
 A shared, wordless-by-default status line for offline/failed writes: silent on success, `text-rust-ink` "not saved — retrying…" while an automatic retry is in flight, `text-error` with the server's message on hard failure. Never a toast, never a spinner — the honesty is carried entirely in mono text adjacent to the action that failed.
+
+### The Sheet
+
+Add/edit forms live in a `Sheet`, not inline in the resting list — a card-back-colored panel (`bg-card-back`, `ruled`, `border-line`, `shadow-card-lifted`) docked to the bottom edge on every viewport (never a right-side drawer) that slides up (`translateY(100%)` → `0`, 0.35s, the flip's own `cubic-bezier(0.2, 0.7, 0.2, 1)`), snapping into place under `prefers-reduced-motion` rather than sliding. It reads as a card pulled forward out of the box: the same rounded-card radius (top corners only) and shadow vocabulary as any other card, not a generic centered modal. `role="dialog"` `aria-modal="true"`, traps Tab/Shift+Tab focus inside the panel, closes on Escape or backdrop click, and returns focus to whatever opened it on close.
+
+### The Occurrence Strip
+
+A horizontal row of small `font-mono` date chips (`text-[11px]`, the system's label floor) previewing a chore's upcoming due dates. The single occurrence actually actionable from the card — the soonest pending one — renders filled `bg-rust`/`text-card`; the rest of an overdue backlog that has piled up but isn't reachable from this card reads as an outlined `border-rust/50`/`text-rust-ink` chip instead, so a run of overdue dates doesn't look like a run of things you can act on right now. A date due today (when it isn't also the actionable one) is `bg-rust-soft`/`text-rust-ink`; future dates are a bare `border-kraft/40` outline. Appears on a chore's collapsed card front and, live-recomputed from the same recurrence engine as the field values change, inside the add/edit `Sheet` — so the preview always matches what will actually be materialized.
 
 ## Do's and Don'ts
 

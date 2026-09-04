@@ -5,6 +5,7 @@ import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
 import { FlipCard } from '#/core/ui/FlipCard'
 import { MutationStatus } from '#/core/ui/MutationStatus'
+import { Sheet } from '#/core/ui/Sheet'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
@@ -14,6 +15,8 @@ import {
   setOccurrenceStatusAction,
   updateChoreAction,
 } from '#/modules/chores/chores.functions'
+import { occurrencesBetween } from '#/modules/chores/recurrence'
+import { addDays, todayInZone } from '#/modules/chores/time'
 import type { ChoreOccurrenceView, ChoreView } from '#/modules/chores/repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 
@@ -43,10 +46,19 @@ const WEEKDAY_LABELS = [
   { value: 7, label: 'Sun' },
 ]
 
+function nextPendingOccurrence(
+  chore: ChoreView,
+): ChoreOccurrenceView | undefined {
+  // occurrences arrive ordered by dueOn asc (listChoresWithOccurrences) —
+  // the first pending one is genuinely the soonest, overdue included.
+  return chore.occurrences.find((o) => o.status === 'pending')
+}
+
 function ChoresPage() {
   const data = Route.useLoaderData()
   const router = useRouter()
   useLiveSync()
+  const [addOpen, setAddOpen] = useState(false)
 
   async function refresh() {
     await router.invalidate({ sync: true })
@@ -58,121 +70,222 @@ function ChoresPage() {
 
   return (
     <AppShell>
-      <h1 className="font-display text-4xl text-ink">Chores</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="font-display text-4xl text-ink">Chores</h1>
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="shrink-0 rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card"
+        >
+          + Add chore
+        </button>
+      </div>
 
       {data.chores.length === 0 ? (
         <p className="mt-8 text-ink-dim">
-          The chores divider is empty — add the first one below.
+          The chores divider is empty — add the first one above.
         </p>
       ) : (
-        <div className="mt-8 flex flex-col gap-10">
+        <div className="mt-8 flex flex-col gap-8">
           {data.chores.map((chore) => (
-            <ChoreSection
+            <ChoreCard
               key={chore.id}
               chore={chore}
               members={data.members}
               memberName={memberName}
+              timezone={data.timezone}
               onChange={refresh}
             />
           ))}
         </div>
       )}
 
-      <section className="ruled mt-10 rounded-card border border-line bg-card p-6 shadow-card">
-        <h2 className="font-display text-2xl text-ink">New chore</h2>
-        <ChoreForm members={data.members} onSaved={refresh} />
-      </section>
+      <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="New chore">
+        <ChoreForm
+          members={data.members}
+          timezone={data.timezone}
+          onSaved={async () => {
+            setAddOpen(false)
+            await refresh()
+          }}
+          onCancel={() => setAddOpen(false)}
+        />
+      </Sheet>
     </AppShell>
   )
 }
 
-function ChoreSection({
+function OccurrenceStrip({
+  dueDates,
+  today,
+  activeDate,
+}: {
+  dueDates: string[]
+  today: string
+  // The single occurrence actually actionable from this card (the soonest
+  // pending one) — filled solid so it reads apart from an overdue backlog
+  // that has piled up but isn't reachable via Done/Skip from here.
+  activeDate?: string
+}) {
+  if (dueDates.length === 0) return null
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {dueDates.map((d) => {
+        const isActive = activeDate != null && d === activeDate
+        const className = isActive
+          ? 'bg-rust text-card'
+          : d < today
+            ? 'border border-rust/50 text-rust-ink'
+            : d === today
+              ? 'bg-rust-soft text-rust-ink'
+              : 'border border-kraft/40 text-ink-faint'
+        return (
+          <span
+            key={d}
+            className={`rounded-tab px-1.5 py-0.5 font-mono text-[11px] tracking-wide ${className}`}
+          >
+            {d.slice(5)}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+function ChoreCard({
   chore,
   members,
   memberName,
+  timezone,
   onChange,
 }: {
   chore: ChoreView
   members: HouseholdMember[]
   memberName: Map<string, string>
+  timezone: string
   onChange: () => Promise<void>
 }) {
-  const [editing, setEditing] = useState(false)
-  const pending = chore.occurrences.filter((o) => o.status === 'pending')
+  const { status, error, run } = useHouseholdMutation()
+  const [editOpen, setEditOpen] = useState(false)
+  const today = todayInZone(timezone)
   const filed = chore.occurrences.filter((o) => o.status !== 'pending')
+  const upcoming = chore.occurrences
+    .filter((o) => o.status === 'pending')
+    .slice(0, 8)
+  const next = nextPendingOccurrence(chore)
+  const overdue = next ? next.dueOn < today : false
+
+  async function setStatus(
+    occurrenceId: string,
+    nextStatus: 'done' | 'skipped',
+  ) {
+    await run(() =>
+      setOccurrenceStatusAction({ data: { occurrenceId, status: nextStatus } }),
+    )
+    await onChange()
+  }
 
   async function handleDelete() {
     await archiveChoreAction({ data: { choreId: chore.id } })
     await onChange()
   }
 
-  if (editing) {
-    return (
-      <section className="ruled rounded-card border border-line bg-card p-6 shadow-card">
-        <h2 className="font-display text-2xl text-ink">Edit chore</h2>
-        <ChoreForm
-          members={members}
-          initial={chore}
-          onSaved={async () => {
-            setEditing(false)
-            await onChange()
-          }}
-          onCancel={() => setEditing(false)}
-        />
-      </section>
-    )
-  }
+  const busy = status === 'pending' || status === 'retrying'
 
   return (
-    <section>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-display text-2xl text-ink">{chore.title}</h2>
-          {chore.notes && (
-            <p className="mt-1 text-sm text-ink-dim">{chore.notes}</p>
-          )}
-          {chore.createdBy && memberName.get(chore.createdBy) && (
-            <p className="mt-1 font-mono text-[11px] tracking-wide text-ink-faint">
-              added by {memberName.get(chore.createdBy)}
-            </p>
-          )}
-        </div>
-        <div className="flex shrink-0 gap-3 font-mono text-[11px] tracking-wide text-ink-faint">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="underline decoration-dotted underline-offset-4"
-          >
-            edit
-          </button>
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="underline decoration-dotted underline-offset-4"
-          >
-            delete
-          </button>
-        </div>
-      </div>
-
-      {pending.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-faint">No upcoming occurrences.</p>
-      ) : (
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {pending.map((occ) => (
-            <OccurrenceCard
-              key={occ.id}
-              occurrence={occ}
-              assignee={
-                occ.assigneeUserId
-                  ? memberName.get(occ.assigneeUserId)
-                  : undefined
-              }
-              onChange={onChange}
+    <div>
+      <FlipCard
+        accent={overdue ? 'rust' : 'neutral'}
+        flipLabel="assignee & actions"
+        front={
+          <>
+            <h2 className="font-display text-2xl text-ink">{chore.title}</h2>
+            {next ? (
+              <span
+                className={`mt-1 block font-mono text-xs font-semibold tracking-wide ${
+                  overdue ? 'text-rust' : 'text-ink-dim'
+                }`}
+              >
+                {overdue
+                  ? 'OVERDUE'
+                  : next.dueOn === today
+                    ? 'DUE TODAY'
+                    : `due ${next.dueOn}`}
+              </span>
+            ) : (
+              <span className="mt-1 block font-mono text-xs text-ink-faint">
+                No upcoming occurrences
+              </span>
+            )}
+            <OccurrenceStrip
+              dueDates={upcoming.map((o) => o.dueOn)}
+              today={today}
+              activeDate={next?.dueOn}
             />
-          ))}
-        </div>
-      )}
+            {chore.createdBy && memberName.get(chore.createdBy) && (
+              <p className="mt-3 font-mono text-[11px] tracking-wide text-ink-faint">
+                added by {memberName.get(chore.createdBy)}
+              </p>
+            )}
+          </>
+        }
+        back={
+          <div className="flex flex-col gap-3">
+            {next ? (
+              <>
+                <p className="text-lg text-ink">
+                  {next.assigneeUserId
+                    ? (memberName.get(next.assigneeUserId) ?? 'Unassigned')
+                    : 'Unassigned'}
+                </p>
+                <p className="font-mono text-xs tracking-wide text-blue">
+                  due {next.dueOn}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setStatus(next.id, 'done')}
+                    className="rounded-tab bg-rust px-3 py-1 text-sm font-medium text-card disabled:opacity-50"
+                  >
+                    Done
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setStatus(next.id, 'skipped')}
+                    className="rounded-tab border border-kraft px-3 py-1 text-sm font-medium text-ink disabled:opacity-50"
+                  >
+                    Skip
+                  </button>
+                </div>
+                <MutationStatus status={status} error={error} />
+              </>
+            ) : (
+              <p className="text-sm text-ink-faint">Nothing due right now.</p>
+            )}
+            {chore.notes && (
+              <p className="text-sm text-ink-dim">{chore.notes}</p>
+            )}
+            <div className="mt-1 flex gap-3 border-t border-line pt-3 font-mono text-[11px] tracking-wide text-ink-faint">
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                className="underline decoration-dotted underline-offset-4"
+              >
+                edit
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="underline decoration-dotted underline-offset-4"
+              >
+                delete
+              </button>
+            </div>
+          </div>
+        }
+      />
 
       <DoneStack
         label="filed"
@@ -185,94 +298,36 @@ function ChoreSection({
           }`,
         }))}
       />
-    </section>
-  )
-}
 
-function OccurrenceCard({
-  occurrence,
-  assignee,
-  onChange,
-}: {
-  occurrence: ChoreOccurrenceView
-  assignee: string | undefined
-  onChange: () => Promise<void>
-}) {
-  const { status, error, run } = useHouseholdMutation()
-  const today = new Date().toISOString().slice(0, 10)
-  const overdue = occurrence.dueOn < today
-
-  async function setStatus(next: 'done' | 'skipped') {
-    await run(() =>
-      setOccurrenceStatusAction({
-        data: { occurrenceId: occurrence.id, status: next },
-      }),
-    )
-    await onChange()
-  }
-
-  const busy = status === 'pending' || status === 'retrying'
-
-  return (
-    <FlipCard
-      accent={overdue ? 'rust' : 'neutral'}
-      flipLabel="assignee & actions"
-      front={
-        <>
-          <span
-            className={`font-mono text-xs font-semibold tracking-wide ${
-              overdue ? 'text-rust' : 'text-ink-dim'
-            }`}
-          >
-            {overdue
-              ? 'OVERDUE'
-              : occurrence.dueOn === today
-                ? 'TODAY'
-                : occurrence.dueOn}
-          </span>
-          <p className="mt-2 text-lg text-ink">Whose turn?</p>
-        </>
-      }
-      back={
-        <div className="flex flex-col gap-3">
-          <p className="text-lg text-ink">
-            {assignee ? assignee : 'Unassigned'}
-          </p>
-          <p className="font-mono text-xs tracking-wide text-blue">
-            due {occurrence.dueOn}
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setStatus('done')}
-              className="rounded-tab bg-rust px-3 py-1 text-sm font-medium text-card disabled:opacity-50"
-            >
-              Done
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setStatus('skipped')}
-              className="rounded-tab border border-kraft px-3 py-1 text-sm font-medium text-ink disabled:opacity-50"
-            >
-              Skip
-            </button>
-          </div>
-          <MutationStatus status={status} error={error} />
-        </div>
-      }
-    />
+      <Sheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit chore"
+      >
+        <ChoreForm
+          members={members}
+          timezone={timezone}
+          initial={chore}
+          onSaved={async () => {
+            setEditOpen(false)
+            await onChange()
+          }}
+          onCancel={() => setEditOpen(false)}
+        />
+      </Sheet>
+    </div>
   )
 }
 
 function ChoreForm({
   members,
+  timezone,
   initial,
   onSaved,
   onCancel,
 }: {
   members: HouseholdMember[]
+  timezone: string
   initial?: ChoreView
   onSaved: () => Promise<void>
   onCancel?: () => void
@@ -285,7 +340,7 @@ function ChoreForm({
   const [weekdays, setWeekdays] = useState<number[]>(initial?.weekdays ?? [1])
   const [dayOfMonth, setDayOfMonth] = useState(initial?.dayOfMonth ?? 1)
   const [startsOn, setStartsOn] = useState(
-    () => initial?.startsOn ?? new Date().toISOString().slice(0, 10),
+    () => initial?.startsOn ?? todayInZone(timezone),
   )
   const [assignmentMode, setAssignmentMode] = useState<'fixed' | 'rotating'>(
     initial?.assignmentMode ?? 'fixed',
@@ -314,6 +369,28 @@ function ChoreForm({
         : [...current, userId],
     )
   }
+
+  const previewDates = (() => {
+    if (recurrenceKind === 'weekly' && weekdays.length === 0) return []
+    try {
+      const rangeEnd = addDays(startsOn, 60, timezone)
+      return occurrencesBetween(
+        {
+          kind: recurrenceKind,
+          interval,
+          weekdays: recurrenceKind === 'weekly' ? weekdays : null,
+          dayOfMonth: recurrenceKind === 'monthly' ? dayOfMonth : null,
+          startsOn,
+          endsOn: null,
+        },
+        startsOn,
+        rangeEnd,
+        timezone,
+      ).slice(0, 8)
+    } catch {
+      return []
+    }
+  })()
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -351,7 +428,7 @@ function ChoreForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Field label="Title">
           <input
             className="field"
@@ -437,6 +514,16 @@ function ChoreForm({
             onChange={(e) => setStartsOn(e.target.value)}
           />
         </Field>
+
+        <div>
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Next occurrences
+          </span>
+          <OccurrenceStrip
+            dueDates={previewDates}
+            today={todayInZone(timezone)}
+          />
+        </div>
 
         <Field label="Assignment">
           <select
