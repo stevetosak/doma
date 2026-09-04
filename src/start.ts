@@ -1,5 +1,6 @@
 import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
 import { optionalEnv } from '#/core/env'
+import { startBackgroundJobs } from '#/core/jobs/bootstrap'
 
 /**
  * Global request middleware. The CSRF/Origin check here is the "belt" to
@@ -24,3 +25,10 @@ const csrfMiddleware = createCsrfMiddleware({
 export const startInstance = createStart(() => ({
   requestMiddleware: [csrfMiddleware],
 }))
+
+// Fire-and-forget: this module is evaluated once when the server process
+// boots (same lifetime as csrfMiddleware above), so this is the app's one
+// startup hook for pg-boss (§5.5, M8). Errors are logged inside
+// startBackgroundJobs rather than thrown — a jobs-layer outage shouldn't
+// take the HTTP server down with it.
+void startBackgroundJobs()

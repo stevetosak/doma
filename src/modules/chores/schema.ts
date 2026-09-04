@@ -13,11 +13,9 @@ import { households } from '#/core/household/schema'
 import { users } from '#/core/auth/schema'
 
 /**
- * Chores module (M5, §5.3). `reminder_lead_minutes` from the plan's draft
- * column list is deliberately not here yet — nothing reads it until M8's
- * reminder jobs exist, same call as trimming ModuleManifest's unused
- * `widgets`/`jobs`/`onEnable` fields in M4. Add it via its own migration
- * once M8 has a consumer.
+ * Chores module (M5, §5.3). `reminder_lead_minutes` was deliberately left
+ * out until M8's reminder jobs existed to consume it — see
+ * src/modules/chores/reminders.ts for the scheduling that reads it now.
  */
 
 export const choreRecurrenceKind = pgEnum('chore_recurrence_kind', [
@@ -60,6 +58,10 @@ export const chores = pgTable('chores', {
     onDelete: 'set null',
   }),
   isArchived: boolean('is_archived').notNull().default(false),
+  // Minutes before the chore's nominal 08:00 household-local due time
+  // (see reminders.ts's computeReminderAt) to send a Telegram reminder.
+  // Null = no reminder for this chore.
+  reminderLeadMinutes: integer('reminder_lead_minutes'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

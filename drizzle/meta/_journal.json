@@ -43,6 +43,13 @@
       "when": 1788478568494,
       "tag": "0005_abandoned_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788554009517,
+      "tag": "0006_mean_ghost_rider",
+      "breakpoints": true
     }
   ]
 }

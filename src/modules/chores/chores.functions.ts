@@ -5,6 +5,7 @@ import { publish } from '#/core/events/hub'
 import { listMembers } from '#/core/household/members-repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 import { materializeChoreOccurrences } from '#/modules/chores/materialize'
+import { scheduleRemindersForChore } from '#/modules/chores/reminders'
 import {
   archiveChore,
   createChore,
@@ -78,6 +79,7 @@ const createChoreInput = z
     assignmentMode: z.enum(['fixed', 'rotating']),
     assigneeUserId: z.string().uuid().optional(),
     rotation: z.array(z.string().uuid()).optional(),
+    reminderLeadMinutes: z.number().int().min(0).optional(),
   })
   .refine(
     (data) =>
@@ -113,6 +115,7 @@ export const createChoreAction = createServerFn({ method: 'POST' })
       ...data,
     })
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
+    await scheduleRemindersForChore(choreId, household.id, household.timezone)
     publish(household.id, {
       module: 'chores',
       entity: 'chore',
@@ -137,6 +140,7 @@ export const updateChoreAction = createServerFn({ method: 'POST' })
       todayInZone(household.timezone),
     )
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
+    await scheduleRemindersForChore(choreId, household.id, household.timezone)
     publish(household.id, {
       module: 'chores',
       entity: 'chore',

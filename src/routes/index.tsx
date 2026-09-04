@@ -103,6 +103,12 @@ function TodayDashboard({
           </p>
         </div>
         <div className="flex flex-col items-end gap-3 font-mono text-xs tracking-wide text-ink-faint">
+          <Link
+            to="/account"
+            className="underline decoration-dotted underline-offset-4"
+          >
+            account
+          </Link>
           {isOwner && (
             <Link
               to="/settings"

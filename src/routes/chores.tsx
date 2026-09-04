@@ -49,6 +49,19 @@ export const Route = createFileRoute('/chores')({
   component: ChoresPage,
 })
 
+// Presets for the "remind me" select — all counted back from a nominal
+// 08:00 household-local due time (chores.reminders.ts's computeReminderAt),
+// since due_on itself carries no time of day.
+const DEFAULT_REMINDER_LEAD_MINUTES = 780
+const REMINDER_PRESETS = [
+  {
+    label: 'The evening before (~7pm)',
+    minutes: DEFAULT_REMINDER_LEAD_MINUTES,
+  },
+  { label: 'Morning of (8am)', minutes: 0 },
+  { label: 'The day before, same time', minutes: 1440 },
+]
+
 const WEEKDAY_LABELS = [
   { value: 1, label: 'Mon' },
   { value: 2, label: 'Tue' },
@@ -390,6 +403,12 @@ function ChoreForm({
   const [rotation, setRotation] = useState<string[]>(
     initial?.rotation ?? (members[0] ? [members[0].userId] : []),
   )
+  const [reminderEnabled, setReminderEnabled] = useState(
+    initial?.reminderLeadMinutes != null,
+  )
+  const [reminderLeadMinutes, setReminderLeadMinutes] = useState(
+    initial?.reminderLeadMinutes ?? DEFAULT_REMINDER_LEAD_MINUTES,
+  )
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -447,6 +466,7 @@ function ChoreForm({
         assignmentMode,
         assigneeUserId: assignmentMode === 'fixed' ? assigneeUserId : undefined,
         rotation: assignmentMode === 'rotating' ? rotation : undefined,
+        reminderLeadMinutes: reminderEnabled ? reminderLeadMinutes : undefined,
       }
       if (initial) {
         await updateChoreAction({ data: { choreId: initial.id, ...fields } })
@@ -623,6 +643,30 @@ function ChoreForm({
             ))}
           </fieldset>
         )}
+
+        <div>
+          <label className="flex items-center gap-1.5 font-mono text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={reminderEnabled}
+              onChange={(e) => setReminderEnabled(e.target.checked)}
+            />
+            Send a Telegram reminder
+          </label>
+          {reminderEnabled && (
+            <select
+              className="field mt-2"
+              value={reminderLeadMinutes}
+              onChange={(e) => setReminderLeadMinutes(Number(e.target.value))}
+            >
+              {REMINDER_PRESETS.map((preset) => (
+                <option key={preset.minutes} value={preset.minutes}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
 
         <div className="flex items-center gap-3">
           <button
