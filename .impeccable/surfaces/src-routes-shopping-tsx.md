@@ -39,3 +39,24 @@ separate-page/inline). No seed key; this is not a direction round.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the
 verdict, DESIGN.md, and every shipping raster carrying its provenance.
+
+## Revision (bucket 4, 2026-09-04) — reverses this brief's front-checkbox decision
+
+Real usage showed the front-face checkbox's hit target (the whole card front, wrapped in one
+`<label>`) was confusing, and it conflicted with the front-is-info/back-is-actions principle the
+user separately asked for. **Decided via AskUserQuestion: the check action moves to the back**,
+as a "Got it" button matching chores' Done/Skip pattern exactly — not a checkbox at all anymore.
+`FlipCard`'s `frontInteractive` prop (built for this exact checkbox) is retired since nothing
+uses it once this lands. Front is now pure info: name/qty, note (moved here from the back),
+added-by (moved here from the back — this brief's own STORY said "flip only to see a note or
+edit," which no longer holds now the check action itself also moved off the front). Also this
+round: category delete, a datalist-backed category field (typeable, but suggests existing
+categories so near-duplicates from typos are less likely), and `DoneStack` undo/remove actions
+on already-bought items.
+
+## Revision (mobile pass, 2026-09-04)
+
+Bumped every primary `bg-rust` button (Add item, Got it, Save/submit in the item add/edit
+sheets) from `py-1`/`py-2` to `py-3` — real 44px tap targets. See The Forty-Four-Pixel Rule in
+DESIGN.md. The "Recently bought" quick-add chips were deliberately left compact (a chip
+idiom, not a primary action) — not part of this bump.

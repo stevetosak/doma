@@ -60,13 +60,13 @@ function LoggedOutSplash() {
         <Link
           to="/login"
           search={{ returnTo: '/', error: undefined }}
-          className="rounded-tab bg-ink px-4 py-2 text-center font-sans text-sm font-medium text-card"
+          className="rounded-tab bg-ink px-4 py-3 text-center font-sans text-sm font-medium text-card"
         >
           Sign in
         </Link>
         <Link
           to="/register"
-          className="rounded-tab border border-kraft px-4 py-2 text-center font-sans text-sm font-medium text-ink"
+          className="rounded-tab border border-kraft px-4 py-3 text-center font-sans text-sm font-medium text-ink"
         >
           Register
         </Link>
@@ -127,10 +127,12 @@ function TodayDashboard({
         <div className="mt-10">
           <HeroCard card={hero} />
           {rest.length > 0 && (
-            <div className="card-fan mt-8 flex flex-col gap-4 md:mt-16 md:flex-row md:gap-0">
-              {rest.map((card) => (
-                <TodayCardTile key={card.id} card={card} />
-              ))}
+            <div className="mt-8 md:mt-16 md:overflow-x-auto md:pt-2 md:pb-10">
+              <div className="card-fan flex flex-col gap-4 md:flex-row md:gap-0">
+                {rest.map((card) => (
+                  <TodayCardTile key={card.id} card={card} />
+                ))}
+              </div>
             </div>
           )}
         </div>

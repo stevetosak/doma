@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { CloseIcon } from '#/core/ui/icons'
 
 /**
  * A card pulled forward out of the box (§ chores/shopping declutter
@@ -82,8 +83,9 @@ export function Sheet({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+            className="flex items-center gap-1 font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
           >
+            <CloseIcon className="h-3.5 w-3.5" />
             close
           </button>
         </div>

@@ -11,7 +11,11 @@ export function DoneStack({
   items,
 }: {
   label: string
-  items: { id: string; content: ReactNode }[]
+  items: {
+    id: string
+    content: ReactNode
+    actions?: { label: string; icon?: ReactNode; onClick: () => void }[]
+  }[]
 }) {
   const [open, setOpen] = useState(false)
 
@@ -39,10 +43,21 @@ export function DoneStack({
           {items.map((item, i) => (
             <li
               key={item.id}
-              className="ruled w-fit rounded-sm border border-kraft/40 bg-card-back px-3 py-1.5 font-mono text-xs text-blue shadow-card"
+              className="ruled flex w-fit items-center gap-3 rounded-sm border border-kraft/40 bg-card-back px-3 py-1.5 font-mono text-xs text-blue shadow-card"
               style={{ transform: `rotate(${i % 2 === 0 ? -0.5 : 0.5}deg)` }}
             >
-              {item.content}
+              <span>{item.content}</span>
+              {item.actions?.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={action.onClick}
+                  className="flex items-center gap-1 text-ink-faint underline decoration-dotted underline-offset-4"
+                >
+                  {action.icon}
+                  {action.label}
+                </button>
+              ))}
             </li>
           ))}
         </ul>

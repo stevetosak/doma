@@ -153,9 +153,13 @@ Content stays spacious and card-based, never a dense data table — the brief's 
 
 Navigation is a fixed spine, not in-flow chrome: a 4rem-wide (`w-16`) vertical bar pinned to the left edge on `md:` and up, replaced below that breakpoint by a fixed bottom bar. Both list the same modules in the same order.
 
-The Today dashboard's card fan is the signature spatial pattern: on `md:` and up, secondary cards genuinely overlap (negative `-4.5rem` margin, descending scale 1 → 0.96 → 0.93 → 0.9, alternating small rotation, ascending z-index toward the front) rather than sitting in a same-plane row with a tilt effect; hovering a card lifts it to the front (`translateY(-6px) scale(1.02)`, z-index 10). Below `md:`, `.card-fan` drops to a plain vertical stack — the fan is a desktop-only affordance, mobile is an honest deck.
+The Today dashboard's card fan is the signature spatial pattern: on `md:` and up, secondary cards genuinely overlap (negative `-4.5rem` margin, descending scale 1 → 0.96 → 0.93 → 0.9, alternating small rotation, ascending z-index toward the front) rather than sitting in a same-plane row with a tilt effect; hovering a card lifts it to the front (`translateY(-6px) scale(1.02)`, z-index 10). Below `md:`, `.card-fan` drops to a plain vertical stack — the fan is a desktop-only affordance, mobile is an honest deck. The fan's own wrapper is unbounded — it lays out every "rest" card in one row with no cap — so on `md:` its containing div carries `overflow-x-auto` with `pt-2 pb-10` reserved padding (the transformed cards' translate/rotate/hover excursions need real box space, since a CSS transform doesn't grow an `auto`-height container): a household with more today-cards than fit at the viewport's width gets a horizontally scrollable fan instead of a page that overflows its own viewport.
 
 Grids elsewhere (occurrence cards, shopping items) use a plain 1-column mobile / 2-column (`sm:grid-cols-2`) desktop grid with `gap-4`; sections stack vertically with `gap-10` between them.
+
+### Named Rules
+
+**The Forty-Four-Pixel Rule.** Every primary, filled `bg-rust` button and every bottom-bar/spine nav tab holds a real 44px tap target (`py-3` at `text-sm`), not just a comfortable-looking one. This is the mobile-pass floor (Apple HIG / Material both cite ~44–48px) — it applies to the single most-committal action per surface and to primary navigation, not to secondary text-links, small reorder controls, or quick-add chips, which stay compact on purpose.
 
 ## Elevation & Depth
 
@@ -180,7 +184,7 @@ Two radius steps only: `--radius-card` (0.85rem) for every card, panel, and form
 ### Buttons
 
 - **Shape:** `rounded-tab` (0.5rem) on every button, no exceptions.
-- **Primary:** `bg-rust` / `text-card`, `px-3–4 py-1–2`, `text-sm font-medium`, `disabled:opacity-50`. Used for the single most-committal action per surface (Sign in, Add chore, Add item, Generate invite code, Done).
+- **Primary:** `bg-rust` / `text-card`, `px-3–4 py-3`, `text-sm font-medium`, `disabled:opacity-50`. Used for the single most-committal action per surface (Sign in, Add chore, Add item, Generate invite code, Done). `py-3` is load-bearing, not decorative — at `text-sm` it lands the tap target at 44px tall, the mobile-pass floor (see The Forty-Four-Pixel Rule).
 - **Secondary / Ghost:** `border border-kraft` (or `border-kraft/50`), `text-ink`, transparent or `bg-card` fill. Used for the lower-commitment sibling action (Skip, Register).
 - **Hover / Focus:** buttons don't carry a distinct hover treatment of their own beyond the shared `:focus-visible` rust outline (`2px solid var(--color-rust)`, `2px` offset) and browser default `:active`; the flip and card-lift interactions carry the system's motion budget, not button chrome.
 
@@ -205,13 +209,15 @@ Two radius steps only: `--radius-card` (0.85rem) for every card, panel, and form
 
 ### The Flip Card (signature component)
 
-Every actionable item — a chore occurrence, a shopping item — is a `FlipCard`: front and back are two separately-focusable elements inside a `perspective`-transformed scene, not a single button with swapped content. Tapping the front runs a real 3D `rotateY(180deg)` transform over 0.55s (`cubic-bezier(0.2, 0.7, 0.2, 1)`), snapping instantly instead under `prefers-reduced-motion`. The front carries status (a `font-mono` label plus, for `accent="rust"`, a small corner stamp-dot) and a `tap to flip — {label}` mono hint; the back carries assignee/detail and the actions (Done/Skip, remove, checkbox), plus any `MutationStatus`. Front and back are genuinely different card-back-colored materials (`bg-card` vs `bg-card-back`), not a re-skinned front. Whichever face is hidden is `inert`, so its controls drop out of tab order and can't be triggered while off-screen.
+Every actionable item — a chore, a shopping item — is a `FlipCard`: front and back are two separately-focusable elements inside a `perspective`-transformed scene, not a single button with swapped content. Tapping the front runs a real 3D `rotateY(180deg)` transform over 0.55s (`cubic-bezier(0.2, 0.7, 0.2, 1)`), snapping instantly instead under `prefers-reduced-motion`. The front carries every readable fact about the card (title, status, assignee/note, metadata) and a `tap to flip — {label}` mono hint; the back carries only its actions (Done/Skip, edit, delete, the primary check/complete control) plus any `MutationStatus` for whichever action lives there — see The Front-Is-Info Rule below. Front and back are genuinely different card-back-colored materials (`bg-card` vs `bg-card-back`), not a re-skinned front. Whichever face is hidden is `inert`, so its controls drop out of tab order and can't be triggered while off-screen; tapping anywhere on the back outside a real control flips back to the front — there is no separate "flip back" link, since one more redundant control would just be more surface to keep inert-correct.
 
-A `frontInteractive` variant (shopping's check-off) swaps the whole-front-button mechanic for a plain front div plus its own small explicit "tap to flip" button, so the front can hold a real control — a native, `accent-rust`-themed checkbox — without nesting a button inside a button. Any `MutationStatus` for a front-face action renders on the front itself, next to that control, not only on the back.
+### Named Rules
+
+**The Front-Is-Info, Back-Is-Actions Rule.** A card's front is read-only — title, status, assignee, notes, metadata — never a control past the flip trigger itself. A card's back holds nothing but its actions and their `MutationStatus`. This is a firm split, not a preference: it's what lets a card be safely `inert`-toggled by face, and it's why shopping's primary check action lives on the back next to Done/Skip's chore equivalent, not on the front despite being the single most frequent tap on that page.
 
 ### The Done Stack (signature component)
 
-Completed/skipped items file face-down into a `DoneStack` instead of disappearing: a toggle button showing two overlapping card-back rectangles (rotated ±6–12°, `bg-card-back`/`bg-card`) plus a mono count line ("N filed — riffle through"). Expanding it reveals each item as a small `font-mono text-blue` slip, alternately rotated ±0.5° so the pile reads as genuinely riffled paper, not a clean list.
+Completed/skipped items file face-down into a `DoneStack` instead of disappearing: a toggle button showing two overlapping card-back rectangles (rotated ±6–12°, `bg-card-back`/`bg-card`) plus a mono count line ("N filed — riffle through"). Expanding it reveals each item as a small `font-mono text-blue` slip, alternately rotated ±0.5° so the pile reads as genuinely riffled paper, not a clean list. A filed slip can carry its own small `actions` — an icon plus a mono underlined label (`undo` on a chore occurrence, `undo`/`remove` on a bought item) — so filing something is never a one-way trip: a mis-tap has a way back without needing to flip a card that no longer exists in the active list.
 
 ### Mutation Status (signature component)
 
@@ -223,7 +229,15 @@ Add/edit forms live in a `Sheet`, not inline in the resting list — a card-back
 
 ### The Occurrence Strip
 
-A horizontal row of small `font-mono` date chips (`text-[11px]`, the system's label floor) previewing a chore's upcoming due dates. The single occurrence actually actionable from the card — the soonest pending one — renders filled `bg-rust`/`text-card`; the rest of an overdue backlog that has piled up but isn't reachable from this card reads as an outlined `border-rust/50`/`text-rust-ink` chip instead, so a run of overdue dates doesn't look like a run of things you can act on right now. A date due today (when it isn't also the actionable one) is `bg-rust-soft`/`text-rust-ink`; future dates are a bare `border-kraft/40` outline. Appears on a chore's collapsed card front and, live-recomputed from the same recurrence engine as the field values change, inside the add/edit `Sheet` — so the preview always matches what will actually be materialized.
+A horizontal row of small `font-mono` date chips (`text-[11px]`, the system's label floor), each reading `Wed 09-14` — the weekday first, so a due date registers without doing calendar math in your head. Previews a chore's upcoming due dates. The single occurrence actually actionable from the card — the soonest pending one — renders filled `bg-rust`/`text-card`; the rest of an overdue backlog that has piled up but isn't reachable from this card reads as an outlined `border-rust/50`/`text-rust-ink` chip instead, so a run of overdue dates doesn't look like a run of things you can act on right now. A date due today (when it isn't also the actionable one) is `bg-rust-soft`/`text-rust-ink`; future dates are a bare `border-kraft/40` outline. Appears on a chore's collapsed card front and, live-recomputed from the same recurrence engine as the field values change, inside the add/edit `Sheet` — so the preview always matches what will actually be materialized.
+
+### Icons
+
+A small, hand-picked action-icon set (`src/core/ui/icons.tsx`) — plain geometric strokes (`stroke="currentColor"`, weight 1.75, rounded caps/joins, no fill), not a dropped-in generic icon-library look. Each icon inherits whatever ink/rust tone its surrounding text already carries, so a `PlusIcon` in a rust button reads `text-card` and an `EditIcon` in a mono action link reads `text-ink-faint`, automatically. Paired with a text label, never icon-only — recognition speed is the point, not an icon-only minimalism the household would have to learn.
+
+### The App Mark
+
+`src/core/ui/AppMark.tsx` — the app's logo, the same overlapping, slightly-rotated card silhouette `DoneStack`'s toggle already uses to say "a stack of index cards," redrawn as a standalone SVG rather than a new, unrelated glyph. Sits at the top of the desktop spine (replacing what used to be empty padding) and in a mobile-only header row above each page's own title (`AppShell`, `md:hidden`) — desktop's mark lives in the persistent spine, so it isn't repeated in the scrolling content there.
 
 ## Do's and Don'ts
 
@@ -235,6 +249,8 @@ A horizontal row of small `font-mono` date chips (`text-[11px]`, the system's la
 - **Do** render a not-yet-built module as a blank, same-weight reserved tab (spine band or bar slot with only a screen-reader label) — never gray it out, disable-style it, or hide it.
 - **Do** keep the ruled-baseline background-image as the system's only texture; it belongs on card faces (front and back), not as a general decorative device.
 - **Do** use the two-step radius scale only (`rounded-tab` 0.5rem for controls, `rounded-card` 0.85rem for cards/panels) — no third radius.
+- **Do** keep a `FlipCard` front read-only and put every control on the back, primary check/complete actions included — see The Front-Is-Info, Back-Is-Actions Rule.
+- **Do** pair a new icon with its text label; icon-only controls aren't part of the system.
 
 ### Don't:
 

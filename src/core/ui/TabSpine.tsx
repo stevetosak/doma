@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { AppMark } from '#/core/ui/AppMark'
 
 const MODULES = [
   { id: 'today', label: 'Today', href: '/' as const },
@@ -22,8 +23,11 @@ export function TabSpine() {
     <>
       <nav
         aria-label="Household modules"
-        className="fixed inset-y-0 left-0 z-20 hidden w-16 flex-col items-stretch gap-1 bg-kraft-dark pt-28 shadow-spine md:flex"
+        className="fixed inset-y-0 left-0 z-20 hidden w-16 flex-col items-stretch gap-1 bg-kraft-dark pt-6 shadow-spine md:flex"
       >
+        <div className="flex justify-center pt-2 pb-6" aria-hidden="true">
+          <AppMark className="h-9 w-9" />
+        </div>
         {MODULES.map((tab) => (
           <SpineTab key={tab.id} label={tab.label} href={tab.href} />
         ))}
@@ -83,7 +87,7 @@ function BarTab({ label, href }: { label: string; href: string }) {
     <Link
       to={href}
       {...linkActiveProps}
-      className="flex flex-1 flex-col items-center gap-0.5 px-2 py-2 font-display text-sm text-ink-dim [&.active]:text-rust"
+      className="flex flex-1 flex-col items-center justify-center gap-0.5 px-2 py-3 font-display text-sm text-ink-dim [&.active]:text-rust"
     >
       {label}
     </Link>
@@ -94,7 +98,7 @@ function ReservedBarTab({ label }: { label: string }) {
   return (
     <div
       aria-disabled="true"
-      className="flex flex-1 flex-col items-center gap-0.5 border-x border-kraft/40 px-2 py-2"
+      className="flex flex-1 flex-col items-center justify-center gap-0.5 border-x border-kraft/40 px-2 py-3"
     >
       <span className="sr-only">{label} — reserved for a future module</span>
     </div>
