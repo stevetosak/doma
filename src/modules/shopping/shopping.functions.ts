@@ -2,6 +2,8 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { resolveAuthContext } from '#/core/auth/context'
 import { publish } from '#/core/events/hub'
+import { listMembers } from '#/core/household/members-repo'
+import type { HouseholdMember } from '#/core/household/members-repo'
 import {
   addItem,
   getOrCreateDefaultList,
@@ -11,6 +13,7 @@ import {
   removeItem,
   reorderCategory,
   setItemChecked,
+  updateItem,
 } from '#/modules/shopping/repo'
 import type {
   CategoryView,
@@ -38,18 +41,20 @@ export interface ShoppingData {
   items: ItemView[]
   categories: CategoryView[]
   recentlyBought: RecentlyBoughtView[]
+  members: HouseholdMember[]
 }
 
 export const getShoppingData = createServerFn({ method: 'GET' }).handler(
   async (): Promise<ShoppingData> => {
     const { householdId } = await requireMember()
     const listId = await getOrCreateDefaultList(householdId)
-    const [items, categories, recentlyBought] = await Promise.all([
+    const [items, categories, recentlyBought, members] = await Promise.all([
       listItems(householdId, listId),
       listCategories(householdId),
       listRecentlyBought(householdId, listId),
+      listMembers(householdId),
     ])
-    return { listId, items, categories, recentlyBought }
+    return { listId, items, categories, recentlyBought, members }
   },
 )
 
@@ -73,6 +78,28 @@ export const addItemAction = createServerFn({ method: 'POST' })
       action: 'created',
     })
     return { id }
+  })
+
+const updateItemInput = z.object({
+  itemId: z.string().uuid(),
+  name: z.string().min(1).max(200),
+  quantity: z.number().positive().optional(),
+  unit: z.string().max(50).optional(),
+  note: z.string().max(500).optional(),
+  categoryName: z.string().min(1).max(100).optional(),
+})
+
+export const updateItemAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => updateItemInput.parse(input))
+  .handler(async ({ data }) => {
+    const { householdId } = await requireMember()
+    await updateItem({ householdId, ...data })
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'item',
+      action: 'updated',
+    })
+    return { ok: true as const }
   })
 
 const setItemCheckedInput = z.object({

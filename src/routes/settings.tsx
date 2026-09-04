@@ -3,10 +3,13 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { AppShell } from '#/core/ui/AppShell'
 import {
+  changeMemberRoleAction,
   createInviteAction,
   getSettingsData,
+  removeMemberAction,
   setModuleEnabledAction,
 } from '#/core/household/settings.functions'
+import type { HouseholdMember } from '#/core/household/members-repo'
 
 export const Route = createFileRoute('/settings')({
   beforeLoad: ({ context }) => {
@@ -38,12 +41,15 @@ function SettingsPage() {
 
       <section className="ruled mt-8 rounded-card border border-line bg-card p-6 shadow-card">
         <h2 className="font-display text-2xl text-ink">Members</h2>
-        <ul className="mt-3 flex flex-col gap-1">
+        <ul className="mt-3 flex flex-col gap-3">
           {data.members.map((member) => (
-            <li key={member.userId} className="font-mono text-sm text-ink">
-              {member.name ?? member.email}
-              <span className="text-ink-dim"> — {member.role}</span>
-            </li>
+            <MemberRow
+              key={member.userId}
+              member={member}
+              onChange={async () => {
+                await router.invalidate({ sync: true })
+              }}
+            />
           ))}
         </ul>
       </section>
@@ -77,6 +83,78 @@ function SettingsPage() {
         )}
       </section>
     </AppShell>
+  )
+}
+
+function MemberRow({
+  member,
+  onChange,
+}: {
+  member: HouseholdMember
+  onChange: () => Promise<void>
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleRoleToggle() {
+    setError(null)
+    setSubmitting(true)
+    try {
+      await changeMemberRoleAction({
+        data: {
+          userId: member.userId,
+          role: member.role === 'owner' ? 'member' : 'owner',
+        },
+      })
+      await onChange()
+    } catch {
+      setError('Could not change that member’s role.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleRemove() {
+    setError(null)
+    setSubmitting(true)
+    try {
+      await removeMemberAction({ data: { userId: member.userId } })
+      await onChange()
+    } catch {
+      setError('Could not remove that member.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <li className="flex flex-col gap-1 font-mono text-sm text-ink">
+      <div className="flex items-center justify-between gap-3">
+        <span>
+          {member.name ?? member.email}
+          <span className="text-ink-dim"> — {member.role}</span>
+        </span>
+        <span className="flex gap-3 text-[11px] tracking-wide text-ink-faint">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleRoleToggle}
+            className="underline decoration-dotted underline-offset-4 disabled:opacity-50"
+          >
+            make {member.role === 'owner' ? 'member' : 'owner'}
+          </button>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleRemove}
+            className="underline decoration-dotted underline-offset-4 disabled:opacity-50"
+          >
+            remove
+          </button>
+        </span>
+      </div>
+      {error && <span className="text-xs text-error">{error}</span>}
+    </li>
   )
 }
 
