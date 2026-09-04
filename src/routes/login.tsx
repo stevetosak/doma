@@ -96,14 +96,14 @@ function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
+          className="rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
         >
           Sign in
         </button>
       </form>
       <a
         href={`/auth/google?returnTo=${encodeURIComponent(returnTo)}`}
-        className="mt-3 block rounded-tab border border-kraft/50 bg-card px-4 py-2 text-center text-sm text-ink shadow-card"
+        className="mt-3 block rounded-tab border border-kraft/50 bg-card px-4 py-3 text-center text-sm text-ink shadow-card"
       >
         Sign in with Google
       </a>

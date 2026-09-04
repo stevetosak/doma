@@ -32,3 +32,17 @@ FORM: The Recipe Box — assigned candidate #7 of 7 grounded household-object di
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the
 verdict, DESIGN.md, and every shipping raster carrying its provenance.
+
+## Revision (mobile pass, 2026-09-04)
+
+Fixed a real horizontal-overflow bug: at the `md:` breakpoint boundary (768px, exactly where
+the card fan's overlap CSS first activates), a household with more than ~3 "rest" cards
+overflowed the page — the fan has no cap and no wrap, so the last tile simply rendered past
+the viewport edge. Fix: the fan's wrapper div now carries `md:overflow-x-auto` with
+`md:pt-2 md:pb-10` reserved padding (the transformed cards' translate/rotate/hover excursions
+need real box space, since CSS transforms don't grow an `auto`-height container). The fan still
+overlaps and recedes exactly as before when it fits; it becomes a horizontally scrollable strip
+only when a household's today-cards genuinely exceed the viewport.
+
+Also bumped the two `LoggedOutSplash` primary/secondary CTAs (`Sign in` / `Register`) from
+`py-2` to `py-3` — see The Forty-Four-Pixel Rule in DESIGN.md.

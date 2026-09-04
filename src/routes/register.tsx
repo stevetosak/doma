@@ -124,7 +124,7 @@ function RegisterPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
+          className="rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
         >
           {bootstrap ? 'Create account' : 'Join'}
         </button>

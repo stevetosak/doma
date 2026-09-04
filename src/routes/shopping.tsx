@@ -112,7 +112,7 @@ function ShoppingPage() {
         <button
           type="button"
           onClick={() => setAddOpen(true)}
-          className="flex shrink-0 items-center gap-1.5 rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card"
+          className="flex shrink-0 items-center gap-1.5 rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card"
         >
           <PlusIcon className="h-4 w-4" />
           Add item
@@ -245,7 +245,7 @@ function ItemCard({
               type="button"
               disabled={busy}
               onClick={markBought}
-              className="flex items-center gap-1.5 self-start rounded-tab bg-rust px-3 py-1 text-sm font-medium text-card disabled:opacity-50"
+              className="flex items-center gap-1.5 self-start rounded-tab bg-rust px-3 py-3 text-sm font-medium text-card disabled:opacity-50"
             >
               <CheckIcon className="h-4 w-4" />
               Got it
@@ -409,7 +409,7 @@ function ItemEditForm({
         <button
           type="submit"
           disabled={submitting}
-          className="self-start rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
+          className="self-start rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
         >
           Save changes
         </button>
@@ -577,7 +577,7 @@ function NewItemForm({
         <button
           type="submit"
           disabled={submitting}
-          className="self-start rounded-tab bg-rust px-4 py-2 text-sm font-medium text-card disabled:opacity-50"
+          className="self-start rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
         >
           Add
         </button>
