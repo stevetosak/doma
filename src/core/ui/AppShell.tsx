@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useRouteContext } from '@tanstack/react-router'
 import { TabSpine } from '#/core/ui/TabSpine'
 import { useAmbientWash } from '#/core/ui/useAmbientWash'
 
@@ -8,6 +9,7 @@ import { useAmbientWash } from '#/core/ui/useAmbientWash'
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const washStyle = useAmbientWash()
+  const { version } = useRouteContext({ from: '__root__' })
 
   return (
     <div className="relative min-h-screen">
@@ -19,6 +21,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TabSpine />
       <main className="mx-auto max-w-3xl px-4 pt-8 pb-24 md:pt-10 md:pr-8 md:pb-10 md:pl-24">
         {children}
+        <p className="mt-16 font-mono text-[11px] tracking-wide text-ink-faint">
+          doma · {version}
+        </p>
       </main>
     </div>
   )

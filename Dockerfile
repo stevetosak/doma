@@ -11,6 +11,12 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
+# The deployed commit, surfaced in /api/health and the app's own footer
+# (src/core/version.functions.ts) — passed via --build-arg in deploy.yaml,
+# unset (falls back to "dev") for a local `docker build`.
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
+
 # scripts/start.mjs and scripts/migrate.mjs run outside the Nitro bundle
 # (plain, unbundled ESM — see their own comments), so they need a real
 # node_modules for dotenv/pg/drizzle-orm. .output/ itself is already
