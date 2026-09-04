@@ -53,3 +53,10 @@ edit," which no longer holds now the check action itself also moved off the fron
 round: category delete, a datalist-backed category field (typeable, but suggests existing
 categories so near-duplicates from typos are less likely), and `DoneStack` undo/remove actions
 on already-bought items.
+
+## Revision (mobile pass, 2026-09-04)
+
+Bumped every primary `bg-rust` button (Add item, Got it, Save/submit in the item add/edit
+sheets) from `py-1`/`py-2` to `py-3` — real 44px tap targets. See The Forty-Four-Pixel Rule in
+DESIGN.md. The "Recently bought" quick-add chips were deliberately left compact (a chip
+idiom, not a primary action) — not part of this bump.

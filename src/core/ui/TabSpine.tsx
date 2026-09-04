@@ -87,7 +87,7 @@ function BarTab({ label, href }: { label: string; href: string }) {
     <Link
       to={href}
       {...linkActiveProps}
-      className="flex flex-1 flex-col items-center gap-0.5 px-2 py-2 font-display text-sm text-ink-dim [&.active]:text-rust"
+      className="flex flex-1 flex-col items-center justify-center gap-0.5 px-2 py-3 font-display text-sm text-ink-dim [&.active]:text-rust"
     >
       {label}
     </Link>
@@ -98,7 +98,7 @@ function ReservedBarTab({ label }: { label: string }) {
   return (
     <div
       aria-disabled="true"
-      className="flex flex-1 flex-col items-center gap-0.5 border-x border-kraft/40 px-2 py-2"
+      className="flex flex-1 flex-col items-center justify-center gap-0.5 border-x border-kraft/40 px-2 py-3"
     >
       <span className="sr-only">{label} — reserved for a future module</span>
     </div>

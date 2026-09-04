@@ -153,9 +153,13 @@ Content stays spacious and card-based, never a dense data table — the brief's 
 
 Navigation is a fixed spine, not in-flow chrome: a 4rem-wide (`w-16`) vertical bar pinned to the left edge on `md:` and up, replaced below that breakpoint by a fixed bottom bar. Both list the same modules in the same order.
 
-The Today dashboard's card fan is the signature spatial pattern: on `md:` and up, secondary cards genuinely overlap (negative `-4.5rem` margin, descending scale 1 → 0.96 → 0.93 → 0.9, alternating small rotation, ascending z-index toward the front) rather than sitting in a same-plane row with a tilt effect; hovering a card lifts it to the front (`translateY(-6px) scale(1.02)`, z-index 10). Below `md:`, `.card-fan` drops to a plain vertical stack — the fan is a desktop-only affordance, mobile is an honest deck.
+The Today dashboard's card fan is the signature spatial pattern: on `md:` and up, secondary cards genuinely overlap (negative `-4.5rem` margin, descending scale 1 → 0.96 → 0.93 → 0.9, alternating small rotation, ascending z-index toward the front) rather than sitting in a same-plane row with a tilt effect; hovering a card lifts it to the front (`translateY(-6px) scale(1.02)`, z-index 10). Below `md:`, `.card-fan` drops to a plain vertical stack — the fan is a desktop-only affordance, mobile is an honest deck. The fan's own wrapper is unbounded — it lays out every "rest" card in one row with no cap — so on `md:` its containing div carries `overflow-x-auto` with `pt-2 pb-10` reserved padding (the transformed cards' translate/rotate/hover excursions need real box space, since a CSS transform doesn't grow an `auto`-height container): a household with more today-cards than fit at the viewport's width gets a horizontally scrollable fan instead of a page that overflows its own viewport.
 
 Grids elsewhere (occurrence cards, shopping items) use a plain 1-column mobile / 2-column (`sm:grid-cols-2`) desktop grid with `gap-4`; sections stack vertically with `gap-10` between them.
+
+### Named Rules
+
+**The Forty-Four-Pixel Rule.** Every primary, filled `bg-rust` button and every bottom-bar/spine nav tab holds a real 44px tap target (`py-3` at `text-sm`), not just a comfortable-looking one. This is the mobile-pass floor (Apple HIG / Material both cite ~44–48px) — it applies to the single most-committal action per surface and to primary navigation, not to secondary text-links, small reorder controls, or quick-add chips, which stay compact on purpose.
 
 ## Elevation & Depth
 
@@ -180,7 +184,7 @@ Two radius steps only: `--radius-card` (0.85rem) for every card, panel, and form
 ### Buttons
 
 - **Shape:** `rounded-tab` (0.5rem) on every button, no exceptions.
-- **Primary:** `bg-rust` / `text-card`, `px-3–4 py-1–2`, `text-sm font-medium`, `disabled:opacity-50`. Used for the single most-committal action per surface (Sign in, Add chore, Add item, Generate invite code, Done).
+- **Primary:** `bg-rust` / `text-card`, `px-3–4 py-3`, `text-sm font-medium`, `disabled:opacity-50`. Used for the single most-committal action per surface (Sign in, Add chore, Add item, Generate invite code, Done). `py-3` is load-bearing, not decorative — at `text-sm` it lands the tap target at 44px tall, the mobile-pass floor (see The Forty-Four-Pixel Rule).
 - **Secondary / Ghost:** `border border-kraft` (or `border-kraft/50`), `text-ink`, transparent or `bg-card` fill. Used for the lower-commitment sibling action (Skip, Register).
 - **Hover / Focus:** buttons don't carry a distinct hover treatment of their own beyond the shared `:focus-visible` rust outline (`2px solid var(--color-rust)`, `2px` offset) and browser default `:active`; the flip and card-lift interactions carry the system's motion budget, not button chrome.
 
