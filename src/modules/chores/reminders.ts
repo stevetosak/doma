@@ -1,9 +1,6 @@
 import { notify } from '#/core/notify/notify'
-import {
-  getChore,
-  listPendingOccurrencesForChore,
-  listRemindersForChore,
-} from '#/modules/chores/repo'
+import { listRemindersForItem } from '#/core/items/repo'
+import { getChore, listPendingOccurrencesForChore } from '#/modules/chores/repo'
 import { computeReminderAt } from './reminder-time'
 import { formatDateWithWeekday } from './time'
 
@@ -23,13 +20,20 @@ export async function scheduleRemindersForChore(
   const chore = await getChore(choreId, householdId)
   if (!chore) return
 
-  const reminders = await listRemindersForChore(choreId, householdId)
-  if (reminders.length === 0) return
+  const reminderRows = await listRemindersForItem(choreId, householdId)
+  if (reminderRows.length === 0) return
 
   const occurrences = await listPendingOccurrencesForChore(choreId, householdId)
   for (const occurrence of occurrences) {
     if (!occurrence.assigneeUserId) continue
-    for (const reminder of reminders) {
+    for (const reminder of reminderRows) {
+      if (
+        reminder.offsetDays == null ||
+        reminder.hour == null ||
+        reminder.minute == null
+      ) {
+        continue // not a relative-mode row — shouldn't happen for a chore, but stay defensive
+      }
       await notify({
         householdId,
         userId: occurrence.assigneeUserId,
@@ -49,7 +53,7 @@ export async function scheduleRemindersForChore(
           reminder.minute,
         ),
         dedupeKey: `chore-occ:${occurrence.id}:reminder:${reminder.id}`,
-        existenceCheck: { table: 'chore_reminders', id: reminder.id },
+        existenceCheck: { table: 'reminders', id: reminder.id },
       })
     }
   }

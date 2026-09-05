@@ -1,8 +1,10 @@
-import { and, eq, gte, lte, or } from 'drizzle-orm'
+import { and, eq, gte, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/core/db/client'
 import { householdScope } from '#/core/db/household-scope'
 import { households } from '#/core/household/schema'
-import { choreOccurrences, choreReminders, chores } from './schema'
+import { choreOccurrences, chores } from './schema'
+import { reminders } from '#/core/items/schema'
+import { createItemRecord } from '#/core/items/repo'
 import type { AssignmentMode, RecurrenceKind } from './recurrence'
 
 export interface CreateChoreInput {
@@ -22,26 +24,29 @@ export interface CreateChoreInput {
 }
 
 export async function createChore(input: CreateChoreInput): Promise<string> {
-  const [row] = await db
-    .insert(chores)
-    .values({
-      householdId: input.householdId,
-      title: input.title,
-      notes: input.notes ?? null,
-      recurrenceKind: input.recurrenceKind,
-      interval: input.interval,
-      weekdays: input.weekdays ?? null,
-      dayOfMonth: input.dayOfMonth ?? null,
-      startsOn: input.startsOn,
-      endsOn: input.endsOn ?? null,
-      assignmentMode: input.assignmentMode,
-      assigneeUserId: input.assigneeUserId ?? null,
-      rotation: input.rotation ?? null,
-      createdBy: input.createdBy,
-    })
-    .returning({ id: chores.id })
-  if (!row) throw new Error('Insert did not return a row')
-  return row.id
+  return createItemRecord(input.householdId, 'chore', async (tx, id) => {
+    const [row] = await tx
+      .insert(chores)
+      .values({
+        id,
+        householdId: input.householdId,
+        title: input.title,
+        notes: input.notes ?? null,
+        recurrenceKind: input.recurrenceKind,
+        interval: input.interval,
+        weekdays: input.weekdays ?? null,
+        dayOfMonth: input.dayOfMonth ?? null,
+        startsOn: input.startsOn,
+        endsOn: input.endsOn ?? null,
+        assignmentMode: input.assignmentMode,
+        assigneeUserId: input.assigneeUserId ?? null,
+        rotation: input.rotation ?? null,
+        createdBy: input.createdBy,
+      })
+      .returning({ id: chores.id })
+    if (!row) throw new Error('Insert did not return a row')
+    return row.id
+  })
 }
 
 export type UpdateChoreInput = Omit<
@@ -124,79 +129,6 @@ export interface ChoreRow {
   createdBy: string | null
 }
 
-export interface ReminderInput {
-  offsetDays: number
-  hour: number
-  minute: number
-}
-
-export interface ReminderRow extends ReminderInput {
-  id: string
-}
-
-/**
- * Wipe-and-recreate, matching deletePendingOccurrencesFrom's own
- * delete-then-rebuild convention — the edit form always submits the whole
- * desired set in one shot, there's no per-row CRUD surface for reminders
- * the way there is for shopping items. Transactional so a failed insert
- * never leaves a chore's reminders deleted-but-not-replaced.
- */
-export async function replaceChoreReminders(
-  choreId: string,
-  householdId: string,
-  reminders: ReminderInput[],
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(choreReminders)
-      .where(
-        householdScope(
-          choreReminders,
-          householdId,
-          eq(choreReminders.choreId, choreId),
-        ),
-      )
-    // db.insert(...).values([]) is invalid — an empty array just means the
-    // delete above already leaves the chore reminder-less.
-    if (reminders.length === 0) return
-    await tx.insert(choreReminders).values(
-      reminders.map((r) => ({
-        householdId,
-        choreId,
-        offsetDays: r.offsetDays,
-        hour: r.hour,
-        minute: r.minute,
-      })),
-    )
-  })
-}
-
-export async function listRemindersForChore(
-  choreId: string,
-  householdId: string,
-): Promise<ReminderRow[]> {
-  return db
-    .select({
-      id: choreReminders.id,
-      offsetDays: choreReminders.offsetDays,
-      hour: choreReminders.hour,
-      minute: choreReminders.minute,
-    })
-    .from(choreReminders)
-    .where(
-      householdScope(
-        choreReminders,
-        householdId,
-        eq(choreReminders.choreId, choreId),
-      ),
-    )
-    .orderBy(
-      choreReminders.offsetDays,
-      choreReminders.hour,
-      choreReminders.minute,
-    )
-}
-
 export async function getChore(
   choreId: string,
   householdId: string,
@@ -271,15 +203,27 @@ export async function listChoresWithOccurrences(
     )
     .orderBy(choreOccurrences.dueOn)
 
-  const reminderRows = await db
-    .select()
-    .from(choreReminders)
-    .where(householdScope(choreReminders, householdId))
-    .orderBy(
-      choreReminders.offsetDays,
-      choreReminders.hour,
-      choreReminders.minute,
-    )
+  const choreIds = choreRows.map((c) => c.id)
+  const reminderRows =
+    choreIds.length > 0
+      ? await db
+          .select({
+            id: reminders.id,
+            itemId: reminders.itemId,
+            offsetDays: reminders.offsetDays,
+            hour: reminders.hour,
+            minute: reminders.minute,
+          })
+          .from(reminders)
+          .where(
+            householdScope(
+              reminders,
+              householdId,
+              inArray(reminders.itemId, choreIds),
+            ),
+          )
+          .orderBy(reminders.offsetDays, reminders.hour, reminders.minute)
+      : []
 
   const occurrencesByChore = new Map<string, ChoreOccurrenceView[]>()
   for (const occ of occurrenceRows) {
@@ -295,14 +239,15 @@ export async function listChoresWithOccurrences(
 
   const remindersByChore = new Map<string, ChoreReminderView[]>()
   for (const r of reminderRows) {
-    const list = remindersByChore.get(r.choreId) ?? []
+    if (r.offsetDays == null || r.hour == null || r.minute == null) continue
+    const list = remindersByChore.get(r.itemId) ?? []
     list.push({
       id: r.id,
       offsetDays: r.offsetDays,
       hour: r.hour,
       minute: r.minute,
     })
-    remindersByChore.set(r.choreId, list)
+    remindersByChore.set(r.itemId, list)
   }
 
   return choreRows.map((chore) => ({
