@@ -1,4 +1,5 @@
 import { stillExists } from './existence'
+import { isStillLive } from './liveness'
 import { findRetryableFailed, markFailed, markSent } from './outbox-repo'
 import { getTelegramLink } from './telegram-links-repo'
 import { sendTelegramMessage } from './telegram-bot'
@@ -14,12 +15,9 @@ import { sendTelegramMessage } from './telegram-bot'
 export async function retryFailedNotifications(): Promise<void> {
   const rows = await findRetryableFailed()
   for (const row of rows) {
-    const stale = !(await stillExists(
-      row.existenceCheckTable && row.existenceCheckId
-        ? { table: row.existenceCheckTable, id: row.existenceCheckId }
-        : null,
-    ))
-    if (stale) continue // deleted or replaced since scheduling — leave it 'failed', the attempts cap eventually stops revisiting it
+    if (!(await stillExists(row.reminderId))) continue // deleted or replaced since scheduling — leave it 'failed', the attempts cap eventually stops revisiting it
+
+    if (!(await isStillLive(row.kind, row.subjectId))) continue
 
     const link = await getTelegramLink(row.userId)
     if (!link) continue // still not linked — leave it failed, try again next sweep

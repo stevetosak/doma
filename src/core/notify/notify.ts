@@ -15,13 +15,13 @@ export interface NotifyInput {
   /** UNIQUE across `notifications` — see outbox-repo.ts's claimOutboxRow. */
   dedupeKey: string
   /**
-   * If set, dispatch and the retry sweep re-verify this row still exists
-   * before sending (existence.ts) — a job whose backing row was deleted
-   * or replaced (e.g. a chore reminder that was edited or removed) since
-   * this was scheduled is silently dropped instead of sent. Omit for a
-   * notification with nothing that can go stale.
+   * If set, dispatch and the retry sweep re-verify this reminder still
+   * exists (existence.ts) and is still live (liveness.ts) before sending —
+   * a job whose backing reminder was deleted/edited, or whose subject
+   * (an occurrence, an item) is already done/checked, is silently dropped
+   * instead of sent. Omit for a notification with nothing that can go stale.
    */
-  existenceCheck?: { table: string; id: string }
+  reminderId?: string
 }
 
 /** What the `notify.dispatch` job handler (dispatch.ts) actually receives. */
@@ -36,7 +36,7 @@ export interface NotifyJobData {
   deepLink: string
   at: string
   dedupeKey: string
-  existenceCheck?: { table: string; id: string }
+  reminderId?: string
 }
 
 /**
@@ -61,7 +61,7 @@ export async function notify(input: NotifyInput): Promise<void> {
     deepLink: input.deepLink,
     at: input.at.toISOString(),
     dedupeKey: input.dedupeKey,
-    existenceCheck: input.existenceCheck,
+    reminderId: input.reminderId,
   }
   await boss.send(NOTIFY_DISPATCH_QUEUE, data, {
     startAfter: input.at,

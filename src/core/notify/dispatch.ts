@@ -1,4 +1,5 @@
 import { stillExists } from './existence'
+import { isStillLive } from './liveness'
 import { claimOutboxRow, markFailed, markSent } from './outbox-repo'
 import { getTelegramLink } from './telegram-links-repo'
 import { sendTelegramMessage } from './telegram-bot'
@@ -10,11 +11,17 @@ import type { NotifyJobData } from './notify'
  * (sweep.ts) shares its claim step with.
  */
 export async function dispatchNotification(data: NotifyJobData): Promise<void> {
-  if (!(await stillExists(data.existenceCheck))) {
-    // The row this was about (e.g. a chore reminder) was deleted or
-    // replaced since this was scheduled — nothing to send.
-    return
-  }
+  // Fall back to the legacy `existenceCheck.id` field for jobs enqueued
+  // before this deploy (main, with Phase 1's PR #57, wrote
+  // `existenceCheck: { table: 'reminders', id }` — there is no
+  // `reminderId` on those already-serialized pg-boss payloads).
+  // `NotifyJobData` no longer declares `existenceCheck` (Task 6 removed it),
+  // but it can still be present at runtime, hence the cast.
+  const reminderId =
+    data.reminderId ??
+    (data as { existenceCheck?: { id: string } }).existenceCheck?.id
+  if (!(await stillExists(reminderId))) return // the reminder was deleted or replaced since this was scheduled
+  if (!(await isStillLive(data.kind, data.subjectId))) return // already done/checked elsewhere
 
   const link = await getTelegramLink(data.userId)
   if (!link) {
@@ -36,8 +43,7 @@ export async function dispatchNotification(data: NotifyJobData): Promise<void> {
     deepLink: data.deepLink,
     scheduledFor: new Date(data.at),
     dedupeKey: data.dedupeKey,
-    existenceCheckTable: data.existenceCheck?.table ?? null,
-    existenceCheckId: data.existenceCheck?.id ?? null,
+    reminderId: reminderId ?? null,
   })
   if (!claimed) return // already sent, already failed-and-tracked, or in flight elsewhere
 
