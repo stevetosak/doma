@@ -88,7 +88,6 @@ const createChoreInput = z
     assignmentMode: z.enum(['fixed', 'rotating']),
     assigneeUserId: z.string().uuid().optional(),
     rotation: z.array(z.string().uuid()).optional(),
-    reminders: z.array(reminderInput).max(MAX_REMINDERS).default([]),
   })
   .refine(
     (data) =>
@@ -118,15 +117,12 @@ export const createChoreAction = createServerFn({ method: 'POST' })
   .validator((input: unknown) => createChoreInput.parse(input))
   .handler(async ({ data }) => {
     const { userId, household } = await requireMember()
-    const { reminders, ...fields } = data
     const choreId = await createChore({
       householdId: household.id,
       createdBy: userId,
-      ...fields,
+      ...data,
     })
-    await replaceRemindersForItem(choreId, household.id, reminders)
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
-    await scheduleRemindersForChore(choreId, household.id, household.timezone)
     publish(household.id, {
       module: 'chores',
       entity: 'chore',
@@ -143,9 +139,8 @@ export const updateChoreAction = createServerFn({ method: 'POST' })
   .validator((input: unknown) => updateChoreInput.parse(input))
   .handler(async ({ data }) => {
     const { household } = await requireMember()
-    const { choreId, reminders, ...fields } = data
+    const { choreId, ...fields } = data
     await updateChore(choreId, household.id, fields)
-    await replaceRemindersForItem(choreId, household.id, reminders)
     await deletePendingOccurrencesFrom(
       choreId,
       household.id,
@@ -153,6 +148,29 @@ export const updateChoreAction = createServerFn({ method: 'POST' })
     )
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
     await scheduleRemindersForChore(choreId, household.id, household.timezone)
+    publish(household.id, {
+      module: 'chores',
+      entity: 'chore',
+      action: 'updated',
+    })
+    return { ok: true as const }
+  })
+
+const setChoreRemindersInput = z.object({
+  choreId: z.string().uuid(),
+  reminders: z.array(reminderInput).max(MAX_REMINDERS),
+})
+
+export const setChoreRemindersAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => setChoreRemindersInput.parse(input))
+  .handler(async ({ data }) => {
+    const { household } = await requireMember()
+    await replaceRemindersForItem(data.choreId, household.id, data.reminders)
+    await scheduleRemindersForChore(
+      data.choreId,
+      household.id,
+      household.timezone,
+    )
     publish(household.id, {
       module: 'chores',
       entity: 'chore',
