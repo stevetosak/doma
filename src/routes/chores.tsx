@@ -5,6 +5,7 @@ import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
 import { FlipCard } from '#/core/ui/FlipCard'
 import {
+  BellIcon,
   CheckIcon,
   CloseIcon,
   EditIcon,
@@ -14,6 +15,7 @@ import {
   UndoIcon,
 } from '#/core/ui/icons'
 import { MutationStatus } from '#/core/ui/MutationStatus'
+import { ReminderListEditor } from '#/core/ui/ReminderListEditor'
 import { Sheet } from '#/core/ui/Sheet'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
@@ -22,6 +24,7 @@ import {
   createChoreAction,
   getChoresData,
   MAX_REMINDERS,
+  setChoreRemindersAction,
   setOccurrenceStatusAction,
   updateChoreAction,
 } from '#/modules/chores/chores.functions'
@@ -31,11 +34,7 @@ import {
   formatDateWithWeekday,
   todayInZone,
 } from '#/modules/chores/time'
-import type {
-  ChoreOccurrenceView,
-  ChoreReminderView,
-  ChoreView,
-} from '#/modules/chores/repo'
+import type { ChoreOccurrenceView, ChoreView } from '#/modules/chores/repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 
 export const Route = createFileRoute('/chores')({
@@ -217,6 +216,7 @@ function ChoreCard({
 }) {
   const { status, error, run } = useHouseholdMutation()
   const [editOpen, setEditOpen] = useState(false)
+  const [remindersOpen, setRemindersOpen] = useState(false)
   const today = todayInZone(timezone)
   const filed = chore.occurrences.filter((o) => o.status !== 'pending')
   const upcoming = chore.occurrences
@@ -341,6 +341,17 @@ function ChoreCard({
               </button>
               <button
                 type="button"
+                onClick={() => setRemindersOpen(true)}
+                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
+              >
+                <BellIcon className="h-3.5 w-3.5" />
+                remind
+                {chore.reminders.length > 0
+                  ? ` (${chore.reminders.length})`
+                  : ''}
+              </button>
+              <button
+                type="button"
                 onClick={handleDelete}
                 className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
               >
@@ -387,7 +398,146 @@ function ChoreCard({
           onCancel={() => setEditOpen(false)}
         />
       </Sheet>
+
+      <Sheet
+        open={remindersOpen}
+        onClose={() => setRemindersOpen(false)}
+        title="Chore reminders"
+      >
+        <ChoreReminderForm
+          chore={chore}
+          onSaved={async () => {
+            setRemindersOpen(false)
+            await onChange()
+          }}
+          onCancel={() => setRemindersOpen(false)}
+        />
+      </Sheet>
     </div>
+  )
+}
+
+function ChoreReminderForm({
+  chore,
+  onSaved,
+  onCancel,
+}: {
+  chore: ChoreView
+  onSaved: () => Promise<void>
+  onCancel: () => void
+}) {
+  const nextKey = useRef(0)
+  const [rows, setRows] = useState<ReminderFormRow[]>(() =>
+    chore.reminders.map((r) => ({
+      key: nextKey.current++,
+      offsetDays: r.offsetDays,
+      hour: r.hour,
+      minute: r.minute,
+    })),
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  function addRow(offsetDays: number, hour: number, minute: number) {
+    setRows((current) =>
+      current.length >= MAX_REMINDERS
+        ? current
+        : [...current, { key: nextKey.current++, offsetDays, hour, minute }],
+    )
+  }
+
+  function updateRow(
+    key: number,
+    patch: Partial<Omit<ReminderFormRow, 'key'>>,
+  ) {
+    setRows((current) =>
+      current.map((r) => (r.key === key ? { ...r, ...patch } : r)),
+    )
+  }
+
+  function removeRow(key: number) {
+    setRows((current) => current.filter((r) => r.key !== key))
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      await setChoreRemindersAction({
+        data: {
+          choreId: chore.id,
+          reminders: rows.map(({ offsetDays, hour, minute }) => ({
+            offsetDays,
+            hour,
+            minute,
+          })),
+        },
+      })
+      await onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <ReminderListEditor
+        rows={rows}
+        max={MAX_REMINDERS}
+        onAdd={() => addRow(0, 8, 0)}
+        onRemove={removeRow}
+        presets={REMINDER_PRESETS.map((preset) => ({
+          label: preset.label,
+          onClick: () => addRow(preset.offsetDays, preset.hour, preset.minute),
+        }))}
+        renderRow={(row) => (
+          <>
+            <input
+              type="number"
+              min={-30}
+              max={0}
+              className="field w-20"
+              value={row.offsetDays}
+              onChange={(e) =>
+                updateRow(row.key, { offsetDays: Number(e.target.value) })
+              }
+            />
+            <span className="font-mono text-xs text-ink-faint">
+              days before, at
+            </span>
+            <input
+              type="time"
+              className="field w-32"
+              value={timeInputValue(row.hour, row.minute)}
+              onChange={(e) => {
+                const parsed = parseTimeInputValue(e.target.value)
+                if (parsed) updateRow(row.key, parsed)
+              }}
+            />
+          </>
+        )}
+      />
+      {error && <p className="text-sm text-rust">{error}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="self-start rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
+        >
+          Save reminders
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex items-center gap-1 font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   )
 }
 
@@ -424,15 +574,6 @@ function ChoreForm({
   const [rotation, setRotation] = useState<string[]>(
     initial?.rotation ?? (members[0] ? [members[0].userId] : []),
   )
-  const nextReminderKey = useRef(0)
-  const [reminders, setReminders] = useState<ReminderFormRow[]>(() =>
-    (initial?.reminders ?? []).map((r: ChoreReminderView) => ({
-      key: nextReminderKey.current++,
-      offsetDays: r.offsetDays,
-      hour: r.hour,
-      minute: r.minute,
-    })),
-  )
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -450,30 +591,6 @@ function ChoreForm({
         ? current.filter((id) => id !== userId)
         : [...current, userId],
     )
-  }
-
-  function addReminderRow(offsetDays: number, hour: number, minute: number) {
-    setReminders((current) =>
-      current.length >= MAX_REMINDERS
-        ? current
-        : [
-            ...current,
-            { key: nextReminderKey.current++, offsetDays, hour, minute },
-          ],
-    )
-  }
-
-  function updateReminderRow(
-    key: number,
-    patch: Partial<Omit<ReminderFormRow, 'key'>>,
-  ) {
-    setReminders((current) =>
-      current.map((r) => (r.key === key ? { ...r, ...patch } : r)),
-    )
-  }
-
-  function removeReminderRow(key: number) {
-    setReminders((current) => current.filter((r) => r.key !== key))
   }
 
   const previewDates = (() => {
@@ -514,11 +631,6 @@ function ChoreForm({
         assignmentMode,
         assigneeUserId: assignmentMode === 'fixed' ? assigneeUserId : undefined,
         rotation: assignmentMode === 'rotating' ? rotation : undefined,
-        reminders: reminders.map(({ offsetDays, hour, minute }) => ({
-          offsetDays,
-          hour,
-          minute,
-        })),
       }
       if (initial) {
         await updateChoreAction({ data: { choreId: initial.id, ...fields } })
@@ -695,84 +807,6 @@ function ChoreForm({
             ))}
           </fieldset>
         )}
-
-        <div className="flex flex-col gap-3">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Reminders
-          </span>
-
-          {reminders.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {reminders.map((r) => (
-                <div key={r.key} className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={-30}
-                    max={0}
-                    className="field w-20"
-                    value={r.offsetDays}
-                    onChange={(e) =>
-                      updateReminderRow(r.key, {
-                        offsetDays: Number(e.target.value),
-                      })
-                    }
-                  />
-                  <span className="font-mono text-xs text-ink-faint">
-                    days before, at
-                  </span>
-                  <input
-                    type="time"
-                    className="field w-32"
-                    value={timeInputValue(r.hour, r.minute)}
-                    onChange={(e) => {
-                      const parsed = parseTimeInputValue(e.target.value)
-                      if (parsed) updateReminderRow(r.key, parsed)
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeReminderRow(r.key)}
-                    className="flex items-center gap-1 font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
-                  >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                    remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            {REMINDER_PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                disabled={reminders.length >= MAX_REMINDERS}
-                onClick={() =>
-                  addReminderRow(preset.offsetDays, preset.hour, preset.minute)
-                }
-                className="rounded-tab border border-kraft px-3 py-1.5 font-mono text-[11px] tracking-wide text-ink disabled:opacity-50"
-              >
-                + {preset.label}
-              </button>
-            ))}
-            <button
-              type="button"
-              disabled={reminders.length >= MAX_REMINDERS}
-              onClick={() => addReminderRow(0, 8, 0)}
-              className="flex items-center gap-1 rounded-tab border border-dotted border-kraft px-3 py-1.5 font-mono text-[11px] tracking-wide text-ink-faint disabled:opacity-50"
-            >
-              <PlusIcon className="h-3 w-3" />
-              Blank
-            </button>
-          </div>
-
-          {reminders.length >= MAX_REMINDERS && (
-            <p className="font-mono text-[11px] text-ink-faint">
-              Maximum {MAX_REMINDERS} reminders per chore.
-            </p>
-          )}
-        </div>
 
         <div className="flex items-center gap-3">
           <button
