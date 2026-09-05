@@ -11,10 +11,10 @@ import {
   createChore,
   deletePendingOccurrencesFrom,
   listChoresWithOccurrences,
-  replaceChoreReminders,
   setOccurrenceStatus,
   updateChore,
 } from '#/modules/chores/repo'
+import { replaceRemindersForItem } from '#/core/items/repo'
 import { addDays, todayInZone } from '#/modules/chores/time'
 import type { ChoreView } from '#/modules/chores/repo'
 
@@ -124,7 +124,7 @@ export const createChoreAction = createServerFn({ method: 'POST' })
       createdBy: userId,
       ...fields,
     })
-    await replaceChoreReminders(choreId, household.id, reminders)
+    await replaceRemindersForItem(choreId, household.id, reminders)
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
     await scheduleRemindersForChore(choreId, household.id, household.timezone)
     publish(household.id, {
@@ -145,7 +145,7 @@ export const updateChoreAction = createServerFn({ method: 'POST' })
     const { household } = await requireMember()
     const { choreId, reminders, ...fields } = data
     await updateChore(choreId, household.id, fields)
-    await replaceChoreReminders(choreId, household.id, reminders)
+    await replaceRemindersForItem(choreId, household.id, reminders)
     await deletePendingOccurrencesFrom(
       choreId,
       household.id,

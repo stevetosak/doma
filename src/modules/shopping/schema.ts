@@ -10,6 +10,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { households } from '#/core/household/schema'
 import { users } from '#/core/auth/schema'
+import { items } from '#/core/items/schema'
 
 /**
  * Shopping module (M6, §5.3). Two columns from the plan's draft column
@@ -44,7 +45,9 @@ export const shoppingCategories = pgTable('shopping_categories', {
 })
 
 export const shoppingItems = pgTable('shopping_items', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id')
+    .primaryKey()
+    .references(() => items.id, { onDelete: 'cascade' }),
   householdId: uuid('household_id')
     .notNull()
     .references(() => households.id, { onDelete: 'cascade' }),

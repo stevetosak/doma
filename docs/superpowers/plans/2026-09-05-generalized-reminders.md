@@ -23,6 +23,7 @@
 ## Phase 1 (issue #51): Generic items/reminders schema + DB-enforced polymorphic FK
 
 **Files:**
+
 - Create: `src/core/items/schema.ts`
 - Create: `src/core/items/repo.ts`
 - Modify: `src/core/db/client.ts`
@@ -38,6 +39,7 @@
 - Create: `drizzle/0008_<generated-slug>.sql` (exact filename picked by drizzle-kit)
 
 **Interfaces:**
+
 - Produces: `createItemRecord<T>(householdId: string, itemType: string, insertRecord: (tx: Transaction, itemId: string) => Promise<T>): Promise<T>`, `deleteItemRecord(itemId: string, householdId: string): Promise<void>`, `listRemindersForItem(itemId: string, householdId: string): Promise<ReminderRow[]>`, `replaceRemindersForItem(itemId: string, householdId: string, rows: ReminderInput[]): Promise<void>` — all from `#/core/items/repo` — and `type Transaction` from `#/core/db/client`. `ReminderInput = { offsetDays?: number; hour?: number; minute?: number; fireAt?: Date }`, `ReminderRow = { id: string; offsetDays: number | null; hour: number | null; minute: number | null; fireAt: Date | null }`.
 - Consumes (later phases): Phase 2 imports `reminders`/`items` schema from `#/core/items/schema`. Phase 3/4 import `listRemindersForItem`/`replaceRemindersForItem` from `#/core/items/repo`.
 
@@ -64,7 +66,14 @@ export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
 `src/core/items/schema.ts` (new file):
 
 ```ts
-import { check, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  check,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import { households } from '#/core/household/schema'
 
@@ -148,6 +157,7 @@ git commit -m "feat: add shared items/reminders schema"
 ### Task 2: `core/items/repo.ts` — the enforcement layer
 
 **Interfaces:**
+
 - Consumes: `db`, `Transaction` from `#/core/db/client`; `householdScope` from `#/core/db/household-scope`; `items`, `reminders` from `./schema`.
 - Produces: `createItemRecord`, `deleteItemRecord`, `listRemindersForItem`, `replaceRemindersForItem`, `ReminderInput`, `ReminderRow` (signatures above).
 
@@ -228,7 +238,9 @@ export async function replaceRemindersForItem(
   await db.transaction(async (tx) => {
     await tx
       .delete(reminders)
-      .where(householdScope(reminders, householdId, eq(reminders.itemId, itemId)))
+      .where(
+        householdScope(reminders, householdId, eq(reminders.itemId, itemId)),
+      )
     if (rows.length === 0) return
     await tx.insert(reminders).values(
       rows.map((r) => ({
@@ -257,7 +269,12 @@ export async function listRemindersForItem(
     })
     .from(reminders)
     .where(householdScope(reminders, householdId, eq(reminders.itemId, itemId)))
-    .orderBy(reminders.offsetDays, reminders.hour, reminders.minute, reminders.fireAt)
+    .orderBy(
+      reminders.offsetDays,
+      reminders.hour,
+      reminders.minute,
+      reminders.fireAt,
+    )
 }
 ```
 
@@ -276,6 +293,7 @@ git commit -m "feat: add createItemRecord/deleteItemRecord and generic reminders
 ### Task 3: Rewire chores onto the generic tables
 
 **Interfaces:**
+
 - Consumes: `createItemRecord`, `listRemindersForItem`, `replaceRemindersForItem` from `#/core/items/repo`.
 - Produces: `createChore` unchanged signature; `listChoresWithOccurrences`'s `ChoreView.reminders` unchanged shape (`{id, offsetDays, hour, minute}[]`).
 
@@ -457,51 +475,60 @@ Delete the `ReminderInput`, `ReminderRow` interfaces and the `replaceChoreRemind
 In `listChoresWithOccurrences`, replace the third query block (currently `const reminderRows = await db.select().from(choreReminders).where(householdScope(choreReminders, householdId))...`) with:
 
 ```ts
-  const choreIds = choreRows.map((c) => c.id)
-  const reminderRows =
-    choreIds.length > 0
-      ? await db
-          .select({
-            id: reminders.id,
-            itemId: reminders.itemId,
-            offsetDays: reminders.offsetDays,
-            hour: reminders.hour,
-            minute: reminders.minute,
-          })
-          .from(reminders)
-          .where(
-            householdScope(reminders, householdId, inArray(reminders.itemId, choreIds)),
-          )
-          .orderBy(reminders.offsetDays, reminders.hour, reminders.minute)
-      : []
+const choreIds = choreRows.map((c) => c.id)
+const reminderRows =
+  choreIds.length > 0
+    ? await db
+        .select({
+          id: reminders.id,
+          itemId: reminders.itemId,
+          offsetDays: reminders.offsetDays,
+          hour: reminders.hour,
+          minute: reminders.minute,
+        })
+        .from(reminders)
+        .where(
+          householdScope(
+            reminders,
+            householdId,
+            inArray(reminders.itemId, choreIds),
+          ),
+        )
+        .orderBy(reminders.offsetDays, reminders.hour, reminders.minute)
+    : []
 ```
 
 and the grouping loop right after it from:
 
 ```ts
-  const remindersByChore = new Map<string, ChoreReminderView[]>()
-  for (const r of reminderRows) {
-    const list = remindersByChore.get(r.choreId) ?? []
-    list.push({
-      id: r.id,
-      offsetDays: r.offsetDays,
-      hour: r.hour,
-      minute: r.minute,
-    })
-    remindersByChore.set(r.choreId, list)
-  }
+const remindersByChore = new Map<string, ChoreReminderView[]>()
+for (const r of reminderRows) {
+  const list = remindersByChore.get(r.choreId) ?? []
+  list.push({
+    id: r.id,
+    offsetDays: r.offsetDays,
+    hour: r.hour,
+    minute: r.minute,
+  })
+  remindersByChore.set(r.choreId, list)
+}
 ```
 
 to:
 
 ```ts
-  const remindersByChore = new Map<string, ChoreReminderView[]>()
-  for (const r of reminderRows) {
-    if (r.offsetDays == null || r.hour == null || r.minute == null) continue
-    const list = remindersByChore.get(r.itemId) ?? []
-    list.push({ id: r.id, offsetDays: r.offsetDays, hour: r.hour, minute: r.minute })
-    remindersByChore.set(r.itemId, list)
-  }
+const remindersByChore = new Map<string, ChoreReminderView[]>()
+for (const r of reminderRows) {
+  if (r.offsetDays == null || r.hour == null || r.minute == null) continue
+  const list = remindersByChore.get(r.itemId) ?? []
+  list.push({
+    id: r.id,
+    offsetDays: r.offsetDays,
+    hour: r.hour,
+    minute: r.minute,
+  })
+  remindersByChore.set(r.itemId, list)
+}
 ```
 
 (`choreIds` must be declared once — if `listChoresWithOccurrences` already computes something equivalent for the occurrences query, reuse it rather than declaring twice; otherwise add the one `const choreIds = choreRows.map((c) => c.id)` line shown above.)
@@ -540,7 +567,11 @@ export async function scheduleRemindersForChore(
   for (const occurrence of occurrences) {
     if (!occurrence.assigneeUserId) continue
     for (const reminder of reminderRows) {
-      if (reminder.offsetDays == null || reminder.hour == null || reminder.minute == null) {
+      if (
+        reminder.offsetDays == null ||
+        reminder.hour == null ||
+        reminder.minute == null
+      ) {
         continue // not a relative-mode row — shouldn't happen for a chore, but stay defensive
       }
       await notify({
@@ -622,7 +653,10 @@ import { reminders } from '#/core/items/schema'
  */
 const CHECKS: Record<string, (id: string) => Promise<boolean>> = {
   reminders: async (id) => {
-    const [row] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.id, id))
+    const [row] = await db
+      .select({ id: reminders.id })
+      .from(reminders)
+      .where(eq(reminders.id, id))
     return Boolean(row)
   },
 }
@@ -640,7 +674,7 @@ export async function stillExists(
 - [ ] **Step 7: Typecheck**
 
 Run: `npx tsc --noEmit`
-Expected: passes. If `ChoreReminderView`/`ReminderInput`/`ReminderRow` (the chores-local ones) are still imported anywhere from `chores/repo`, fix the import to the new location or remove it — `ChoreReminderView` (the *view* type used by `ChoreView.reminders`, distinct from the deleted `ReminderInput`/`ReminderRow` CRUD types) stays in `chores/repo.ts` unchanged.
+Expected: passes. If `ChoreReminderView`/`ReminderInput`/`ReminderRow` (the chores-local ones) are still imported anywhere from `chores/repo`, fix the import to the new location or remove it — `ChoreReminderView` (the _view_ type used by `ChoreView.reminders`, distinct from the deleted `ReminderInput`/`ReminderRow` CRUD types) stays in `chores/repo.ts` unchanged.
 
 - [ ] **Step 8: Commit**
 
@@ -681,31 +715,38 @@ export async function addItem(input: AddItemInput): Promise<string> {
     ? await getOrCreateCategory(input.householdId, input.categoryName)
     : null
 
-  return createItemRecord(input.householdId, 'shopping_item', async (tx, id) => {
-    const [row] = await tx
-      .insert(shoppingItems)
-      .values({
-        id,
-        householdId: input.householdId,
-        listId: input.listId,
-        name: input.name.trim(),
-        quantity: input.quantity ?? null,
-        unit: input.unit ?? null,
-        note: input.note ?? null,
-        categoryId,
-        addedBy: input.addedBy,
-      })
-      .returning({ id: shoppingItems.id })
-    if (!row) throw new Error('Insert did not return a row')
-    return row.id
-  })
+  return createItemRecord(
+    input.householdId,
+    'shopping_item',
+    async (tx, id) => {
+      const [row] = await tx
+        .insert(shoppingItems)
+        .values({
+          id,
+          householdId: input.householdId,
+          listId: input.listId,
+          name: input.name.trim(),
+          quantity: input.quantity ?? null,
+          unit: input.unit ?? null,
+          note: input.note ?? null,
+          categoryId,
+          addedBy: input.addedBy,
+        })
+        .returning({ id: shoppingItems.id })
+      if (!row) throw new Error('Insert did not return a row')
+      return row.id
+    },
+  )
 }
 ```
 
 Replace the `removeItem` function body:
 
 ```ts
-export async function removeItem(itemId: string, householdId: string): Promise<void> {
+export async function removeItem(
+  itemId: string,
+  householdId: string,
+): Promise<void> {
   await deleteItemRecord(itemId, householdId)
 }
 ```
@@ -849,6 +890,7 @@ No behavior change from a user's perspective — chores' reminders work exactly 
 ## Phase 2 (issue #52): Notify layer — simplify existence, add liveness
 
 **Files:**
+
 - Modify: `src/core/notify/schema.ts`
 - Modify: `src/core/notify/notify.ts`
 - Modify: `src/core/notify/existence.ts`
@@ -860,6 +902,7 @@ No behavior change from a user's perspective — chores' reminders work exactly 
 - Create: `drizzle/0009_<generated-slug>.sql`
 
 **Interfaces:**
+
 - Consumes: `stillExists` (simplified), the shared `reminders` table from Phase 1.
 - Produces: `NotifyInput.reminderId?: string` (replaces `existenceCheck`), `isStillLive(kind: string, subjectId: string): Promise<boolean>` from `#/core/notify/liveness`.
 
@@ -897,9 +940,14 @@ import { db } from '#/core/db/client'
 import { reminders } from '#/core/items/schema'
 
 /** True if there's nothing to check, or the reminder still exists. */
-export async function stillExists(reminderId: string | null | undefined): Promise<boolean> {
+export async function stillExists(
+  reminderId: string | null | undefined,
+): Promise<boolean> {
   if (!reminderId) return true
-  const [row] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.id, reminderId))
+  const [row] = await db
+    .select({ id: reminders.id })
+    .from(reminders)
+    .where(eq(reminders.id, reminderId))
   return Boolean(row)
 }
 ```
@@ -932,7 +980,10 @@ const LIVENESS: Record<string, (subjectId: string) => Promise<boolean>> = {
 }
 
 /** True if there's no registered check for this kind, or the check passes. */
-export async function isStillLive(kind: string, subjectId: string): Promise<boolean> {
+export async function isStillLive(
+  kind: string,
+  subjectId: string,
+): Promise<boolean> {
   const fn = LIVENESS[kind]
   return fn ? fn(subjectId) : true
 }
@@ -1055,7 +1106,7 @@ export async function retryFailedNotifications(): Promise<void> {
 Note `isStillLive` isn't checked here: `findRetryableFailed()` doesn't currently select `kind`/`subjectId` (only `id`, `userId`, `title`, `body`, `attempts`, `reminderId`). Add `kind: notifications.kind, subjectId: notifications.subjectId,` to `RetryableOutboxRow` and the `findRetryableFailed` select in Step 6 above, then add the check here:
 
 ```ts
-    if (!(await isStillLive(row.kind, row.subjectId))) continue
+if (!(await isStillLive(row.kind, row.subjectId))) continue
 ```
 
 right after the `stillExists` check.
@@ -1129,12 +1180,14 @@ Collapses existenceCheckTable/existenceCheckId into a single reminderId pointer 
 ## Phase 3 (issue #53): Chores — decoupled reminder editor
 
 **Files:**
+
 - Modify: `src/core/ui/icons.tsx`
 - Create: `src/core/ui/ReminderListEditor.tsx`
 - Modify: `src/modules/chores/chores.functions.ts`
 - Modify: `src/routes/chores.tsx`
 
 **Interfaces:**
+
 - Consumes: `replaceRemindersForItem` from `#/core/items/repo`; `scheduleRemindersForChore` from `#/modules/chores/reminders`.
 - Produces: `setChoreRemindersAction` (server fn) from `#/modules/chores/chores.functions`; `BellIcon` from `#/core/ui/icons`; `ReminderListEditor<T extends { key: number }>` from `#/core/ui/ReminderListEditor` (Phase 4 reuses this).
 
@@ -1186,7 +1239,9 @@ export function ReminderListEditor<T extends { key: number }>({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <span className="font-mono text-xs tracking-wide text-ink-dim">Reminders</span>
+      <span className="font-mono text-xs tracking-wide text-ink-dim">
+        Reminders
+      </span>
 
       {rows.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -1230,7 +1285,9 @@ export function ReminderListEditor<T extends { key: number }>({
       </div>
 
       {rows.length >= max && (
-        <p className="font-mono text-[11px] text-ink-faint">Maximum {max} reminders.</p>
+        <p className="font-mono text-[11px] text-ink-faint">
+          Maximum {max} reminders.
+        </p>
       )}
     </div>
   )
@@ -1251,6 +1308,7 @@ git commit -m "feat: add BellIcon and the shared ReminderListEditor shell"
 ### Task 9: `setChoreRemindersAction`, drop reminders from the chore form's own actions
 
 **Interfaces:**
+
 - Produces: `setChoreRemindersAction({ data: { choreId: string, reminders: {offsetDays,hour,minute}[] } }): Promise<{ok: true}>`.
 
 - [ ] **Step 1: Add the action, remove reminders from create/update**
@@ -1319,7 +1377,11 @@ export const setChoreRemindersAction = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { household } = await requireMember()
     await replaceRemindersForItem(data.choreId, household.id, data.reminders)
-    await scheduleRemindersForChore(data.choreId, household.id, household.timezone)
+    await scheduleRemindersForChore(
+      data.choreId,
+      household.id,
+      household.timezone,
+    )
     publish(household.id, {
       module: 'chores',
       entity: 'chore',
@@ -1352,15 +1414,15 @@ In `src/routes/chores.tsx`:
 Remove the `nextReminderKey`/`reminders` state block (currently right after the `rotation` state):
 
 ```ts
-  const nextReminderKey = useRef(0)
-  const [reminders, setReminders] = useState<ReminderFormRow[]>(() =>
-    (initial?.reminders ?? []).map((r: ChoreReminderView) => ({
-      key: nextReminderKey.current++,
-      offsetDays: r.offsetDays,
-      hour: r.hour,
-      minute: r.minute,
-    })),
-  )
+const nextReminderKey = useRef(0)
+const [reminders, setReminders] = useState<ReminderFormRow[]>(() =>
+  (initial?.reminders ?? []).map((r: ChoreReminderView) => ({
+    key: nextReminderKey.current++,
+    offsetDays: r.offsetDays,
+    hour: r.hour,
+    minute: r.minute,
+  })),
+)
 ```
 
 Remove the `addReminderRow`/`updateReminderRow`/`removeReminderRow` functions entirely.
@@ -1376,39 +1438,39 @@ Remove the whole reminders JSX block — the `<div className="flex flex-col gap-
 In `ChoreCard`, add state right after `const [editOpen, setEditOpen] = useState(false)`:
 
 ```ts
-  const [remindersOpen, setRemindersOpen] = useState(false)
+const [remindersOpen, setRemindersOpen] = useState(false)
 ```
 
 In the footer `<div className="mt-auto flex gap-3 ...">` (the one with `edit`/`delete`), add a third button between them:
 
 ```tsx
-              <button
-                type="button"
-                onClick={() => setRemindersOpen(true)}
-                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
-              >
-                <BellIcon className="h-3.5 w-3.5" />
-                remind{chore.reminders.length > 0 ? ` (${chore.reminders.length})` : ''}
-              </button>
+<button
+  type="button"
+  onClick={() => setRemindersOpen(true)}
+  className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
+>
+  <BellIcon className="h-3.5 w-3.5" />
+  remind{chore.reminders.length > 0 ? ` (${chore.reminders.length})` : ''}
+</button>
 ```
 
 Add a second `<Sheet>` right after the existing "Edit chore" one:
 
 ```tsx
-      <Sheet
-        open={remindersOpen}
-        onClose={() => setRemindersOpen(false)}
-        title="Chore reminders"
-      >
-        <ChoreReminderForm
-          chore={chore}
-          onSaved={async () => {
-            setRemindersOpen(false)
-            await onChange()
-          }}
-          onCancel={() => setRemindersOpen(false)}
-        />
-      </Sheet>
+<Sheet
+  open={remindersOpen}
+  onClose={() => setRemindersOpen(false)}
+  title="Chore reminders"
+>
+  <ChoreReminderForm
+    chore={chore}
+    onSaved={async () => {
+      setRemindersOpen(false)
+      await onChange()
+    }}
+    onCancel={() => setRemindersOpen(false)}
+  />
+</Sheet>
 ```
 
 Add `BellIcon` to the icon import list at the top of the file.
@@ -1447,8 +1509,13 @@ function ChoreReminderForm({
     )
   }
 
-  function updateRow(key: number, patch: Partial<Omit<ReminderFormRow, 'key'>>) {
-    setRows((current) => current.map((r) => (r.key === key ? { ...r, ...patch } : r)))
+  function updateRow(
+    key: number,
+    patch: Partial<Omit<ReminderFormRow, 'key'>>,
+  ) {
+    setRows((current) =>
+      current.map((r) => (r.key === key ? { ...r, ...patch } : r)),
+    )
   }
 
   function removeRow(key: number) {
@@ -1463,7 +1530,11 @@ function ChoreReminderForm({
       await setChoreRemindersAction({
         data: {
           choreId: chore.id,
-          reminders: rows.map(({ offsetDays, hour, minute }) => ({ offsetDays, hour, minute })),
+          reminders: rows.map(({ offsetDays, hour, minute }) => ({
+            offsetDays,
+            hour,
+            minute,
+          })),
         },
       })
       await onSaved()
@@ -1493,9 +1564,13 @@ function ChoreReminderForm({
               max={0}
               className="field w-20"
               value={row.offsetDays}
-              onChange={(e) => updateRow(row.key, { offsetDays: Number(e.target.value) })}
+              onChange={(e) =>
+                updateRow(row.key, { offsetDays: Number(e.target.value) })
+              }
             />
-            <span className="font-mono text-xs text-ink-faint">days before, at</span>
+            <span className="font-mono text-xs text-ink-faint">
+              days before, at
+            </span>
             <input
               type="time"
               className="field w-32"
@@ -1568,6 +1643,7 @@ Reminders move out of the chore create/edit form into their own per-chore sheet 
 ## Phase 4 (issue #54): Shopping — item reminders (absolute date/time)
 
 **Files:**
+
 - Create: `src/modules/shopping/reminder-time.ts`
 - Create: `src/modules/shopping/reminder-time.test.ts`
 - Create: `src/modules/shopping/reminders.ts`
@@ -1576,6 +1652,7 @@ Reminders move out of the chore create/edit form into their own per-chore sheet 
 - Modify: `src/routes/shopping.tsx`
 
 **Interfaces:**
+
 - Produces: `resolveReminderFireAt(localDateTime: string, timezone: string): Date`, `toLocalInputValue(iso: string, timezone: string): string`, `defaultLocalInputValue(timezone: string): string` from `#/modules/shopping/reminder-time`; `scheduleRemindersForItem(itemId: string, householdId: string, userId: string, itemName: string): Promise<void>` from `#/modules/shopping/reminders`; `setItemRemindersAction` from `#/modules/shopping/shopping.functions`; `ItemView.reminders: {id: string; fireAt: string}[]`.
 
 ### Task 11: Pure time helpers (TDD)
@@ -1586,7 +1663,11 @@ Reminders move out of the chore create/edit form into their own per-chore sheet 
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { defaultLocalInputValue, resolveReminderFireAt, toLocalInputValue } from './reminder-time'
+import {
+  defaultLocalInputValue,
+  resolveReminderFireAt,
+  toLocalInputValue,
+} from './reminder-time'
 
 describe('resolveReminderFireAt', () => {
   it('interprets a datetime-local string in the given zone', () => {
@@ -1596,7 +1677,10 @@ describe('resolveReminderFireAt', () => {
 
   it('is timezone-aware — the same local string means a different instant elsewhere', () => {
     const skopje = resolveReminderFireAt('2026-03-15T18:00', 'Europe/Skopje')
-    const auckland = resolveReminderFireAt('2026-03-15T18:00', 'Pacific/Auckland')
+    const auckland = resolveReminderFireAt(
+      '2026-03-15T18:00',
+      'Pacific/Auckland',
+    )
     expect(skopje.getTime()).not.toBe(auckland.getTime())
   })
 
@@ -1612,7 +1696,9 @@ describe('toLocalInputValue / resolveReminderFireAt round-trip', () => {
   it('round-trips through the same zone', () => {
     const original = '2026-06-01T09:30'
     const asDate = resolveReminderFireAt(original, 'Europe/Skopje')
-    expect(toLocalInputValue(asDate.toISOString(), 'Europe/Skopje')).toBe(original)
+    expect(toLocalInputValue(asDate.toISOString(), 'Europe/Skopje')).toBe(
+      original,
+    )
   })
 })
 
@@ -1643,18 +1729,26 @@ import { DateTime } from 'luxon'
  * entered as a plain <input type="datetime-local"> value (household-local
  * wall-clock, no timezone info of its own).
  */
-export function resolveReminderFireAt(localDateTime: string, timezone: string): Date {
+export function resolveReminderFireAt(
+  localDateTime: string,
+  timezone: string,
+): Date {
   return DateTime.fromISO(localDateTime, { zone: timezone }).toJSDate()
 }
 
 /** The inverse — for pre-filling an existing reminder's input value. */
 export function toLocalInputValue(iso: string, timezone: string): string {
-  return DateTime.fromISO(iso, { zone: 'utc' }).setZone(timezone).toFormat("yyyy-MM-dd'T'HH:mm")
+  return DateTime.fromISO(iso, { zone: 'utc' })
+    .setZone(timezone)
+    .toFormat("yyyy-MM-dd'T'HH:mm")
 }
 
 /** A sane default for a freshly-added blank row: one hour from now. */
 export function defaultLocalInputValue(timezone: string): string {
-  return DateTime.now().setZone(timezone).plus({ hours: 1 }).toFormat("yyyy-MM-dd'T'HH:mm")
+  return DateTime.now()
+    .setZone(timezone)
+    .plus({ hours: 1 })
+    .toFormat("yyyy-MM-dd'T'HH:mm")
 }
 ```
 
@@ -1719,9 +1813,19 @@ export async function listItems(
   const reminderRows =
     itemIds.length > 0
       ? await db
-          .select({ id: reminders.id, itemId: reminders.itemId, fireAt: reminders.fireAt })
+          .select({
+            id: reminders.id,
+            itemId: reminders.itemId,
+            fireAt: reminders.fireAt,
+          })
           .from(reminders)
-          .where(householdScope(reminders, householdId, inArray(reminders.itemId, itemIds)))
+          .where(
+            householdScope(
+              reminders,
+              householdId,
+              inArray(reminders.itemId, itemIds),
+            ),
+          )
           .orderBy(reminders.fireAt)
       : []
 
@@ -1733,7 +1837,10 @@ export async function listItems(
     remindersByItem.set(r.itemId, list)
   }
 
-  return itemRows.map((item) => ({ ...item, reminders: remindersByItem.get(item.id) ?? [] }))
+  return itemRows.map((item) => ({
+    ...item,
+    reminders: remindersByItem.get(item.id) ?? [],
+  }))
 }
 ```
 
@@ -1747,7 +1854,9 @@ export async function getItem(
   const [row] = await db
     .select({ name: shoppingItems.name })
     .from(shoppingItems)
-    .where(householdScope(shoppingItems, householdId, eq(shoppingItems.id, itemId)))
+    .where(
+      householdScope(shoppingItems, householdId, eq(shoppingItems.id, itemId)),
+    )
   return row
 }
 ```
@@ -1833,7 +1942,11 @@ async function requireMember(): Promise<MemberContext> {
   if (!auth.user || !auth.household) {
     throw new ShoppingAccessError('Not signed in to a household.')
   }
-  return { userId: auth.user.id, householdId: auth.household.id, timezone: auth.household.timezone }
+  return {
+    userId: auth.user.id,
+    householdId: auth.household.id,
+    timezone: auth.household.timezone,
+  }
 }
 ```
 
@@ -1887,10 +2000,18 @@ export const setItemRemindersAction = createServerFn({ method: 'POST' })
     await replaceRemindersForItem(
       data.itemId,
       householdId,
-      data.reminders.map((r) => ({ fireAt: resolveReminderFireAt(r.fireAt, timezone) })),
+      data.reminders.map((r) => ({
+        fireAt: resolveReminderFireAt(r.fireAt, timezone),
+      })),
     )
     const item = await getItem(data.itemId, householdId)
-    if (item) await scheduleRemindersForItem(data.itemId, householdId, userId, item.name)
+    if (item)
+      await scheduleRemindersForItem(
+        data.itemId,
+        householdId,
+        userId,
+        item.name,
+      )
     publish(householdId, {
       module: 'shopping',
       entity: 'item',
@@ -1922,40 +2043,40 @@ In `src/routes/shopping.tsx`, find where `ItemCard` is rendered from the page-le
 Add state right after `const [editOpen, setEditOpen] = useState(false)`:
 
 ```ts
-  const [remindersOpen, setRemindersOpen] = useState(false)
+const [remindersOpen, setRemindersOpen] = useState(false)
 ```
 
 In the footer `<div className="mt-auto flex gap-3 ...">` (with `edit`/`remove`), add a third button between them:
 
 ```tsx
-              <button
-                type="button"
-                onClick={() => setRemindersOpen(true)}
-                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
-              >
-                <BellIcon className="h-3.5 w-3.5" />
-                remind{item.reminders.length > 0 ? ` (${item.reminders.length})` : ''}
-              </button>
+<button
+  type="button"
+  onClick={() => setRemindersOpen(true)}
+  className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
+>
+  <BellIcon className="h-3.5 w-3.5" />
+  remind{item.reminders.length > 0 ? ` (${item.reminders.length})` : ''}
+</button>
 ```
 
 Add a second `<Sheet>` after the existing "Edit item" one:
 
 ```tsx
-      <Sheet
-        open={remindersOpen}
-        onClose={() => setRemindersOpen(false)}
-        title="Item reminders"
-      >
-        <ItemReminderForm
-          item={item}
-          timezone={timezone}
-          onSaved={async () => {
-            setRemindersOpen(false)
-            await onChange()
-          }}
-          onCancel={() => setRemindersOpen(false)}
-        />
-      </Sheet>
+<Sheet
+  open={remindersOpen}
+  onClose={() => setRemindersOpen(false)}
+  title="Item reminders"
+>
+  <ItemReminderForm
+    item={item}
+    timezone={timezone}
+    onSaved={async () => {
+      setRemindersOpen(false)
+      await onChange()
+    }}
+    onCancel={() => setRemindersOpen(false)}
+  />
+</Sheet>
 ```
 
 Add `BellIcon` to the icon import list at the top of the file, and `import { ReminderListEditor } from '#/core/ui/ReminderListEditor'`, `import { defaultLocalInputValue, toLocalInputValue } from '#/modules/shopping/reminder-time'`, and add `setItemRemindersAction`, `MAX_ITEM_REMINDERS` to the existing `shopping.functions` import list.
@@ -1995,12 +2116,20 @@ function ItemReminderForm({
     setRows((current) =>
       current.length >= MAX_ITEM_REMINDERS
         ? current
-        : [...current, { key: nextKey.current++, fireAt: defaultLocalInputValue(timezone) }],
+        : [
+            ...current,
+            {
+              key: nextKey.current++,
+              fireAt: defaultLocalInputValue(timezone),
+            },
+          ],
     )
   }
 
   function updateRow(key: number, fireAt: string) {
-    setRows((current) => current.map((r) => (r.key === key ? { ...r, fireAt } : r)))
+    setRows((current) =>
+      current.map((r) => (r.key === key ? { ...r, fireAt } : r)),
+    )
   }
 
   function removeRow(key: number) {
@@ -2013,7 +2142,10 @@ function ItemReminderForm({
     setSubmitting(true)
     try {
       await setItemRemindersAction({
-        data: { itemId: item.id, reminders: rows.map(({ fireAt }) => ({ fireAt })) },
+        data: {
+          itemId: item.id,
+          reminders: rows.map(({ fireAt }) => ({ fireAt })),
+        },
       })
       await onSaved()
     } catch (err) {
@@ -2099,6 +2231,7 @@ Shopping items get the same reminder capability as chores — an absolute date/t
 ## Phase 5 (issue #55): Telegram — HTML formatting, icons, inline mark-done
 
 **Files:**
+
 - Create: `src/core/notify/html.ts`
 - Create: `src/core/notify/html.test.ts`
 - Modify: `src/core/notify/telegram-bot.ts`
@@ -2110,6 +2243,7 @@ Shopping items get the same reminder capability as chores — an absolute date/t
 - Create: `src/core/notify/mark-done.ts`
 
 **Interfaces:**
+
 - Produces: `escapeHtml(text: string): string` from `#/core/notify/html`; `getLinkByChatId(chatId: string): Promise<{ userId: string } | undefined>` from `#/core/notify/telegram-links-repo`; `sendTelegramMessage(chatId: string, text: string, options?: { replyMarkup?: InlineKeyboard }): Promise<void>` (signature change); `handleMarkDoneCallback(notificationId: string, chatId: string): Promise<void>` from `#/core/notify/mark-done`.
 
 ### Task 15: `escapeHtml` (TDD)
@@ -2128,7 +2262,9 @@ describe('escapeHtml', () => {
   })
 
   it('escapes ampersands, angle brackets', () => {
-    expect(escapeHtml('Tom & Jerry <script>')).toBe('Tom &amp; Jerry &lt;script&gt;')
+    expect(escapeHtml('Tom & Jerry <script>')).toBe(
+      'Tom &amp; Jerry &lt;script&gt;',
+    )
   })
 
   it('escapes ampersands before angle brackets, not double-escaping the result', () => {
@@ -2198,13 +2334,13 @@ export async function sendTelegramMessage(
 In `buildBot()`, right after the `instance.command('start', ...)` block, add:
 
 ```ts
-  instance.callbackQuery(/^done:/, async (ctx) => {
-    const notificationId = ctx.callbackQuery.data.slice('done:'.length)
-    const chatId = String(ctx.chat?.id ?? '')
-    await handleMarkDoneCallback(notificationId, chatId)
-    await ctx.answerCallbackQuery({ text: 'Marked done ✅' })
-    await ctx.editMessageReplyMarkup()
-  })
+instance.callbackQuery(/^done:/, async (ctx) => {
+  const notificationId = ctx.callbackQuery.data.slice('done:'.length)
+  const chatId = String(ctx.chat?.id ?? '')
+  await handleMarkDoneCallback(notificationId, chatId)
+  await ctx.answerCallbackQuery({ text: 'Marked done ✅' })
+  await ctx.editMessageReplyMarkup()
+})
 ```
 
 Add the import: `import { handleMarkDoneCallback } from './mark-done'` (created in Task 18 — this creates a forward reference; Task 18 must land before this file typechecks cleanly, so do Task 18 first if executing tasks out of the written order, or accept a transient typecheck failure between these two tasks within the same phase/PR).
@@ -2260,7 +2396,9 @@ git commit -m "feat: add icons and HTML-escaped titles to reminder messages"
 In `src/core/notify/telegram-links-repo.ts`, add:
 
 ```ts
-export async function getLinkByChatId(chatId: string): Promise<{ userId: string } | undefined> {
+export async function getLinkByChatId(
+  chatId: string,
+): Promise<{ userId: string } | undefined> {
   const [row] = await db
     .select({ userId: telegramLinks.userId })
     .from(telegramLinks)
@@ -2319,7 +2457,11 @@ export async function handleMarkDoneCallback(
 
   const complete = COMPLETIONS[notification.kind]
   if (!complete) return
-  await complete(notification.subjectId, notification.householdId, notification.userId)
+  await complete(
+    notification.subjectId,
+    notification.householdId,
+    notification.userId,
+  )
 }
 ```
 
@@ -2328,14 +2470,19 @@ export async function handleMarkDoneCallback(
 In `src/core/notify/dispatch.ts`, add the import `import { InlineKeyboard } from 'grammy'`, and change the send line:
 
 ```ts
-  try {
-    const keyboard = new InlineKeyboard().text('✅ Mark done', `done:${claimed.id}`)
-    await sendTelegramMessage(link.chatId, `${data.title}\n\n${data.body}`, { replyMarkup: keyboard })
-    await markSent(claimed.id)
-  } catch (err) {
-    console.error('Telegram send failed:', err)
-    await markFailed(claimed.id, 1)
-  }
+try {
+  const keyboard = new InlineKeyboard().text(
+    '✅ Mark done',
+    `done:${claimed.id}`,
+  )
+  await sendTelegramMessage(link.chatId, `${data.title}\n\n${data.body}`, {
+    replyMarkup: keyboard,
+  })
+  await markSent(claimed.id)
+} catch (err) {
+  console.error('Telegram send failed:', err)
+  await markFailed(claimed.id, 1)
+}
 ```
 
 - [ ] **Step 4: Attach the button on retries — `sweep.ts`**
@@ -2343,14 +2490,16 @@ In `src/core/notify/dispatch.ts`, add the import `import { InlineKeyboard } from
 In `src/core/notify/sweep.ts`, add the same import, and change the send line:
 
 ```ts
-    try {
-      const keyboard = new InlineKeyboard().text('✅ Mark done', `done:${row.id}`)
-      await sendTelegramMessage(link.chatId, `${row.title}\n\n${row.body}`, { replyMarkup: keyboard })
-      await markSent(row.id)
-    } catch (err) {
-      console.error('Telegram retry failed:', err)
-      await markFailed(row.id, row.attempts + 1)
-    }
+try {
+  const keyboard = new InlineKeyboard().text('✅ Mark done', `done:${row.id}`)
+  await sendTelegramMessage(link.chatId, `${row.title}\n\n${row.body}`, {
+    replyMarkup: keyboard,
+  })
+  await markSent(row.id)
+} catch (err) {
+  console.error('Telegram retry failed:', err)
+  await markFailed(row.id, row.attempts + 1)
+}
 ```
 
 - [ ] **Step 5: Typecheck (this resolves Task 16's forward reference too)**

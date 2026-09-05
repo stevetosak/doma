@@ -57,6 +57,13 @@
       "when": 1788622595512,
       "tag": "0007_gigantic_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788632257799,
+      "tag": "0008_simple_iron_monger",
+      "breakpoints": true
     }
   ]
 }
