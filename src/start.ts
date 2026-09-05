@@ -1,6 +1,5 @@
 import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
 import { optionalEnv } from '#/core/env'
-import { startBackgroundJobs } from '#/core/jobs/bootstrap'
 
 /**
  * Global request middleware. The CSRF/Origin check here is the "belt" to
@@ -31,4 +30,17 @@ export const startInstance = createStart(() => ({
 // startup hook for pg-boss (§5.5, M8). Errors are logged inside
 // startBackgroundJobs rather than thrown — a jobs-layer outage shouldn't
 // take the HTTP server down with it.
-void startBackgroundJobs()
+//
+// `start.ts` itself is shared into the CLIENT bundle too (TanStack Start
+// needs requestMiddleware config there), so this must stay a dynamic
+// import gated on import.meta.env.SSR rather than a static top-level
+// import. import.meta.env.SSR is statically replaced per Vite build
+// target, so Rollup drops this whole branch — and therefore pg-boss and
+// grammy — from the client bundle instead of merely skipping it at
+// runtime. A static import here previously shipped both into the browser,
+// where `new PgBoss()`/`new Bot()` (Node-only) crashed on load.
+if (import.meta.env.SSR) {
+  void import('#/core/jobs/bootstrap').then(({ startBackgroundJobs }) =>
+    startBackgroundJobs(),
+  )
+}
