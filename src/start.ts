@@ -14,11 +14,23 @@ import { optionalEnv } from '#/core/env'
  * allowlist, so the whole app 403s before a session even exists. GET/HEAD
  * are safe methods with no state-changing effect, so there's nothing for
  * CSRF to protect there.
+ *
+ * Also excludes the Telegram webhook route: it's a legitimate external
+ * POST from Telegram's own servers, not a browser, so it carries no
+ * Sec-Fetch-Site/Origin/Referer at all — this middleware's default-deny
+ * on "none of the above present" was 403ing every single update Telegram
+ * tried to deliver (confirmed via getWebhookInfo's
+ * "Wrong response from the webhook: 403 Forbidden"). That route already
+ * authenticates the caller properly via the X-Telegram-Bot-Api-Secret-Token
+ * header (grammy's webhookCallback, see telegram-bot.ts) — same-origin
+ * CSRF just isn't the right check for a server-to-server webhook.
  */
 const csrfMiddleware = createCsrfMiddleware({
   origin: optionalEnv('APP_ORIGIN', 'http://localhost:3000'),
   filter: ({ request }) =>
-    request.method !== 'GET' && request.method !== 'HEAD',
+    request.method !== 'GET' &&
+    request.method !== 'HEAD' &&
+    new URL(request.url).pathname !== '/api/telegram/webhook',
 })
 
 export const startInstance = createStart(() => ({
