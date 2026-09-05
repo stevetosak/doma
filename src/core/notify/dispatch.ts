@@ -1,3 +1,4 @@
+import { stillExists } from './existence'
 import { claimOutboxRow, markFailed, markSent } from './outbox-repo'
 import { getTelegramLink } from './telegram-links-repo'
 import { sendTelegramMessage } from './telegram-bot'
@@ -9,6 +10,12 @@ import type { NotifyJobData } from './notify'
  * (sweep.ts) shares its claim step with.
  */
 export async function dispatchNotification(data: NotifyJobData): Promise<void> {
+  if (!(await stillExists(data.existenceCheck))) {
+    // The row this was about (e.g. a chore reminder) was deleted or
+    // replaced since this was scheduled — nothing to send.
+    return
+  }
+
   const link = await getTelegramLink(data.userId)
   if (!link) {
     // No channel to send through yet. Deliberately don't claim the outbox
@@ -29,6 +36,8 @@ export async function dispatchNotification(data: NotifyJobData): Promise<void> {
     deepLink: data.deepLink,
     scheduledFor: new Date(data.at),
     dedupeKey: data.dedupeKey,
+    existenceCheckTable: data.existenceCheck?.table ?? null,
+    existenceCheckId: data.existenceCheck?.id ?? null,
   })
   if (!claimed) return // already sent, already failed-and-tracked, or in flight elsewhere
 

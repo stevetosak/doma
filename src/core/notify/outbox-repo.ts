@@ -15,6 +15,8 @@ export interface NewOutboxRow {
   deepLink: string
   scheduledFor: Date
   dedupeKey: string
+  existenceCheckTable?: string | null
+  existenceCheckId?: string | null
 }
 
 /**
@@ -55,6 +57,8 @@ export interface RetryableOutboxRow {
   title: string
   body: string
   attempts: number
+  existenceCheckTable: string | null
+  existenceCheckId: string | null
 }
 
 /**
@@ -71,6 +75,8 @@ export async function findRetryableFailed(): Promise<RetryableOutboxRow[]> {
       title: notifications.title,
       body: notifications.body,
       attempts: notifications.attempts,
+      existenceCheckTable: notifications.existenceCheckTable,
+      existenceCheckId: notifications.existenceCheckId,
     })
     .from(notifications)
     .where(

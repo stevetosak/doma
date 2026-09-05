@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
@@ -21,6 +21,7 @@ import {
   archiveChoreAction,
   createChoreAction,
   getChoresData,
+  MAX_REMINDERS,
   setOccurrenceStatusAction,
   updateChoreAction,
 } from '#/modules/chores/chores.functions'
@@ -30,7 +31,11 @@ import {
   formatDateWithWeekday,
   todayInZone,
 } from '#/modules/chores/time'
-import type { ChoreOccurrenceView, ChoreView } from '#/modules/chores/repo'
+import type {
+  ChoreOccurrenceView,
+  ChoreReminderView,
+  ChoreView,
+} from '#/modules/chores/repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 
 export const Route = createFileRoute('/chores')({
@@ -49,18 +54,34 @@ export const Route = createFileRoute('/chores')({
   component: ChoresPage,
 })
 
-// Presets for the "remind me" select — all counted back from a nominal
-// 08:00 household-local due time (chores.reminders.ts's computeReminderAt),
-// since due_on itself carries no time of day.
-const DEFAULT_REMINDER_LEAD_MINUTES = 780
+// Quick-add starting points for a reminder row — each just pre-fills a new
+// row with these values, still freely editable afterward via the row's own
+// inputs (no separate "custom" mode).
 const REMINDER_PRESETS = [
-  {
-    label: 'The evening before (~7pm)',
-    minutes: DEFAULT_REMINDER_LEAD_MINUTES,
-  },
-  { label: 'Morning of (8am)', minutes: 0 },
-  { label: 'The day before, same time', minutes: 1440 },
+  { label: 'Same day, 8:00 AM', offsetDays: 0, hour: 8, minute: 0 },
+  { label: 'Evening before, 6:00 PM', offsetDays: -1, hour: 18, minute: 0 },
+  { label: '3 days before, 9:00 AM', offsetDays: -3, hour: 9, minute: 0 },
+  { label: '1 week before, 9:00 AM', offsetDays: -7, hour: 9, minute: 0 },
 ]
+
+interface ReminderFormRow {
+  key: number
+  offsetDays: number
+  hour: number
+  minute: number
+}
+
+function timeInputValue(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+function parseTimeInputValue(
+  value: string,
+): { hour: number; minute: number } | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value)
+  if (!match?.[1] || !match[2]) return null
+  return { hour: Number(match[1]), minute: Number(match[2]) }
+}
 
 const WEEKDAY_LABELS = [
   { value: 1, label: 'Mon' },
@@ -403,11 +424,14 @@ function ChoreForm({
   const [rotation, setRotation] = useState<string[]>(
     initial?.rotation ?? (members[0] ? [members[0].userId] : []),
   )
-  const [reminderEnabled, setReminderEnabled] = useState(
-    initial?.reminderLeadMinutes != null,
-  )
-  const [reminderLeadMinutes, setReminderLeadMinutes] = useState(
-    initial?.reminderLeadMinutes ?? DEFAULT_REMINDER_LEAD_MINUTES,
+  const nextReminderKey = useRef(0)
+  const [reminders, setReminders] = useState<ReminderFormRow[]>(() =>
+    (initial?.reminders ?? []).map((r: ChoreReminderView) => ({
+      key: nextReminderKey.current++,
+      offsetDays: r.offsetDays,
+      hour: r.hour,
+      minute: r.minute,
+    })),
   )
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -426,6 +450,30 @@ function ChoreForm({
         ? current.filter((id) => id !== userId)
         : [...current, userId],
     )
+  }
+
+  function addReminderRow(offsetDays: number, hour: number, minute: number) {
+    setReminders((current) =>
+      current.length >= MAX_REMINDERS
+        ? current
+        : [
+            ...current,
+            { key: nextReminderKey.current++, offsetDays, hour, minute },
+          ],
+    )
+  }
+
+  function updateReminderRow(
+    key: number,
+    patch: Partial<Omit<ReminderFormRow, 'key'>>,
+  ) {
+    setReminders((current) =>
+      current.map((r) => (r.key === key ? { ...r, ...patch } : r)),
+    )
+  }
+
+  function removeReminderRow(key: number) {
+    setReminders((current) => current.filter((r) => r.key !== key))
   }
 
   const previewDates = (() => {
@@ -466,7 +514,11 @@ function ChoreForm({
         assignmentMode,
         assigneeUserId: assignmentMode === 'fixed' ? assigneeUserId : undefined,
         rotation: assignmentMode === 'rotating' ? rotation : undefined,
-        reminderLeadMinutes: reminderEnabled ? reminderLeadMinutes : undefined,
+        reminders: reminders.map(({ offsetDays, hour, minute }) => ({
+          offsetDays,
+          hour,
+          minute,
+        })),
       }
       if (initial) {
         await updateChoreAction({ data: { choreId: initial.id, ...fields } })
@@ -644,27 +696,81 @@ function ChoreForm({
           </fieldset>
         )}
 
-        <div>
-          <label className="flex items-center gap-1.5 font-mono text-sm text-ink">
-            <input
-              type="checkbox"
-              checked={reminderEnabled}
-              onChange={(e) => setReminderEnabled(e.target.checked)}
-            />
-            Send a Telegram reminder
-          </label>
-          {reminderEnabled && (
-            <select
-              className="field mt-2"
-              value={reminderLeadMinutes}
-              onChange={(e) => setReminderLeadMinutes(Number(e.target.value))}
-            >
-              {REMINDER_PRESETS.map((preset) => (
-                <option key={preset.minutes} value={preset.minutes}>
-                  {preset.label}
-                </option>
+        <div className="flex flex-col gap-3">
+          <span className="font-mono text-xs tracking-wide text-ink-dim">
+            Reminders
+          </span>
+
+          {reminders.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {reminders.map((r) => (
+                <div key={r.key} className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={-30}
+                    max={0}
+                    className="field w-20"
+                    value={r.offsetDays}
+                    onChange={(e) =>
+                      updateReminderRow(r.key, {
+                        offsetDays: Number(e.target.value),
+                      })
+                    }
+                  />
+                  <span className="font-mono text-xs text-ink-faint">
+                    days before, at
+                  </span>
+                  <input
+                    type="time"
+                    className="field w-32"
+                    value={timeInputValue(r.hour, r.minute)}
+                    onChange={(e) => {
+                      const parsed = parseTimeInputValue(e.target.value)
+                      if (parsed) updateReminderRow(r.key, parsed)
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeReminderRow(r.key)}
+                    className="flex items-center gap-1 font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
+                    remove
+                  </button>
+                </div>
               ))}
-            </select>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {REMINDER_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                disabled={reminders.length >= MAX_REMINDERS}
+                onClick={() =>
+                  addReminderRow(preset.offsetDays, preset.hour, preset.minute)
+                }
+                className="rounded-tab border border-kraft px-3 py-1.5 font-mono text-[11px] tracking-wide text-ink disabled:opacity-50"
+              >
+                + {preset.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={reminders.length >= MAX_REMINDERS}
+              onClick={() => addReminderRow(0, 8, 0)}
+              className="flex items-center gap-1 rounded-tab border border-dotted border-kraft px-3 py-1.5 font-mono text-[11px] tracking-wide text-ink-faint disabled:opacity-50"
+            >
+              <PlusIcon className="h-3 w-3" />
+              Blank
+            </button>
+          </div>
+
+          {reminders.length >= MAX_REMINDERS && (
+            <p className="font-mono text-[11px] text-ink-faint">
+              Maximum {MAX_REMINDERS} reminders per chore.
+            </p>
           )}
         </div>
 
