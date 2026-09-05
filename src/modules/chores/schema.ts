@@ -11,14 +11,16 @@ import {
 } from 'drizzle-orm/pg-core'
 import { households } from '#/core/household/schema'
 import { users } from '#/core/auth/schema'
+import { items } from '#/core/items/schema'
 
 /**
- * Chores module (M5, §5.3). Reminders live in their own child table,
- * `chore_reminders` — replacing M8's single `chores.reminder_lead_minutes`
- * column (minutes before a nominal 08:00 anchor) with explicit
- * (offset_days, hour, minute) rows, one per reminder, so a chore can have
- * several reminders at exact times. See reminder-time.ts / reminders.ts
- * for the scheduling that reads these rows.
+ * Chores module (M5, §5.3). Reminders live in the shared `reminders`
+ * table (M9, `#/core/items/schema`) — `chores.id` is itself a reference
+ * into the shared `items` table rather than a self-generated uuid, which
+ * is what lets a reminder point at "this chore" with a real, DB-enforced
+ * FK regardless of which module owns the item. See
+ * src/modules/chores/reminder-time.ts / reminders.ts for the scheduling
+ * that reads reminders back out.
  */
 
 export const choreRecurrenceKind = pgEnum('chore_recurrence_kind', [
@@ -40,7 +42,9 @@ export const choreOccurrenceStatus = pgEnum('chore_occurrence_status', [
 ])
 
 export const chores = pgTable('chores', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id')
+    .primaryKey()
+    .references(() => items.id, { onDelete: 'cascade' }),
   householdId: uuid('household_id')
     .notNull()
     .references(() => households.id, { onDelete: 'cascade' }),
@@ -86,8 +90,6 @@ export const choreOccurrences = pgTable(
     }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
   },
-  // The materializer's idempotency key (§10): re-running it for a chore
-  // must not create duplicate occurrences for the same due date.
   (table) => [
     uniqueIndex('chore_occurrences_chore_due_on_key').on(
       table.choreId,
@@ -95,25 +97,3 @@ export const choreOccurrences = pgTable(
     ),
   ],
 )
-
-export const choreReminders = pgTable('chore_reminders', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  householdId: uuid('household_id')
-    .notNull()
-    .references(() => households.id, { onDelete: 'cascade' }),
-  choreId: uuid('chore_id')
-    .notNull()
-    .references(() => chores.id, { onDelete: 'cascade' }),
-  // Days before the due date this reminder fires — 0 is the due date
-  // itself, negative counts back from it. Never positive (bounds enforced
-  // in chores.functions.ts's zod schema, not here).
-  offsetDays: integer('offset_days').notNull(),
-  // Literal household-local wall-clock time to fire at (see
-  // reminder-time.ts's computeReminderAt) — replaces M8's single
-  // lead-minutes-from-a-nominal-08:00-anchor scheme.
-  hour: integer('hour').notNull(),
-  minute: integer('minute').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-})

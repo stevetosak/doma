@@ -1,19 +1,18 @@
 import { eq } from 'drizzle-orm'
 import { db } from '#/core/db/client'
-import { choreReminders } from '#/modules/chores/schema'
+import { reminders } from '#/core/items/schema'
 
 /**
  * Per-table existence checks a notify() caller can attach via
- * existenceCheck (see notify.ts). Deliberately a small lookup table, not a
- * generic registry — chores is the only consumer today; extend this if a
- * second module needs the same capability.
+ * existenceCheck (see notify.ts). Now that every reminder definition
+ * lives in the one shared `reminders` table (M9), there's only ever one
+ * possible table — this stays a lookup keyed by table name (rather than
+ * an unconditional single query) only because notify.ts's public shape
+ * hasn't changed yet; Phase 2 drops the table discriminator entirely.
  */
 const CHECKS: Record<string, (id: string) => Promise<boolean>> = {
-  chore_reminders: async (id) => {
-    const [row] = await db
-      .select({ id: choreReminders.id })
-      .from(choreReminders)
-      .where(eq(choreReminders.id, id))
+  reminders: async (id) => {
+    const [row] = await db.select({ id: reminders.id }).from(reminders).where(eq(reminders.id, id))
     return Boolean(row)
   },
 }
