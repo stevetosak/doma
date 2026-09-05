@@ -1,6 +1,7 @@
 import { and, eq, gte, lte, or } from 'drizzle-orm'
 import { db } from '#/core/db/client'
 import { householdScope } from '#/core/db/household-scope'
+import { households } from '#/core/household/schema'
 import { choreOccurrences, chores } from './schema'
 import type { AssignmentMode, RecurrenceKind } from './recurrence'
 
@@ -18,6 +19,7 @@ export interface CreateChoreInput {
   assigneeUserId?: string
   rotation?: string[]
   createdBy: string
+  reminderLeadMinutes?: number
 }
 
 export async function createChore(input: CreateChoreInput): Promise<string> {
@@ -37,6 +39,7 @@ export async function createChore(input: CreateChoreInput): Promise<string> {
       assigneeUserId: input.assigneeUserId ?? null,
       rotation: input.rotation ?? null,
       createdBy: input.createdBy,
+      reminderLeadMinutes: input.reminderLeadMinutes ?? null,
     })
     .returning({ id: chores.id })
   if (!row) throw new Error('Insert did not return a row')
@@ -67,6 +70,7 @@ export async function updateChore(
       assignmentMode: input.assignmentMode,
       assigneeUserId: input.assigneeUserId ?? null,
       rotation: input.rotation ?? null,
+      reminderLeadMinutes: input.reminderLeadMinutes ?? null,
     })
     .where(householdScope(chores, householdId, eq(chores.id, choreId)))
 }
@@ -121,6 +125,7 @@ export interface ChoreRow {
   assigneeUserId: string | null
   rotation: string[] | null
   createdBy: string | null
+  reminderLeadMinutes: number | null
 }
 
 export async function getChore(
@@ -155,6 +160,7 @@ export interface ChoreView {
   assigneeUserId: string | null
   rotation: string[] | null
   createdBy: string | null
+  reminderLeadMinutes: number | null
   occurrences: ChoreOccurrenceView[]
 }
 
@@ -215,6 +221,7 @@ export async function listChoresWithOccurrences(
     assigneeUserId: chore.assigneeUserId,
     rotation: chore.rotation,
     createdBy: chore.createdBy,
+    reminderLeadMinutes: chore.reminderLeadMinutes,
     occurrences: occurrencesByChore.get(chore.id) ?? [],
   }))
 }
@@ -253,4 +260,61 @@ export async function insertOccurrenceIfMissing(
     .onConflictDoNothing({
       target: [choreOccurrences.choreId, choreOccurrences.dueOn],
     })
+}
+
+export interface ActiveChoreRef {
+  choreId: string
+  householdId: string
+  timezone: string
+}
+
+/**
+ * Every non-archived chore across every household, with its household's
+ * timezone — the nightly `chores.materialize` job's driving list (§8's
+ * "chores.materialize — nightly cron", the M8 job M5 deferred). Unscoped
+ * by design: this runs as a system job, not inside a request, so there's
+ * no single household to scope it to.
+ */
+export async function listActiveChoresAcrossHouseholds(): Promise<
+  ActiveChoreRef[]
+> {
+  const rows = await db
+    .select({
+      choreId: chores.id,
+      householdId: chores.householdId,
+      timezone: households.timezone,
+    })
+    .from(chores)
+    .innerJoin(households, eq(households.id, chores.householdId))
+    .where(eq(chores.isArchived, false))
+  return rows
+}
+
+export interface PendingOccurrenceRef {
+  id: string
+  dueOn: string
+  assigneeUserId: string | null
+}
+
+export async function listPendingOccurrencesForChore(
+  choreId: string,
+  householdId: string,
+): Promise<PendingOccurrenceRef[]> {
+  return db
+    .select({
+      id: choreOccurrences.id,
+      dueOn: choreOccurrences.dueOn,
+      assigneeUserId: choreOccurrences.assigneeUserId,
+    })
+    .from(choreOccurrences)
+    .where(
+      householdScope(
+        choreOccurrences,
+        householdId,
+        and(
+          eq(choreOccurrences.choreId, choreId),
+          eq(choreOccurrences.status, 'pending'),
+        ),
+      ),
+    )
 }

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as ChoresRouteImport } from './routes/chores'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
@@ -23,11 +24,17 @@ import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as ApiHealthIndexRouteImport } from './routes/api/health/index'
 import { Route as ApiHealthLiveRouteImport } from './routes/api/health/live'
+import { Route as ApiTelegramWebhookRouteImport } from './routes/api/telegram/webhook'
 import { Route as AuthGoogleCallbackRouteImport } from './routes/auth/google.callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChoresRoute = ChoresRouteImport.update({
@@ -95,6 +102,11 @@ const ApiHealthLiveRoute = ApiHealthLiveRouteImport.update({
   path: '/api/health/live',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTelegramWebhookRoute = ApiTelegramWebhookRouteImport.update({
+  id: '/api/telegram/webhook',
+  path: '/api/telegram/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthGoogleCallbackRoute = AuthGoogleCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -103,6 +115,7 @@ const AuthGoogleCallbackRoute = AuthGoogleCallbackRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/chores': typeof ChoresRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -115,11 +128,13 @@ export interface FileRoutesByFullPath {
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/register': typeof AuthRegisterRoute
   '/api/health/live': typeof ApiHealthLiveRoute
+  '/api/telegram/webhook': typeof ApiTelegramWebhookRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/api/health/': typeof ApiHealthIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/chores': typeof ChoresRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -132,12 +147,14 @@ export interface FileRoutesByTo {
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/register': typeof AuthRegisterRoute
   '/api/health/live': typeof ApiHealthLiveRoute
+  '/api/telegram/webhook': typeof ApiTelegramWebhookRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/api/health': typeof ApiHealthIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/chores': typeof ChoresRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -150,6 +167,7 @@ export interface FileRoutesById {
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/register': typeof AuthRegisterRoute
   '/api/health/live': typeof ApiHealthLiveRoute
+  '/api/telegram/webhook': typeof ApiTelegramWebhookRoute
   '/auth/google/callback': typeof AuthGoogleCallbackRoute
   '/api/health/': typeof ApiHealthIndexRoute
 }
@@ -157,6 +175,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/chores'
     | '/login'
     | '/register'
@@ -169,11 +188,13 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/auth/register'
     | '/api/health/live'
+    | '/api/telegram/webhook'
     | '/auth/google/callback'
     | '/api/health/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/chores'
     | '/login'
     | '/register'
@@ -186,11 +207,13 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/auth/register'
     | '/api/health/live'
+    | '/api/telegram/webhook'
     | '/auth/google/callback'
     | '/api/health'
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/chores'
     | '/login'
     | '/register'
@@ -203,12 +226,14 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/auth/register'
     | '/api/health/live'
+    | '/api/telegram/webhook'
     | '/auth/google/callback'
     | '/api/health/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   ChoresRoute: typeof ChoresRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
@@ -221,6 +246,7 @@ export interface RootRouteChildren {
   AuthLogoutRoute: typeof AuthLogoutRoute
   AuthRegisterRoute: typeof AuthRegisterRoute
   ApiHealthLiveRoute: typeof ApiHealthLiveRoute
+  ApiTelegramWebhookRoute: typeof ApiTelegramWebhookRoute
   ApiHealthIndexRoute: typeof ApiHealthIndexRoute
 }
 
@@ -231,6 +257,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chores': {
@@ -324,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthLiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/telegram/webhook': {
+      id: '/api/telegram/webhook'
+      path: '/api/telegram/webhook'
+      fullPath: '/api/telegram/webhook'
+      preLoaderRoute: typeof ApiTelegramWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/google/callback': {
       id: '/auth/google/callback'
       path: '/callback'
@@ -348,6 +388,7 @@ const AuthGoogleRouteWithChildren = AuthGoogleRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   ChoresRoute: ChoresRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
@@ -360,6 +401,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLogoutRoute: AuthLogoutRoute,
   AuthRegisterRoute: AuthRegisterRoute,
   ApiHealthLiveRoute: ApiHealthLiveRoute,
+  ApiTelegramWebhookRoute: ApiTelegramWebhookRoute,
   ApiHealthIndexRoute: ApiHealthIndexRoute,
 }
 export const routeTree = rootRouteImport
