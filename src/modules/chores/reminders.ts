@@ -53,7 +53,7 @@ export async function scheduleRemindersForChore(
           reminder.minute,
         ),
         dedupeKey: `chore-occ:${occurrence.id}:reminder:${reminder.id}`,
-        existenceCheck: { table: 'reminders', id: reminder.id },
+        reminderId: reminder.id,
       })
     }
   }

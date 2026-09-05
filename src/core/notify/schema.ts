@@ -44,11 +44,12 @@ export const notifications = pgTable('notifications', {
   attempts: integer('attempts').notNull().default(1),
   sentAt: timestamp('sent_at', { withTimezone: true }),
   dedupeKey: text('dedupe_key').notNull().unique(),
-  // If set, dispatch/the retry sweep re-verify this row still exists
-  // before sending — see src/core/notify/existence.ts. Null for a
-  // notification with nothing that can go stale.
-  existenceCheckTable: text('existence_check_table'),
-  existenceCheckId: text('existence_check_id'),
+  // If set, dispatch/the retry sweep re-verify this reminder still exists
+  // (existence.ts) — a plain lookup pointer, not an enforced FK, so a
+  // notification that already sent isn't cascade-deleted just because its
+  // reminder was later edited away. Null for a notification with nothing
+  // that can go stale.
+  reminderId: uuid('reminder_id'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
