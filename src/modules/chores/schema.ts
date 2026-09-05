@@ -13,9 +13,12 @@ import { households } from '#/core/household/schema'
 import { users } from '#/core/auth/schema'
 
 /**
- * Chores module (M5, §5.3). `reminder_lead_minutes` was deliberately left
- * out until M8's reminder jobs existed to consume it — see
- * src/modules/chores/reminders.ts for the scheduling that reads it now.
+ * Chores module (M5, §5.3). Reminders live in their own child table,
+ * `chore_reminders` — replacing M8's single `chores.reminder_lead_minutes`
+ * column (minutes before a nominal 08:00 anchor) with explicit
+ * (offset_days, hour, minute) rows, one per reminder, so a chore can have
+ * several reminders at exact times. See reminder-time.ts / reminders.ts
+ * for the scheduling that reads these rows.
  */
 
 export const choreRecurrenceKind = pgEnum('chore_recurrence_kind', [
@@ -58,10 +61,6 @@ export const chores = pgTable('chores', {
     onDelete: 'set null',
   }),
   isArchived: boolean('is_archived').notNull().default(false),
-  // Minutes before the chore's nominal 08:00 household-local due time
-  // (see reminders.ts's computeReminderAt) to send a Telegram reminder.
-  // Null = no reminder for this chore.
-  reminderLeadMinutes: integer('reminder_lead_minutes'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -96,3 +95,25 @@ export const choreOccurrences = pgTable(
     ),
   ],
 )
+
+export const choreReminders = pgTable('chore_reminders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  householdId: uuid('household_id')
+    .notNull()
+    .references(() => households.id, { onDelete: 'cascade' }),
+  choreId: uuid('chore_id')
+    .notNull()
+    .references(() => chores.id, { onDelete: 'cascade' }),
+  // Days before the due date this reminder fires — 0 is the due date
+  // itself, negative counts back from it. Never positive (bounds enforced
+  // in chores.functions.ts's zod schema, not here).
+  offsetDays: integer('offset_days').notNull(),
+  // Literal household-local wall-clock time to fire at (see
+  // reminder-time.ts's computeReminderAt) — replaces M8's single
+  // lead-minutes-from-a-nominal-08:00-anchor scheme.
+  hour: integer('hour').notNull(),
+  minute: integer('minute').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})

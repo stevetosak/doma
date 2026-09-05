@@ -2,7 +2,7 @@ import { and, eq, gte, lte, or } from 'drizzle-orm'
 import { db } from '#/core/db/client'
 import { householdScope } from '#/core/db/household-scope'
 import { households } from '#/core/household/schema'
-import { choreOccurrences, chores } from './schema'
+import { choreOccurrences, choreReminders, chores } from './schema'
 import type { AssignmentMode, RecurrenceKind } from './recurrence'
 
 export interface CreateChoreInput {
@@ -19,7 +19,6 @@ export interface CreateChoreInput {
   assigneeUserId?: string
   rotation?: string[]
   createdBy: string
-  reminderLeadMinutes?: number
 }
 
 export async function createChore(input: CreateChoreInput): Promise<string> {
@@ -39,7 +38,6 @@ export async function createChore(input: CreateChoreInput): Promise<string> {
       assigneeUserId: input.assigneeUserId ?? null,
       rotation: input.rotation ?? null,
       createdBy: input.createdBy,
-      reminderLeadMinutes: input.reminderLeadMinutes ?? null,
     })
     .returning({ id: chores.id })
   if (!row) throw new Error('Insert did not return a row')
@@ -70,7 +68,6 @@ export async function updateChore(
       assignmentMode: input.assignmentMode,
       assigneeUserId: input.assigneeUserId ?? null,
       rotation: input.rotation ?? null,
-      reminderLeadMinutes: input.reminderLeadMinutes ?? null,
     })
     .where(householdScope(chores, householdId, eq(chores.id, choreId)))
 }
@@ -125,7 +122,79 @@ export interface ChoreRow {
   assigneeUserId: string | null
   rotation: string[] | null
   createdBy: string | null
-  reminderLeadMinutes: number | null
+}
+
+export interface ReminderInput {
+  offsetDays: number
+  hour: number
+  minute: number
+}
+
+export interface ReminderRow extends ReminderInput {
+  id: string
+}
+
+/**
+ * Wipe-and-recreate, matching deletePendingOccurrencesFrom's own
+ * delete-then-rebuild convention — the edit form always submits the whole
+ * desired set in one shot, there's no per-row CRUD surface for reminders
+ * the way there is for shopping items. Transactional so a failed insert
+ * never leaves a chore's reminders deleted-but-not-replaced.
+ */
+export async function replaceChoreReminders(
+  choreId: string,
+  householdId: string,
+  reminders: ReminderInput[],
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(choreReminders)
+      .where(
+        householdScope(
+          choreReminders,
+          householdId,
+          eq(choreReminders.choreId, choreId),
+        ),
+      )
+    // db.insert(...).values([]) is invalid — an empty array just means the
+    // delete above already leaves the chore reminder-less.
+    if (reminders.length === 0) return
+    await tx.insert(choreReminders).values(
+      reminders.map((r) => ({
+        householdId,
+        choreId,
+        offsetDays: r.offsetDays,
+        hour: r.hour,
+        minute: r.minute,
+      })),
+    )
+  })
+}
+
+export async function listRemindersForChore(
+  choreId: string,
+  householdId: string,
+): Promise<ReminderRow[]> {
+  return db
+    .select({
+      id: choreReminders.id,
+      offsetDays: choreReminders.offsetDays,
+      hour: choreReminders.hour,
+      minute: choreReminders.minute,
+    })
+    .from(choreReminders)
+    .where(
+      householdScope(
+        choreReminders,
+        householdId,
+        eq(choreReminders.choreId, choreId),
+      ),
+    )
+    .orderBy(
+      choreReminders.offsetDays,
+      choreReminders.hour,
+      choreReminders.minute,
+    )
 }
 
 export async function getChore(
@@ -146,6 +215,13 @@ export interface ChoreOccurrenceView {
   assigneeUserId: string | null
 }
 
+export interface ChoreReminderView {
+  id: string
+  offsetDays: number
+  hour: number
+  minute: number
+}
+
 export interface ChoreView {
   id: string
   title: string
@@ -160,15 +236,15 @@ export interface ChoreView {
   assigneeUserId: string | null
   rotation: string[] | null
   createdBy: string | null
-  reminderLeadMinutes: number | null
   occurrences: ChoreOccurrenceView[]
+  reminders: ChoreReminderView[]
 }
 
 /**
  * Every active chore in the household with its occurrences due on or
  * before `windowEnd`, plus any still-pending occurrence regardless of
  * date (so an overdue chore stays visible instead of quietly scrolling
- * off). Two queries + an in-memory group-by — household scale is a
+ * off). Three flat queries + in-memory group-bys — household scale is a
  * handful of chores, not worth a join for.
  */
 export async function listChoresWithOccurrences(
@@ -195,6 +271,16 @@ export async function listChoresWithOccurrences(
     )
     .orderBy(choreOccurrences.dueOn)
 
+  const reminderRows = await db
+    .select()
+    .from(choreReminders)
+    .where(householdScope(choreReminders, householdId))
+    .orderBy(
+      choreReminders.offsetDays,
+      choreReminders.hour,
+      choreReminders.minute,
+    )
+
   const occurrencesByChore = new Map<string, ChoreOccurrenceView[]>()
   for (const occ of occurrenceRows) {
     const list = occurrencesByChore.get(occ.choreId) ?? []
@@ -205,6 +291,18 @@ export async function listChoresWithOccurrences(
       assigneeUserId: occ.assigneeUserId,
     })
     occurrencesByChore.set(occ.choreId, list)
+  }
+
+  const remindersByChore = new Map<string, ChoreReminderView[]>()
+  for (const r of reminderRows) {
+    const list = remindersByChore.get(r.choreId) ?? []
+    list.push({
+      id: r.id,
+      offsetDays: r.offsetDays,
+      hour: r.hour,
+      minute: r.minute,
+    })
+    remindersByChore.set(r.choreId, list)
   }
 
   return choreRows.map((chore) => ({
@@ -221,8 +319,8 @@ export async function listChoresWithOccurrences(
     assigneeUserId: chore.assigneeUserId,
     rotation: chore.rotation,
     createdBy: chore.createdBy,
-    reminderLeadMinutes: chore.reminderLeadMinutes,
     occurrences: occurrencesByChore.get(chore.id) ?? [],
+    reminders: remindersByChore.get(chore.id) ?? [],
   }))
 }
 

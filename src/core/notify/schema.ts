@@ -44,6 +44,11 @@ export const notifications = pgTable('notifications', {
   attempts: integer('attempts').notNull().default(1),
   sentAt: timestamp('sent_at', { withTimezone: true }),
   dedupeKey: text('dedupe_key').notNull().unique(),
+  // If set, dispatch/the retry sweep re-verify this row still exists
+  // before sending — see src/core/notify/existence.ts. Null for a
+  // notification with nothing that can go stale.
+  existenceCheckTable: text('existence_check_table'),
+  existenceCheckId: text('existence_check_id'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

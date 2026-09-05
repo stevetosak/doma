@@ -11,6 +11,7 @@ import {
   createChore,
   deletePendingOccurrencesFrom,
   listChoresWithOccurrences,
+  replaceChoreReminders,
   setOccurrenceStatus,
   updateChore,
 } from '#/modules/chores/repo'
@@ -63,6 +64,14 @@ export const getChoresData = createServerFn({ method: 'GET' }).handler(
   },
 )
 
+export const MAX_REMINDERS = 6
+
+const reminderInput = z.object({
+  offsetDays: z.number().int().min(-30).max(0),
+  hour: z.number().int().min(0).max(23),
+  minute: z.number().int().min(0).max(59),
+})
+
 const createChoreInput = z
   .object({
     title: z.string().min(1).max(200),
@@ -79,7 +88,7 @@ const createChoreInput = z
     assignmentMode: z.enum(['fixed', 'rotating']),
     assigneeUserId: z.string().uuid().optional(),
     rotation: z.array(z.string().uuid()).optional(),
-    reminderLeadMinutes: z.number().int().min(0).optional(),
+    reminders: z.array(reminderInput).max(MAX_REMINDERS).default([]),
   })
   .refine(
     (data) =>
@@ -109,11 +118,13 @@ export const createChoreAction = createServerFn({ method: 'POST' })
   .validator((input: unknown) => createChoreInput.parse(input))
   .handler(async ({ data }) => {
     const { userId, household } = await requireMember()
+    const { reminders, ...fields } = data
     const choreId = await createChore({
       householdId: household.id,
       createdBy: userId,
-      ...data,
+      ...fields,
     })
+    await replaceChoreReminders(choreId, household.id, reminders)
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
     await scheduleRemindersForChore(choreId, household.id, household.timezone)
     publish(household.id, {
@@ -132,8 +143,9 @@ export const updateChoreAction = createServerFn({ method: 'POST' })
   .validator((input: unknown) => updateChoreInput.parse(input))
   .handler(async ({ data }) => {
     const { household } = await requireMember()
-    const { choreId, ...fields } = data
+    const { choreId, reminders, ...fields } = data
     await updateChore(choreId, household.id, fields)
+    await replaceChoreReminders(choreId, household.id, reminders)
     await deletePendingOccurrencesFrom(
       choreId,
       household.id,
