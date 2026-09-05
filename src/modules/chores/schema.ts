@@ -90,6 +90,8 @@ export const choreOccurrences = pgTable(
     }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
   },
+  // The materializer's idempotency key (§10): re-running it for a chore
+  // must not create duplicate occurrences for the same due date.
   (table) => [
     uniqueIndex('chore_occurrences_chore_due_on_key').on(
       table.choreId,

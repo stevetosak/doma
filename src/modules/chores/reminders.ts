@@ -27,7 +27,11 @@ export async function scheduleRemindersForChore(
   for (const occurrence of occurrences) {
     if (!occurrence.assigneeUserId) continue
     for (const reminder of reminderRows) {
-      if (reminder.offsetDays == null || reminder.hour == null || reminder.minute == null) {
+      if (
+        reminder.offsetDays == null ||
+        reminder.hour == null ||
+        reminder.minute == null
+      ) {
         continue // not a relative-mode row — shouldn't happen for a chore, but stay defensive
       }
       await notify({

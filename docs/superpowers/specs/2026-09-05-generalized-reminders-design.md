@@ -24,9 +24,13 @@ alongside `core/notify`/`core/household`, not a registered feature module):
 ```ts
 export const items = pgTable('items', {
   id: uuid('id').primaryKey().defaultRandom(),
-  householdId: uuid('household_id').notNull().references(() => households.id, { onDelete: 'cascade' }),
+  householdId: uuid('household_id')
+    .notNull()
+    .references(() => households.id, { onDelete: 'cascade' }),
   itemType: text('item_type').notNull(), // 'chore' | 'shopping_item' | future kinds
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 ```
 
@@ -44,24 +48,34 @@ A generic `reminders` table, also in `src/core/items/`, referencing `items` — 
 enforced polymorphic FK the current string-pair check doesn't provide:
 
 ```ts
-export const reminders = pgTable('reminders', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  householdId: uuid('household_id').notNull().references(() => households.id, { onDelete: 'cascade' }),
-  itemId: uuid('item_id').notNull().references(() => items.id, { onDelete: 'cascade' }),
-  // Relative mode (chores): N days before/after a recurring due date, at a literal time.
-  offsetDays: integer('offset_days'),
-  hour: integer('hour'),
-  minute: integer('minute'),
-  // Absolute mode (shopping): a single literal fire time, no recurrence.
-  fireAt: timestamp('fire_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  check(
-    'reminders_mode_check',
-    sql`(${table.offsetDays} is not null and ${table.hour} is not null and ${table.minute} is not null and ${table.fireAt} is null)
+export const reminders = pgTable(
+  'reminders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    itemId: uuid('item_id')
+      .notNull()
+      .references(() => items.id, { onDelete: 'cascade' }),
+    // Relative mode (chores): N days before/after a recurring due date, at a literal time.
+    offsetDays: integer('offset_days'),
+    hour: integer('hour'),
+    minute: integer('minute'),
+    // Absolute mode (shopping): a single literal fire time, no recurrence.
+    fireAt: timestamp('fire_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check(
+      'reminders_mode_check',
+      sql`(${table.offsetDays} is not null and ${table.hour} is not null and ${table.minute} is not null and ${table.fireAt} is null)
      or (${table.offsetDays} is null and ${table.hour} is null and ${table.minute} is null and ${table.fireAt} is not null)`,
-  ),
-])
+    ),
+  ],
+)
 ```
 
 Multiple `reminders` rows may share an `itemId` — since the table isn't unique on `itemId`,
@@ -72,7 +86,7 @@ schema, not the DB.
 ## Application-level enforcement
 
 A bare FK is easy to bypass by inserting into `chores`/`shopping_items` directly and forgetting
-the `items` row. Two shared functions in `src/core/items/repo.ts` are the *only* way to create or
+the `items` row. Two shared functions in `src/core/items/repo.ts` are the _only_ way to create or
 remove a polymorphic item, so the module row insert/delete can only happen through them:
 
 ```ts
@@ -82,13 +96,21 @@ export async function createItemRecord<T>(
   insertRecord: (tx: Transaction, itemId: string) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    const [row] = await tx.insert(items).values({ householdId, itemType }).returning({ id: items.id })
+    const [row] = await tx
+      .insert(items)
+      .values({ householdId, itemType })
+      .returning({ id: items.id })
     return insertRecord(tx, row.id)
   })
 }
 
-export async function deleteItemRecord(itemId: string, householdId: string): Promise<void> {
-  await db.delete(items).where(householdScope(items, householdId, eq(items.id, itemId)))
+export async function deleteItemRecord(
+  itemId: string,
+  householdId: string,
+): Promise<void> {
+  await db
+    .delete(items)
+    .where(householdScope(items, householdId, eq(items.id, itemId)))
   // cascades to the module row + any reminders in one statement
 }
 ```
@@ -118,7 +140,7 @@ reminders table instead of two:
   was later edited away; history is append-only). `stillExists` becomes a single unconditional
   `reminders` lookup, no per-table registry needed for this part.
 - **A new liveness check, keyed by `kind`** (already a free-form field on `notifications`, e.g.
-  `'chore_reminder'`, new `'shopping_item_reminder'`): does the thing this reminder is *about*
+  `'chore_reminder'`, new `'shopping_item_reminder'`): does the thing this reminder is _about_
   still need a nudge — is the occurrence still pending, is the item still unchecked? Checked
   alongside the existence check at both dispatch and the retry sweep. This closes a real gap:
   today, marking a chore occurrence done doesn't stop its other pending reminders from firing;
@@ -128,10 +150,17 @@ reminders table instead of two:
 ```ts
 // src/core/notify/liveness.ts
 const LIVENESS: Record<string, (subjectId: string) => Promise<boolean>> = {
-  chore_reminder: async (occurrenceId) => { /* occurrence.status === 'pending' */ },
-  shopping_item_reminder: async (itemId) => { /* !item.isChecked */ },
+  chore_reminder: async (occurrenceId) => {
+    /* occurrence.status === 'pending' */
+  },
+  shopping_item_reminder: async (itemId) => {
+    /* !item.isChecked */
+  },
 }
-export async function isStillLive(kind: string, subjectId: string): Promise<boolean> {
+export async function isStillLive(
+  kind: string,
+  subjectId: string,
+): Promise<boolean> {
   const fn = LIVENESS[kind]
   return fn ? fn(subjectId) : true
 }
@@ -160,7 +189,7 @@ fan-out). `NotifyInput`/`NotifyJobData`'s `existenceCheck?: { table, id }` field
   chat pressing the button is the one linked to that exact `notification.userId` (so a forged
   callback can't act on someone else's reminder), then dispatches by `kind` to a small completion
   registry mirroring the liveness one — `'chore_reminder'` → `setOccurrenceStatus(..., 'done',
-  ...)`, `'shopping_item_reminder'` → `setItemChecked(..., true, ...)`. Answers with a toast and
+...)`, `'shopping_item_reminder'` → `setItemChecked(..., true, ...)`. Answers with a toast and
   edits the message to drop the button (idempotent either way — re-marking an already-done
   occurrence is a no-op).
 
@@ -185,7 +214,7 @@ One hand-edited migration file, same style as the earlier `chore_reminders` back
 1. `CREATE TABLE items (...)`.
 2. Backfill `items` from `chores` and `shopping_items`, **reusing their existing ids exactly**
    (`INSERT INTO items (id, household_id, item_type, created_at) SELECT id, household_id,
-   'chore', created_at FROM chores`, same for shopping). No id anywhere else in the app ever
+'chore', created_at FROM chores`, same for shopping). No id anywhere else in the app ever
    changes.
 3. Drop the `DEFAULT gen_random_uuid()` on `chores.id` / `shopping_items.id`, add the FK to
    `items.id` on each.

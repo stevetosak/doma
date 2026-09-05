@@ -183,24 +183,28 @@ export async function addItem(input: AddItemInput): Promise<string> {
     ? await getOrCreateCategory(input.householdId, input.categoryName)
     : null
 
-  return createItemRecord(input.householdId, 'shopping_item', async (tx, id) => {
-    const [row] = await tx
-      .insert(shoppingItems)
-      .values({
-        id,
-        householdId: input.householdId,
-        listId: input.listId,
-        name: input.name.trim(),
-        quantity: input.quantity ?? null,
-        unit: input.unit ?? null,
-        note: input.note ?? null,
-        categoryId,
-        addedBy: input.addedBy,
-      })
-      .returning({ id: shoppingItems.id })
-    if (!row) throw new Error('Insert did not return a row')
-    return row.id
-  })
+  return createItemRecord(
+    input.householdId,
+    'shopping_item',
+    async (tx, id) => {
+      const [row] = await tx
+        .insert(shoppingItems)
+        .values({
+          id,
+          householdId: input.householdId,
+          listId: input.listId,
+          name: input.name.trim(),
+          quantity: input.quantity ?? null,
+          unit: input.unit ?? null,
+          note: input.note ?? null,
+          categoryId,
+          addedBy: input.addedBy,
+        })
+        .returning({ id: shoppingItems.id })
+      if (!row) throw new Error('Insert did not return a row')
+      return row.id
+    },
+  )
 }
 
 export interface UpdateItemInput {
@@ -275,7 +279,7 @@ export async function removeItem(
   itemId: string,
   householdId: string,
 ): Promise<void> {
-  await deleteItemRecord(itemId, householdId)
+  await deleteItemRecord(itemId, householdId, 'shopping_item')
 }
 
 export interface RecentlyBoughtView {

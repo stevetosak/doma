@@ -216,7 +216,11 @@ export async function listChoresWithOccurrences(
           })
           .from(reminders)
           .where(
-            householdScope(reminders, householdId, inArray(reminders.itemId, choreIds)),
+            householdScope(
+              reminders,
+              householdId,
+              inArray(reminders.itemId, choreIds),
+            ),
           )
           .orderBy(reminders.offsetDays, reminders.hour, reminders.minute)
       : []
@@ -237,7 +241,12 @@ export async function listChoresWithOccurrences(
   for (const r of reminderRows) {
     if (r.offsetDays == null || r.hour == null || r.minute == null) continue
     const list = remindersByChore.get(r.itemId) ?? []
-    list.push({ id: r.id, offsetDays: r.offsetDays, hour: r.hour, minute: r.minute })
+    list.push({
+      id: r.id,
+      offsetDays: r.offsetDays,
+      hour: r.hour,
+      minute: r.minute,
+    })
     remindersByChore.set(r.itemId, list)
   }
 

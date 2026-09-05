@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '#/core/db/client'
 import type { Transaction } from '#/core/db/client'
 import { householdScope } from '#/core/db/household-scope'
@@ -33,10 +33,17 @@ export async function createItemRecord<T>(
 export async function deleteItemRecord(
   itemId: string,
   householdId: string,
+  itemType: string,
 ): Promise<void> {
   await db
     .delete(items)
-    .where(householdScope(items, householdId, eq(items.id, itemId)))
+    .where(
+      householdScope(
+        items,
+        householdId,
+        and(eq(items.id, itemId), eq(items.itemType, itemType)),
+      ),
+    )
 }
 
 export interface ReminderInput {
@@ -70,7 +77,9 @@ export async function replaceRemindersForItem(
   await db.transaction(async (tx) => {
     await tx
       .delete(reminders)
-      .where(householdScope(reminders, householdId, eq(reminders.itemId, itemId)))
+      .where(
+        householdScope(reminders, householdId, eq(reminders.itemId, itemId)),
+      )
     if (rows.length === 0) return
     await tx.insert(reminders).values(
       rows.map((r) => ({
@@ -99,5 +108,10 @@ export async function listRemindersForItem(
     })
     .from(reminders)
     .where(householdScope(reminders, householdId, eq(reminders.itemId, itemId)))
-    .orderBy(reminders.offsetDays, reminders.hour, reminders.minute, reminders.fireAt)
+    .orderBy(
+      reminders.offsetDays,
+      reminders.hour,
+      reminders.minute,
+      reminders.fireAt,
+    )
 }
