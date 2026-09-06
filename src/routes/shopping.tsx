@@ -1,23 +1,27 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { ActionCard } from '#/core/ui/ActionCard'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
 import { Field } from '#/core/ui/Field'
-import { FlipCard } from '#/core/ui/FlipCard'
 import {
   BellIcon,
   CheckIcon,
   EditIcon,
+  FlagIcon,
   GripIcon,
   PlusIcon,
   TrashIcon,
   UndoIcon,
 } from '#/core/ui/icons'
+import { IconRail } from '#/core/ui/IconRail'
 import { MutationStatus } from '#/core/ui/MutationStatus'
 import { ReminderListEditor } from '#/core/ui/ReminderListEditor'
+import { SegmentedControl } from '#/core/ui/SegmentedControl'
 import { Sheet } from '#/core/ui/Sheet'
 import { DecimalStepper } from '#/core/ui/Stepper'
+import { TOAST_DURATION_MS, useToast } from '#/core/ui/Toast'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
@@ -36,14 +40,39 @@ import {
   removeItemAction,
   reorderCategoryAction,
   setItemCheckedAction,
+  setItemPriorityAction,
   setItemRemindersAction,
   updateItemAction,
 } from '#/modules/shopping/shopping.functions'
 import type {
   CategoryView,
+  ItemPriority,
   ItemView,
   RecentlyBoughtView,
 } from '#/modules/shopping/repo'
+
+// Sentinel for the segmented control (§2.12) — SegmentedControl's options
+// are string-keyed, and `null` isn't a legal option value, so the form
+// state holds this instead and only the submit boundary maps it back to
+// `undefined`/`null` for the server actions.
+type PriorityChoice = ItemPriority | 'none'
+
+const PRIORITY_OPTIONS: readonly { value: PriorityChoice; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+]
+
+// Literal class names, not a `text-priority-${priority}` template — Tailwind
+// only emits a utility (and the `--color-priority-*` variable behind it)
+// for class names its static scanner can actually see in source; a
+// runtime-built string would silently resolve to nothing.
+const PRIORITY_TEXT_CLASS: Record<ItemPriority, string> = {
+  high: 'text-priority-high',
+  medium: 'text-priority-medium',
+  low: 'text-priority-low',
+}
 
 export const Route = createFileRoute('/shopping')({
   beforeLoad: ({ context }) => {
@@ -78,14 +107,66 @@ function ShoppingPage() {
   const router = useRouter()
   useLiveSync()
   const [addOpen, setAddOpen] = useState(false)
+  const { showToast } = useToast()
+  // Swipe-left/rail delete (§2.1/§2.2) is optimistic-with-undo: the item
+  // disappears immediately, the actual (irreversible) removeItemAction
+  // fires only once the toast's undo window has fully elapsed. Deleting an
+  // item has no soft-delete/archive path in the schema, so this is done
+  // client-side rather than adding one.
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const deleteTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+
+  useEffect(() => {
+    const timers = deleteTimers.current
+    return () => {
+      // Only clears the local "hidden" bookkeeping on unmount — the
+      // scheduled deletes themselves are left to fire; they're plain
+      // server calls that don't depend on this component staying mounted.
+      timers.clear()
+    }
+  }, [])
 
   async function refresh() {
     await router.invalidate({ sync: true })
   }
 
+  function requestDeleteItem(itemId: string, itemName: string) {
+    setPendingDeleteIds((current) => new Set(current).add(itemId))
+    const timer = setTimeout(() => {
+      deleteTimers.current.delete(itemId)
+      void removeItemAction({ data: { itemId } }).then(async () => {
+        setPendingDeleteIds((current) => {
+          const next = new Set(current)
+          next.delete(itemId)
+          return next
+        })
+        await refresh()
+      })
+    }, TOAST_DURATION_MS)
+    deleteTimers.current.set(itemId, timer)
+    showToast({
+      message: `Deleted “${itemName}.”`,
+      actionLabel: 'Undo',
+      onAction: () => {
+        const pending = deleteTimers.current.get(itemId)
+        if (pending) {
+          clearTimeout(pending)
+          deleteTimers.current.delete(itemId)
+        }
+        setPendingDeleteIds((current) => {
+          const next = new Set(current)
+          next.delete(itemId)
+          return next
+        })
+      },
+    })
+  }
+
   const grouped = new Map<string | null, ItemView[]>()
   for (const item of data.items) {
-    if (item.isChecked) continue
+    if (item.isChecked || pendingDeleteIds.has(item.id)) continue
     const key = item.categoryId
     const list = grouped.get(key) ?? []
     list.push(item)
@@ -160,6 +241,9 @@ function ShoppingPage() {
                       memberName={memberName}
                       timezone={data.timezone}
                       onChange={refresh}
+                      onRequestDelete={() =>
+                        requestDeleteItem(item.id, item.name)
+                      }
                     />
                   </div>
                 ))}
@@ -222,16 +306,19 @@ function ItemCard({
   memberName,
   timezone,
   onChange,
+  onRequestDelete,
 }: {
   item: ItemView
   categories: CategoryView[]
   memberName: Map<string, string>
   timezone: string
   onChange: () => Promise<void>
+  onRequestDelete: () => void
 }) {
   const { status, error, run } = useHouseholdMutation()
   const [editOpen, setEditOpen] = useState(false)
   const [remindersOpen, setRemindersOpen] = useState(false)
+  const [priorityOpen, setPriorityOpen] = useState(false)
 
   async function markBought() {
     await run(() =>
@@ -240,8 +327,9 @@ function ItemCard({
     await onChange()
   }
 
-  async function handleRemove() {
-    await removeItemAction({ data: { itemId: item.id } })
+  async function setPriority(next: ItemPriority | null) {
+    setPriorityOpen(false)
+    await setItemPriorityAction({ data: { itemId: item.id, priority: next } })
     await onChange()
   }
 
@@ -249,70 +337,76 @@ function ItemCard({
 
   return (
     <>
-      <FlipCard
-        minHeight={114}
-        swipeCompleteLabel={!busy ? '✓ Got it' : undefined}
-        onSwipeComplete={!busy ? markBought : undefined}
-        front={
-          <>
-            <span className="block text-lg text-ink">{item.name}</span>
-            {(item.quantity != null || item.unit) && (
-              <span className="mt-1 block text-xs text-ink-dim">
-                {item.quantity ?? ''} {item.unit ?? ''}
-              </span>
+      <ActionCard
+        onComplete={!busy ? markBought : undefined}
+        onNegative={onRequestDelete}
+        completeLabel="✓ Got it"
+        negativeLabel="Delete"
+        completeAriaLabel="Mark bought"
+        negativeAriaLabel="Delete item"
+      >
+        <div className="p-5">
+          <span className="flex items-center gap-1.5 text-lg text-ink">
+            {item.priority && (
+              <FlagIcon
+                className={`h-3.5 w-3.5 shrink-0 ${PRIORITY_TEXT_CLASS[item.priority]}`}
+                filled
+              />
             )}
-            {item.note && (
-              <p className="mt-2 text-sm text-ink-dim">{item.note}</p>
-            )}
-            {item.addedBy && memberName.get(item.addedBy) && (
-              <p className="mt-3 text-[11px] text-ink-dim">
-                added by {memberName.get(item.addedBy)}
-              </p>
-            )}
-          </>
-        }
-        back={
-          <div className="flex flex-1 flex-col gap-3">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={markBought}
-              className="btn-primary btn-compact self-start"
-            >
-              <CheckIcon className="h-4 w-4" />
-              Got it
-            </button>
-            <MutationStatus status={status} error={error} />
-            <div className="mt-auto flex gap-3 border-t border-line pt-3 text-[11px] text-ink-dim">
-              <button
-                type="button"
-                onClick={() => setEditOpen(true)}
-                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
-              >
-                <EditIcon className="h-3.5 w-3.5" />
-                edit
-              </button>
-              <button
-                type="button"
-                onClick={() => setRemindersOpen(true)}
-                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
-              >
-                <BellIcon className="h-3.5 w-3.5" />
-                remind
-                {item.reminders.length > 0 ? ` (${item.reminders.length})` : ''}
-              </button>
-              <button
-                type="button"
-                onClick={handleRemove}
-                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
-              >
-                <TrashIcon className="h-3.5 w-3.5" />
-                delete
-              </button>
-            </div>
-          </div>
-        }
-      />
+            {item.name}
+          </span>
+          {(item.quantity != null || item.unit) && (
+            <span className="mt-1 block text-xs text-ink-dim">
+              {item.quantity ?? ''} {item.unit ?? ''}
+            </span>
+          )}
+          {item.note && (
+            <p className="mt-2 text-sm text-ink-dim">{item.note}</p>
+          )}
+          {item.addedBy && memberName.get(item.addedBy) && (
+            <p className="mt-3 text-[11px] text-ink-dim">
+              added by {memberName.get(item.addedBy)}
+            </p>
+          )}
+          <MutationStatus status={status} error={error} />
+        </div>
+        <IconRail
+          actions={[
+            {
+              key: 'remind',
+              icon: <BellIcon className="h-[18px] w-[18px]" />,
+              label: 'Item reminders',
+              onClick: () => setRemindersOpen(true),
+              badge: item.reminders.length,
+            },
+            {
+              key: 'priority',
+              icon: (
+                <FlagIcon
+                  className={`h-[18px] w-[18px] ${item.priority ? PRIORITY_TEXT_CLASS[item.priority] : ''}`}
+                  filled={item.priority != null}
+                />
+              ),
+              label: item.priority
+                ? `Priority: ${item.priority}`
+                : 'Set priority',
+              onClick: () => setPriorityOpen(true),
+            },
+            {
+              key: 'edit',
+              icon: <EditIcon className="h-[18px] w-[18px]" />,
+              label: 'Edit item',
+              onClick: () => setEditOpen(true),
+            },
+            {
+              key: 'delete',
+              icon: <TrashIcon className="h-[18px] w-[18px]" />,
+              label: 'Delete item',
+              onClick: onRequestDelete,
+            },
+          ]}
+        />
+      </ActionCard>
 
       <Sheet
         open={editOpen}
@@ -348,7 +442,60 @@ function ItemCard({
           onCancel={() => setRemindersOpen(false)}
         />
       </Sheet>
+
+      <Sheet
+        open={priorityOpen}
+        onClose={() => setPriorityOpen(false)}
+        title="Priority"
+      >
+        <PrioritySheet current={item.priority} onSelect={setPriority} />
+      </Sheet>
     </>
+  )
+}
+
+/**
+ * The quick-access priority picker (§2.12) opened from the rail's flag
+ * icon — a lighter path than the full edit form, writing straight through
+ * `setItemPriorityAction`. Four rows (including "no priority"), current
+ * selection checked.
+ */
+function PrioritySheet({
+  current,
+  onSelect,
+}: {
+  current: ItemPriority | null
+  onSelect: (value: ItemPriority | null) => void
+}) {
+  const levels: { value: ItemPriority | null; label: string }[] = [
+    { value: null, label: 'None' },
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+  ]
+  return (
+    <div className="flex flex-col gap-1.5">
+      {levels.map((level) => {
+        const selected = level.value === current
+        return (
+          <button
+            key={level.label}
+            type="button"
+            onClick={() => onSelect(level.value)}
+            className={`flex items-center gap-3 rounded-control px-[14px] py-[13px] text-left transition-colors ${
+              selected ? 'bg-inset' : 'hover:bg-inset'
+            }`}
+          >
+            <FlagIcon
+              className={`h-4 w-4 shrink-0 ${level.value ? PRIORITY_TEXT_CLASS[level.value] : 'text-ink-ghost'}`}
+              filled={level.value != null}
+            />
+            <span className="flex-1 text-sm text-ink">{level.label}</span>
+            {selected && <CheckIcon className="h-4 w-4 text-accent" />}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -478,6 +625,9 @@ function ItemEditForm({
   const [unit, setUnit] = useState(item.unit ?? '')
   const [note, setNote] = useState(item.note ?? '')
   const [categoryName, setCategoryName] = useState(currentCategoryName ?? '')
+  const [priority, setPriority] = useState<PriorityChoice>(
+    item.priority ?? 'none',
+  )
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -494,6 +644,7 @@ function ItemEditForm({
           unit: unit || undefined,
           note: note || undefined,
           categoryName: categoryName || undefined,
+          priority: priority === 'none' ? undefined : priority,
         },
       })
       await onSaved()
@@ -551,6 +702,14 @@ function ItemEditForm({
             <option key={c.id} value={c.name} />
           ))}
         </datalist>
+      </Field>
+      <Field label="Priority">
+        <SegmentedControl
+          value={priority}
+          onChange={setPriority}
+          options={PRIORITY_OPTIONS}
+          ariaLabel="Priority"
+        />
       </Field>
       {error && <p className="text-sm text-error">{error}</p>}
       <div className="flex flex-col items-start gap-3">
@@ -616,6 +775,7 @@ function NewItemForm({
   const [unit, setUnit] = useState('')
   const [note, setNote] = useState('')
   const [categoryName, setCategoryName] = useState('')
+  const [priority, setPriority] = useState<PriorityChoice>('none')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -632,6 +792,7 @@ function NewItemForm({
           unit: unit || undefined,
           note: note || undefined,
           categoryName: categoryName || undefined,
+          priority: priority === 'none' ? undefined : priority,
         },
       })
       setName('')
@@ -639,6 +800,7 @@ function NewItemForm({
       setUnit('')
       setNote('')
       setCategoryName('')
+      setPriority('none')
       await onCreated()
     } catch {
       setError('Could not add the item — check the fields above.')
@@ -694,6 +856,14 @@ function NewItemForm({
             <option key={c.id} value={c.name} />
           ))}
         </datalist>
+      </Field>
+      <Field label="Priority">
+        <SegmentedControl
+          value={priority}
+          onChange={setPriority}
+          options={PRIORITY_OPTIONS}
+          ariaLabel="Priority"
+        />
       </Field>
       {error && <p className="text-sm text-error">{error}</p>}
       <div className="flex flex-col items-start gap-3">

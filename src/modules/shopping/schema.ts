@@ -61,6 +61,9 @@ export const shoppingItems = pgTable('shopping_items', {
   categoryId: uuid('category_id').references(() => shoppingCategories.id, {
     onDelete: 'set null',
   }),
+  // Nullable = "none" (§2.12) — no mark renders and the picker's swatch
+  // reads as a plain inset, rather than encoding "none" as a 4th color.
+  priority: text('priority', { enum: ['low', 'medium', 'high'] }),
   isChecked: boolean('is_checked').notNull().default(false),
   checkedBy: uuid('checked_by').references(() => users.id, {
     onDelete: 'set null',

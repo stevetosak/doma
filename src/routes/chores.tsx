@@ -1,25 +1,25 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { ActionCard } from '#/core/ui/ActionCard'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
 import { Field } from '#/core/ui/Field'
-import { FlipCard } from '#/core/ui/FlipCard'
 import {
   BellIcon,
-  CheckIcon,
   EditIcon,
   GripIcon,
   PlusIcon,
-  SkipIcon,
   TrashIcon,
   UndoIcon,
 } from '#/core/ui/icons'
+import { IconRail } from '#/core/ui/IconRail'
 import { MutationStatus } from '#/core/ui/MutationStatus'
 import { ReminderListEditor } from '#/core/ui/ReminderListEditor'
 import { SegmentedControl } from '#/core/ui/SegmentedControl'
 import { Sheet } from '#/core/ui/Sheet'
 import { Stepper } from '#/core/ui/Stepper'
+import { useToast } from '#/core/ui/Toast'
 import { WeekdayStrip } from '#/core/ui/WeekdayStrip'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
@@ -235,6 +235,7 @@ function ChoreCard({
   const { status, error, run } = useHouseholdMutation()
   const [editOpen, setEditOpen] = useState(false)
   const [remindersOpen, setRemindersOpen] = useState(false)
+  const { showToast } = useToast()
   const today = todayInZone(timezone)
   const filed = chore.occurrences.filter((o) => o.status !== 'pending')
   const upcoming = chore.occurrences
@@ -248,21 +249,37 @@ function ChoreCard({
     occurrenceId: string,
     nextStatus: 'done' | 'skipped',
   ) {
-    await run(() =>
+    const result = await run(() =>
       setOccurrenceStatusAction({ data: { occurrenceId, status: nextStatus } }),
     )
     await onChange()
+    return result
   }
 
   // Reverting a filed occurrence is a secondary, occasional correction (a
   // mis-tap), not the card's primary tracked action — a plain call+refresh
   // matches how edit/delete/remove already work elsewhere, not the
-  // honest-retry MutationStatus treatment reserved for Done/Skip.
+  // honest-retry MutationStatus treatment reserved for Done/Skip. It also
+  // doubles as the swipe-left undo toast's action (§2.1/§2.2) — a skip is
+  // already safely reversible, so no deferred-delete dance is needed here.
   async function handleUndo(occurrenceId: string) {
     await setOccurrenceStatusAction({
       data: { occurrenceId, status: 'pending' },
     })
     await onChange()
+  }
+
+  async function handleSkip() {
+    if (!next) return
+    const occurrenceId = next.id
+    const result = await setStatus(occurrenceId, 'skipped')
+    if (result) {
+      showToast({
+        message: 'Skipped.',
+        actionLabel: 'Undo',
+        onAction: () => void handleUndo(occurrenceId),
+      })
+    }
   }
 
   async function handleDelete() {
@@ -274,116 +291,81 @@ function ChoreCard({
 
   return (
     <div>
-      <FlipCard
-        urgent={urgent}
-        minHeight={200}
-        swipeCompleteLabel={next && !busy ? '✓ Done' : undefined}
-        onSwipeComplete={
+      <ActionCard
+        onComplete={
           next && !busy ? () => setStatus(next.id, 'done') : undefined
         }
-        front={
-          <>
-            <h2 className="font-display text-2xl text-ink">{chore.title}</h2>
-            {next ? (
-              <span
-                className={
-                  urgent
-                    ? 'mt-1 block text-[12px] font-semibold tracking-[0.06em] text-accent uppercase'
-                    : 'mt-1 block text-[12.5px] font-normal text-ink-dim'
-                }
-              >
-                {overdue
-                  ? 'OVERDUE'
-                  : next.dueOn === today
-                    ? 'DUE TODAY'
-                    : `due ${formatDateWithWeekday(next.dueOn, timezone)}`}
-                {' · '}
-                {next.assigneeUserId
-                  ? (memberName.get(next.assigneeUserId) ?? 'Unassigned')
-                  : 'Unassigned'}
-              </span>
-            ) : (
-              <span className="mt-1 block text-[12.5px] text-ink-dim">
-                No upcoming occurrences
-              </span>
-            )}
-            <OccurrenceStrip
-              dueDates={upcoming.map((o) => o.dueOn)}
-              today={today}
-              timezone={timezone}
-              activeDate={next?.dueOn}
-            />
-            {chore.notes && (
-              <p className="mt-3 text-sm text-ink-dim">{chore.notes}</p>
-            )}
-            {chore.createdBy && memberName.get(chore.createdBy) && (
-              <p className="mt-3 text-[11px] text-ink-dim">
-                added by {memberName.get(chore.createdBy)}
-              </p>
-            )}
-          </>
-        }
-        back={
-          <div className="flex flex-1 flex-col gap-3">
-            {next ? (
-              <>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => setStatus(next.id, 'done')}
-                    className="btn-primary btn-compact"
-                  >
-                    <CheckIcon className="h-4 w-4" />
-                    Done
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => setStatus(next.id, 'skipped')}
-                    className="btn-secondary btn-compact"
-                  >
-                    <SkipIcon className="h-4 w-4" />
-                    Skip
-                  </button>
-                </div>
-                <MutationStatus status={status} error={error} />
-              </>
-            ) : (
-              <p className="text-sm text-ink-dim">Nothing due right now.</p>
-            )}
-            <div className="mt-auto flex gap-3 border-t border-line pt-3 text-[11px] text-ink-dim">
-              <button
-                type="button"
-                onClick={() => setEditOpen(true)}
-                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
-              >
-                <EditIcon className="h-3.5 w-3.5" />
-                edit
-              </button>
-              <button
-                type="button"
-                onClick={() => setRemindersOpen(true)}
-                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
-              >
-                <BellIcon className="h-3.5 w-3.5" />
-                remind
-                {chore.reminders.length > 0
-                  ? ` (${chore.reminders.length})`
-                  : ''}
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
-              >
-                <TrashIcon className="h-3.5 w-3.5" />
-                delete
-              </button>
-            </div>
-          </div>
-        }
-      />
+        onNegative={next && !busy ? handleSkip : undefined}
+        completeLabel="✓ Done"
+        negativeLabel="Skip"
+        completeAriaLabel="Mark done"
+        negativeAriaLabel="Skip this occurrence"
+      >
+        <div className="p-5">
+          <h2 className="font-display text-2xl text-ink">{chore.title}</h2>
+          {next ? (
+            <span
+              className={
+                urgent
+                  ? 'mt-1 block text-[12px] font-semibold tracking-[0.06em] text-accent uppercase'
+                  : 'mt-1 block text-[12.5px] font-normal text-ink-dim'
+              }
+            >
+              {overdue
+                ? 'OVERDUE'
+                : next.dueOn === today
+                  ? 'DUE TODAY'
+                  : `due ${formatDateWithWeekday(next.dueOn, timezone)}`}
+              {' · '}
+              {next.assigneeUserId
+                ? (memberName.get(next.assigneeUserId) ?? 'Unassigned')
+                : 'Unassigned'}
+            </span>
+          ) : (
+            <span className="mt-1 block text-[12.5px] text-ink-dim">
+              No upcoming occurrences
+            </span>
+          )}
+          <OccurrenceStrip
+            dueDates={upcoming.map((o) => o.dueOn)}
+            today={today}
+            timezone={timezone}
+            activeDate={next?.dueOn}
+          />
+          {chore.notes && (
+            <p className="mt-3 text-sm text-ink-dim">{chore.notes}</p>
+          )}
+          {chore.createdBy && memberName.get(chore.createdBy) && (
+            <p className="mt-3 text-[11px] text-ink-dim">
+              added by {memberName.get(chore.createdBy)}
+            </p>
+          )}
+          <MutationStatus status={status} error={error} />
+        </div>
+        <IconRail
+          actions={[
+            {
+              key: 'remind',
+              icon: <BellIcon className="h-[18px] w-[18px]" />,
+              label: 'Chore reminders',
+              onClick: () => setRemindersOpen(true),
+              badge: chore.reminders.length,
+            },
+            {
+              key: 'edit',
+              icon: <EditIcon className="h-[18px] w-[18px]" />,
+              label: 'Edit chore',
+              onClick: () => setEditOpen(true),
+            },
+            {
+              key: 'delete',
+              icon: <TrashIcon className="h-[18px] w-[18px]" />,
+              label: 'Delete chore',
+              onClick: handleDelete,
+            },
+          ]}
+        />
+      </ActionCard>
 
       <DoneStack
         labelClosed={`${filed.length} done — show all`}

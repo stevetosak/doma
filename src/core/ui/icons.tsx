@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 /**
  * A small, hand-picked action-icon set (§ bucket 4 extension) — plain
  * geometric strokes at a thin weight, not a dropped-in generic icon-library
@@ -150,6 +152,35 @@ export function BasketIcon({ className = 'h-4 w-4' }: IconProps) {
       <path d="M4.5 9.5h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2-1.7L4.5 9.5z" />
       <path d="M8.5 9.5l1.2-4.5M15.5 9.5l-1.2-4.5" />
       <path d="M9.5 13v4M14.5 13v4" />
+    </svg>
+  )
+}
+
+/**
+ * The priority mark (§2.12) — a pennant on a pole. `filled` toggles the
+ * pennant between an outline (the picker's unselected rows) and a solid
+ * fill in one of the three priority tones (the rail icon, and a selected
+ * row in the sheet).
+ */
+export function FlagIcon({
+  className = 'h-4 w-4',
+  filled = false,
+  style,
+}: IconProps & { filled?: boolean; style?: CSSProperties }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+      style={style}
+    >
+      <path d="M6 21V4" />
+      <path d="M6 4h12l-3 4 3 4H6z" fill={filled ? 'currentColor' : 'none'} />
     </svg>
   )
 }

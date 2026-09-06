@@ -136,6 +136,8 @@ export interface ItemReminderView {
   fireAt: string
 }
 
+export type ItemPriority = 'low' | 'medium' | 'high'
+
 export interface ItemView {
   id: string
   name: string
@@ -143,6 +145,7 @@ export interface ItemView {
   unit: string | null
   note: string | null
   categoryId: string | null
+  priority: ItemPriority | null
   isChecked: boolean
   addedBy: string | null
   reminders: ItemReminderView[]
@@ -160,6 +163,7 @@ export async function listItems(
       unit: shoppingItems.unit,
       note: shoppingItems.note,
       categoryId: shoppingItems.categoryId,
+      priority: shoppingItems.priority,
       isChecked: shoppingItems.isChecked,
       addedBy: shoppingItems.addedBy,
     })
@@ -215,6 +219,7 @@ export interface AddItemInput {
   unit?: string
   note?: string
   categoryName?: string
+  priority?: ItemPriority
   addedBy: string
 }
 
@@ -238,6 +243,7 @@ export async function addItem(input: AddItemInput): Promise<string> {
           unit: input.unit ?? null,
           note: input.note ?? null,
           categoryId,
+          priority: input.priority ?? null,
           addedBy: input.addedBy,
         })
         .returning({ id: shoppingItems.id })
@@ -255,6 +261,7 @@ export interface UpdateItemInput {
   unit?: string
   note?: string
   categoryName?: string
+  priority?: ItemPriority
 }
 
 export async function updateItem(input: UpdateItemInput): Promise<void> {
@@ -270,6 +277,7 @@ export async function updateItem(input: UpdateItemInput): Promise<void> {
       unit: input.unit ?? null,
       note: input.note ?? null,
       categoryId,
+      priority: input.priority ?? null,
     })
     .where(
       householdScope(
@@ -277,6 +285,23 @@ export async function updateItem(input: UpdateItemInput): Promise<void> {
         input.householdId,
         eq(shoppingItems.id, input.itemId),
       ),
+    )
+}
+
+/**
+ * The dedicated priority sheet (§2.12) sets this independently of the
+ * full edit form — a lighter write than routing through `updateItem`.
+ */
+export async function setItemPriority(
+  itemId: string,
+  householdId: string,
+  priority: ItemPriority | null,
+): Promise<void> {
+  await db
+    .update(shoppingItems)
+    .set({ priority })
+    .where(
+      householdScope(shoppingItems, householdId, eq(shoppingItems.id, itemId)),
     )
 }
 

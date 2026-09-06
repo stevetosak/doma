@@ -19,6 +19,7 @@ import {
   removeItem,
   reorderCategory,
   setItemChecked,
+  setItemPriority,
   updateItem,
 } from '#/modules/shopping/repo'
 import type {
@@ -26,6 +27,8 @@ import type {
   ItemView,
   RecentlyBoughtView,
 } from '#/modules/shopping/repo'
+
+const itemPriority = z.enum(['low', 'medium', 'high'])
 
 export class ShoppingAccessError extends Error {}
 
@@ -77,6 +80,7 @@ const addItemInput = z.object({
   unit: z.string().max(50).optional(),
   note: z.string().max(500).optional(),
   categoryName: z.string().min(1).max(100).optional(),
+  priority: itemPriority.optional(),
 })
 
 export const addItemAction = createServerFn({ method: 'POST' })
@@ -99,6 +103,7 @@ const updateItemInput = z.object({
   unit: z.string().max(50).optional(),
   note: z.string().max(500).optional(),
   categoryName: z.string().min(1).max(100).optional(),
+  priority: itemPriority.optional(),
 })
 
 export const updateItemAction = createServerFn({ method: 'POST' })
@@ -164,6 +169,26 @@ export const setItemCheckedAction = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { userId, householdId } = await requireMember()
     await setItemChecked(data.itemId, householdId, data.checked, userId)
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'item',
+      action: 'updated',
+    })
+    return { ok: true as const }
+  })
+
+const setItemPriorityInput = z.object({
+  itemId: z.string().uuid(),
+  priority: itemPriority.nullable(),
+})
+
+// The dedicated priority sheet (§2.12) writes here directly, independent
+// of the full edit form's addItemInput/updateItemInput round-trip.
+export const setItemPriorityAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => setItemPriorityInput.parse(input))
+  .handler(async ({ data }) => {
+    const { householdId } = await requireMember()
+    await setItemPriority(data.itemId, householdId, data.priority)
     publish(householdId, {
       module: 'shopping',
       entity: 'item',
