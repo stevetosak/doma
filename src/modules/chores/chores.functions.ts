@@ -10,13 +10,14 @@ import {
   archiveChore,
   createChore,
   deletePendingOccurrencesFrom,
+  getChore,
   listChoresWithOccurrences,
   setOccurrenceStatus,
   updateChore,
 } from '#/modules/chores/repo'
 import { replaceRemindersForItem } from '#/core/items/repo'
 import { addDays, todayInZone } from '#/modules/chores/time'
-import type { ChoreView } from '#/modules/chores/repo'
+import type { ChoreRow, ChoreView } from '#/modules/chores/repo'
 
 export class ChoresAccessError extends Error {}
 
@@ -88,7 +89,6 @@ const createChoreInput = z
     assignmentMode: z.enum(['fixed', 'rotating']),
     assigneeUserId: z.string().uuid().optional(),
     rotation: z.array(z.string().uuid()).optional(),
-    reminders: z.array(reminderInput).max(MAX_REMINDERS).default([]),
   })
   .refine(
     (data) =>
@@ -118,15 +118,12 @@ export const createChoreAction = createServerFn({ method: 'POST' })
   .validator((input: unknown) => createChoreInput.parse(input))
   .handler(async ({ data }) => {
     const { userId, household } = await requireMember()
-    const { reminders, ...fields } = data
     const choreId = await createChore({
       householdId: household.id,
       createdBy: userId,
-      ...fields,
+      ...data,
     })
-    await replaceRemindersForItem(choreId, household.id, reminders)
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
-    await scheduleRemindersForChore(choreId, household.id, household.timezone)
     publish(household.id, {
       module: 'chores',
       entity: 'chore',
@@ -143,9 +140,8 @@ export const updateChoreAction = createServerFn({ method: 'POST' })
   .validator((input: unknown) => updateChoreInput.parse(input))
   .handler(async ({ data }) => {
     const { household } = await requireMember()
-    const { choreId, reminders, ...fields } = data
+    const { choreId, ...fields } = data
     await updateChore(choreId, household.id, fields)
-    await replaceRemindersForItem(choreId, household.id, reminders)
     await deletePendingOccurrencesFrom(
       choreId,
       household.id,
@@ -153,6 +149,39 @@ export const updateChoreAction = createServerFn({ method: 'POST' })
     )
     await materializeChoreOccurrences(choreId, household.id, household.timezone)
     await scheduleRemindersForChore(choreId, household.id, household.timezone)
+    publish(household.id, {
+      module: 'chores',
+      entity: 'chore',
+      action: 'updated',
+    })
+    return { ok: true as const }
+  })
+
+const setChoreRemindersInput = z.object({
+  choreId: z.string().uuid(),
+  reminders: z.array(reminderInput).max(MAX_REMINDERS),
+})
+
+export const setChoreRemindersAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => setChoreRemindersInput.parse(input))
+  .handler(async ({ data }) => {
+    const { household } = await requireMember()
+    // `ChoreRow` doesn't project `isArchived` (nothing else in this file
+    // reads it off a chore object — existing code only references it as a
+    // query-builder column, e.g. `chores.isArchived` in repo.ts), but the
+    // underlying `chores` table (and thus every raw `getChore` row) always
+    // carries it as the `is_archived` column's camelCase projection.
+    const chore = (await getChore(data.choreId, household.id)) as
+      (ChoreRow & { isArchived: boolean }) | undefined
+    if (!chore || chore.isArchived) {
+      throw new ChoresAccessError('That chore no longer exists.')
+    }
+    await replaceRemindersForItem(data.choreId, household.id, data.reminders)
+    await scheduleRemindersForChore(
+      data.choreId,
+      household.id,
+      household.timezone,
+    )
     publish(household.id, {
       module: 'chores',
       entity: 'chore',
