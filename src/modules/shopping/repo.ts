@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, notInArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, notInArray, sql } from 'drizzle-orm'
 import { db } from '#/core/db/client'
 import { householdScope } from '#/core/db/household-scope'
 import { createItemRecord, deleteItemRecord } from '#/core/items/repo'
+import { reminders } from '#/core/items/schema'
 import { moveCategory, normalizeItemName } from './list-logic'
 import {
   shoppingCategories,
@@ -130,6 +131,11 @@ export async function reorderCategory(
   }
 }
 
+export interface ItemReminderView {
+  id: string
+  fireAt: string
+}
+
 export interface ItemView {
   id: string
   name: string
@@ -139,13 +145,14 @@ export interface ItemView {
   categoryId: string | null
   isChecked: boolean
   addedBy: string | null
+  reminders: ItemReminderView[]
 }
 
 export async function listItems(
   householdId: string,
   listId: string,
 ): Promise<ItemView[]> {
-  return db
+  const itemRows = await db
     .select({
       id: shoppingItems.id,
       name: shoppingItems.name,
@@ -165,6 +172,39 @@ export async function listItems(
       ),
     )
     .orderBy(asc(shoppingItems.createdAt))
+
+  const itemIds = itemRows.map((i) => i.id)
+  const reminderRows =
+    itemIds.length > 0
+      ? await db
+          .select({
+            id: reminders.id,
+            itemId: reminders.itemId,
+            fireAt: reminders.fireAt,
+          })
+          .from(reminders)
+          .where(
+            householdScope(
+              reminders,
+              householdId,
+              inArray(reminders.itemId, itemIds),
+            ),
+          )
+          .orderBy(reminders.fireAt)
+      : []
+
+  const remindersByItem = new Map<string, ItemReminderView[]>()
+  for (const r of reminderRows) {
+    if (r.fireAt == null) continue
+    const list = remindersByItem.get(r.itemId) ?? []
+    list.push({ id: r.id, fireAt: r.fireAt.toISOString() })
+    remindersByItem.set(r.itemId, list)
+  }
+
+  return itemRows.map((item) => ({
+    ...item,
+    reminders: remindersByItem.get(item.id) ?? [],
+  }))
 }
 
 export interface AddItemInput {
@@ -238,6 +278,19 @@ export async function updateItem(input: UpdateItemInput): Promise<void> {
         eq(shoppingItems.id, input.itemId),
       ),
     )
+}
+
+export async function getItem(
+  itemId: string,
+  householdId: string,
+): Promise<{ name: string } | undefined> {
+  const [row] = await db
+    .select({ name: shoppingItems.name })
+    .from(shoppingItems)
+    .where(
+      householdScope(shoppingItems, householdId, eq(shoppingItems.id, itemId)),
+    )
+  return row
 }
 
 export async function setItemChecked(
