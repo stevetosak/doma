@@ -10,13 +10,14 @@ import {
   archiveChore,
   createChore,
   deletePendingOccurrencesFrom,
+  getChore,
   listChoresWithOccurrences,
   setOccurrenceStatus,
   updateChore,
 } from '#/modules/chores/repo'
 import { replaceRemindersForItem } from '#/core/items/repo'
 import { addDays, todayInZone } from '#/modules/chores/time'
-import type { ChoreView } from '#/modules/chores/repo'
+import type { ChoreRow, ChoreView } from '#/modules/chores/repo'
 
 export class ChoresAccessError extends Error {}
 
@@ -165,6 +166,16 @@ export const setChoreRemindersAction = createServerFn({ method: 'POST' })
   .validator((input: unknown) => setChoreRemindersInput.parse(input))
   .handler(async ({ data }) => {
     const { household } = await requireMember()
+    // `ChoreRow` doesn't project `isArchived` (nothing else in this file
+    // reads it off a chore object — existing code only references it as a
+    // query-builder column, e.g. `chores.isArchived` in repo.ts), but the
+    // underlying `chores` table (and thus every raw `getChore` row) always
+    // carries it as the `is_archived` column's camelCase projection.
+    const chore = (await getChore(data.choreId, household.id)) as
+      (ChoreRow & { isArchived: boolean }) | undefined
+    if (!chore || chore.isArchived) {
+      throw new ChoresAccessError('That chore no longer exists.')
+    }
     await replaceRemindersForItem(data.choreId, household.id, data.reminders)
     await scheduleRemindersForChore(
       data.choreId,

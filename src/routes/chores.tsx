@@ -501,6 +501,7 @@ function ChoreReminderForm({
               max={0}
               className="field w-20"
               value={row.offsetDays}
+              aria-label="Days before due date"
               onChange={(e) =>
                 updateRow(row.key, { offsetDays: Number(e.target.value) })
               }
@@ -512,6 +513,7 @@ function ChoreReminderForm({
               type="time"
               className="field w-32"
               value={timeInputValue(row.hour, row.minute)}
+              aria-label="Reminder time"
               onChange={(e) => {
                 const parsed = parseTimeInputValue(e.target.value)
                 if (parsed) updateRow(row.key, parsed)
