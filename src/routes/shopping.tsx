@@ -584,9 +584,13 @@ function ItemReminderForm({
           },
         ]}
         renderRow={(row) => (
+          // w-full: a lone flex item has no sibling to wrap against, and
+          // some browsers render a bare datetime-local wide enough to
+          // overflow the row — constraining it to the row's own width
+          // lets it shrink instead.
           <input
             type="datetime-local"
-            className="field"
+            className="field w-full min-w-0"
             value={row.fireAt}
             onChange={(e) => updateRow(row.key, e.target.value)}
             required
@@ -673,15 +677,13 @@ function ItemEditForm({
             ariaLabel="Quantity"
           />
         </Field>
-        <div className="flex-1">
-          <Field label="Unit">
-            <input
-              className="field"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-            />
-          </Field>
-        </div>
+        <Field label="Unit">
+          <input
+            className="field w-24"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+          />
+        </Field>
       </div>
       <Field label="Note">
         <input
@@ -827,15 +829,13 @@ function NewItemForm({
             ariaLabel="Quantity"
           />
         </Field>
-        <div className="flex-1">
-          <Field label="Unit">
-            <input
-              className="field"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-            />
-          </Field>
-        </div>
+        <Field label="Unit">
+          <input
+            className="field w-24"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+          />
+        </Field>
       </div>
       <Field label="Note">
         <input

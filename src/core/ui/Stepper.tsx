@@ -111,7 +111,7 @@ function StepperButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-card text-accent transition-transform active:scale-90 disabled:opacity-40"
+      className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-card text-accent transition-transform active:scale-90 disabled:opacity-40"
     >
       {children}
     </button>

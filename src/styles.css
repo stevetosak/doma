@@ -91,6 +91,15 @@ body {
   font-size: 0.9375rem;
 }
 
+/* A single-line field's height was organic (padding + line-height), which
+   drifted a few px from a Stepper's height whenever the two sit side by
+   side (the shopping-item Qty/Unit row, a chore reminder row's time
+   field) — pinned to the same 46px both share now (see Stepper.tsx). */
+input.field,
+select.field {
+  height: 46px;
+}
+
 textarea.field {
   resize: none;
 }

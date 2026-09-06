@@ -62,10 +62,10 @@ export const Route = createFileRoute('/chores')({
 // row with these values, still freely editable afterward via the row's own
 // inputs (no separate "custom" mode).
 const REMINDER_PRESETS = [
-  { label: 'Same day, 8:00 AM', offsetDays: 0, hour: 8, minute: 0 },
-  { label: 'Evening before, 6:00 PM', offsetDays: -1, hour: 18, minute: 0 },
-  { label: '3 days before, 9:00 AM', offsetDays: -3, hour: 9, minute: 0 },
-  { label: '1 week before, 9:00 AM', offsetDays: -7, hour: 9, minute: 0 },
+  { label: 'Same day, 8:00 AM', daysBefore: 0, hour: 8, minute: 0 },
+  { label: 'Evening before, 6:00 PM', daysBefore: 1, hour: 18, minute: 0 },
+  { label: '3 days before, 9:00 AM', daysBefore: 3, hour: 9, minute: 0 },
+  { label: '1 week before, 9:00 AM', daysBefore: 7, hour: 9, minute: 0 },
 ]
 
 const REPEATS_OPTIONS = [
@@ -82,7 +82,14 @@ const ASSIGNMENT_OPTIONS = [
 
 interface ReminderFormRow {
   key: number
-  offsetDays: number
+  // Positive — "N days before due date" — matching how a person actually
+  // thinks about it. The server's `offsetDays` is stored 0-or-negative
+  // (added straight onto the due date via `.plus({ days: offsetDays })`
+  // in computeReminderAt); the sign flips right at the two boundaries
+  // this form crosses it (initial load, and the save payload) so nobody
+  // has to stepper down through zero into negative numbers to set "3
+  // days before."
+  daysBefore: number
   hour: number
   minute: number
 }
@@ -435,7 +442,7 @@ function ChoreReminderForm({
   const [rows, setRows] = useState<ReminderFormRow[]>(() =>
     chore.reminders.map((r) => ({
       key: nextKey.current++,
-      offsetDays: r.offsetDays,
+      daysBefore: -r.offsetDays,
       hour: r.hour,
       minute: r.minute,
     })),
@@ -443,11 +450,11 @@ function ChoreReminderForm({
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  function addRow(offsetDays: number, hour: number, minute: number) {
+  function addRow(daysBefore: number, hour: number, minute: number) {
     setRows((current) =>
       current.length >= MAX_REMINDERS
         ? current
-        : [...current, { key: nextKey.current++, offsetDays, hour, minute }],
+        : [...current, { key: nextKey.current++, daysBefore, hour, minute }],
     )
   }
 
@@ -472,8 +479,8 @@ function ChoreReminderForm({
       await setChoreRemindersAction({
         data: {
           choreId: chore.id,
-          reminders: rows.map(({ offsetDays, hour, minute }) => ({
-            offsetDays,
+          reminders: rows.map(({ daysBefore, hour, minute }) => ({
+            offsetDays: -daysBefore,
             hour,
             minute,
           })),
@@ -496,21 +503,26 @@ function ChoreReminderForm({
         onRemove={removeRow}
         presets={REMINDER_PRESETS.map((preset) => ({
           label: preset.label,
-          onClick: () => addRow(preset.offsetDays, preset.hour, preset.minute),
+          onClick: () => addRow(preset.daysBefore, preset.hour, preset.minute),
         }))}
         renderRow={(row) => (
           <>
             <Stepper
-              value={row.offsetDays}
-              min={-30}
-              max={0}
+              value={row.daysBefore}
+              min={0}
+              max={30}
               ariaLabel="days before due date"
-              onChange={(offsetDays) => updateRow(row.key, { offsetDays })}
+              onChange={(daysBefore) => updateRow(row.key, { daysBefore })}
             />
-            <span className="text-xs text-ink-dim">days before, at</span>
+            {/* Shortened from "days before, at" — the stepper's own
+                aria-label already carries "days before due date" for
+                screen readers, and the trimmed text buys back enough
+                width for the two controls to fit on one line at typical
+                phone widths instead of always wrapping. */}
+            <span className="text-xs text-ink-dim">before</span>
             <input
               type="time"
-              className="field w-32"
+              className="field w-28"
               value={timeInputValue(row.hour, row.minute)}
               aria-label="Reminder time"
               onChange={(e) => {
