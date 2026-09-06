@@ -15,6 +15,17 @@ export async function getTelegramLink(
   return row
 }
 
+export async function getLinkByChatId(
+  chatId: string,
+): Promise<{ userId: string } | undefined> {
+  const [row] = await db
+    .select({ userId: telegramLinks.userId })
+    .from(telegramLinks)
+    .where(eq(telegramLinks.chatId, chatId))
+    .limit(1)
+  return row
+}
+
 export async function createLinkToken(userId: string): Promise<string> {
   const token = randomBytes(24).toString('base64url')
   const expiresAt = new Date(Date.now() + LINK_TOKEN_TTL_MINUTES * 60_000)

@@ -1,3 +1,4 @@
+import { InlineKeyboard } from 'grammy'
 import { stillExists } from './existence'
 import { isStillLive } from './liveness'
 import { findRetryableFailed, markFailed, markSent } from './outbox-repo'
@@ -23,7 +24,13 @@ export async function retryFailedNotifications(): Promise<void> {
     if (!link) continue // still not linked — leave it failed, try again next sweep
 
     try {
-      await sendTelegramMessage(link.chatId, `${row.title}\n\n${row.body}`)
+      const keyboard = new InlineKeyboard().text(
+        '✅ Mark done',
+        `done:${row.id}`,
+      )
+      await sendTelegramMessage(link.chatId, `${row.title}\n\n${row.body}`, {
+        replyMarkup: keyboard,
+      })
       await markSent(row.id)
     } catch (err) {
       console.error('Telegram retry failed:', err)

@@ -1,3 +1,4 @@
+import { escapeHtml } from '#/core/notify/html'
 import { notify } from '#/core/notify/notify'
 import { listRemindersForItem } from '#/core/items/repo'
 import { getChore, listPendingOccurrencesForChore } from '#/modules/chores/repo'
@@ -40,9 +41,9 @@ export async function scheduleRemindersForChore(
         moduleId: 'chores',
         kind: 'chore_reminder',
         subjectId: occurrence.id,
-        title: `${chore.title} is due`,
+        title: `🧹 <b>${escapeHtml(chore.title)}</b> is due`,
         body: `Due ${formatDateWithWeekday(occurrence.dueOn, timezone)}${
-          chore.notes ? ` — ${chore.notes}` : ''
+          chore.notes ? ` — ${escapeHtml(chore.notes)}` : ''
         }`,
         deepLink: '/chores',
         at: computeReminderAt(
