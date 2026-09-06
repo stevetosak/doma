@@ -24,6 +24,14 @@ export function PlusIcon({ className = 'h-4 w-4' }: IconProps) {
   )
 }
 
+export function MinusIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg {...BASE_PROPS} className={className}>
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
 export function CheckIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg {...BASE_PROPS} className={className}>
@@ -82,6 +90,66 @@ export function BellIcon({ className = 'h-4 w-4' }: IconProps) {
     <svg {...BASE_PROPS} className={className}>
       <path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" />
       <path d="M10 21a2 2 0 0 0 4 0" />
+    </svg>
+  )
+}
+
+/**
+ * The drag handle for reorderable rows (§2.11) — the one glyph-only place
+ * `--color-ink-ghost` is legal. Filled dots, not a stroke, since a grip
+ * mark reads better solid at this size.
+ */
+export function GripIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+      aria-hidden="true"
+      className={className}
+    >
+      <circle cx="9" cy="6" r="1.6" />
+      <circle cx="15" cy="6" r="1.6" />
+      <circle cx="9" cy="12" r="1.6" />
+      <circle cx="15" cy="12" r="1.6" />
+      <circle cx="9" cy="18" r="1.6" />
+      <circle cx="15" cy="18" r="1.6" />
+    </svg>
+  )
+}
+
+/** Today tab — a calendar with today's date marked. */
+export function CalendarDotIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg {...BASE_PROPS} className={className}>
+      <rect x="3" y="5" width="18" height="16" rx="2.5" />
+      <path d="M8 3v4M16 3v4M3 10h18" />
+      <circle cx="12" cy="15.5" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/** Chores tab — a checklist. */
+export function ListChecksIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg {...BASE_PROPS} className={className}>
+      <path d="M4 6.5l1.5 1.5L8 5.5" />
+      <path d="M11 6.5h9" />
+      <path d="M4 12.5l1.5 1.5L8 11.5" />
+      <path d="M11 12.5h9" />
+      <path d="M4 18.5l1.5 1.5L8 17.5" />
+      <path d="M11 18.5h9" />
+    </svg>
+  )
+}
+
+/** Shopping tab — a basket. */
+export function BasketIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg {...BASE_PROPS} className={className}>
+      <path d="M4.5 9.5h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2-1.7L4.5 9.5z" />
+      <path d="M8.5 9.5l1.2-4.5M15.5 9.5l-1.2-4.5" />
+      <path d="M9.5 13v4M14.5 13v4" />
     </svg>
   )
 }

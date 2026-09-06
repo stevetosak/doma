@@ -2,15 +2,17 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 
 /**
- * "Stamp, don't delete" (§3 raise, donated by the declined jet-age-
- * ticket-wallet challenger) — completed/skipped items file face-down here
- * instead of vanishing, and stay riffle-able.
+ * "File, don't delete" (§2.7) — completed/skipped items file here instead
+ * of vanishing, and stay un-filable. The rotated-paper metaphor is
+ * dropped; the toggle is a plain inset row with a three-rule glyph.
  */
 export function DoneStack({
-  label,
+  labelClosed,
+  labelOpen,
   items,
 }: {
-  label: string
+  labelClosed: string
+  labelOpen: string
   items: {
     id: string
     content: ReactNode
@@ -27,24 +29,22 @@ export function DoneStack({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex items-center gap-2 font-mono text-xs tracking-wide text-ink-faint"
+        className="flex items-center gap-2 rounded-control bg-inset px-[15px] py-[13px] text-sm text-ink-dim"
       >
-        <span
-          aria-hidden="true"
-          className="relative flex h-7 w-9 items-center justify-center"
-        >
-          <span className="absolute h-5 w-6 -translate-x-1 -translate-y-0.5 -rotate-12 rounded-sm border border-kraft/60 bg-card-back" />
-          <span className="absolute h-5 w-6 translate-x-1 translate-y-0.5 rotate-6 rounded-sm border border-kraft/60 bg-card shadow-card" />
+        <span aria-hidden="true" className="flex flex-col gap-[3px]">
+          <span className="h-0.5 w-4 rounded-full bg-ink-ghost" />
+          <span className="h-0.5 w-4 rounded-full bg-ink-ghost" />
+          <span className="h-0.5 w-4 rounded-full bg-ink-ghost" />
         </span>
-        {items.length} {label} — {open ? 'hide' : 'riffle through'}
+        {open ? labelOpen : labelClosed}
       </button>
       {open && (
-        <ul className="mt-3 flex flex-col gap-1.5">
+        <ul className="mt-2 flex flex-col gap-1.5">
           {items.map((item, i) => (
             <li
               key={item.id}
-              className="ruled flex w-fit items-center gap-3 rounded-sm border border-kraft/40 bg-card-back px-3 py-1.5 font-mono text-xs text-blue shadow-card"
-              style={{ transform: `rotate(${i % 2 === 0 ? -0.5 : 0.5}deg)` }}
+              className="slip flex w-fit items-center gap-3 rounded-control bg-inset px-[15px] py-[13px] text-[13.5px] text-second"
+              style={{ animationDelay: `${i * 50}ms` }}
             >
               <span>{item.content}</span>
               {item.actions?.map((action) => (
@@ -52,7 +52,7 @@ export function DoneStack({
                   key={action.label}
                   type="button"
                   onClick={action.onClick}
-                  className="flex items-center gap-1 text-ink-faint underline decoration-dotted underline-offset-4"
+                  className="flex items-center gap-1 text-ink-dim underline decoration-dotted underline-offset-4"
                 >
                   {action.icon}
                   {action.label}

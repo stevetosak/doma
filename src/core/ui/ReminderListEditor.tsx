@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react'
-import { PlusIcon, TrashIcon } from '#/core/ui/icons'
+import { PlusIcon } from '#/core/ui/icons'
 
 /**
- * The add/remove/cap-enforcement shell every per-item reminder editor
- * uses (chores: day-offset + time-of-day rows; shopping: a single
- * date+time row) — shared because the fiddly part (list state, presets,
- * the "Maximum N" note) is identical; the row content itself is not.
+ * The add/remove/cap-enforcement shell every per-item reminder editor uses
+ * (§2.9 — resolves #71: both forms now share the same row card, only the
+ * when-control and cap differ, which is data, not styling).
  */
 export function ReminderListEditor<T extends { key: number }>({
   rows,
@@ -24,21 +23,24 @@ export function ReminderListEditor<T extends { key: number }>({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <span className="font-mono text-xs tracking-wide text-ink-dim">
-        Reminders
-      </span>
+      <span className="text-xs font-semibold text-ink-dim">Reminders</span>
 
       {rows.length > 0 && (
         <div className="flex flex-col gap-2">
-          {rows.map((row) => (
-            <div key={row.key} className="flex items-center gap-2">
-              {renderRow(row)}
+          {rows.map((row, i) => (
+            <div
+              key={row.key}
+              className="slip flex items-center gap-3 rounded-[14px] bg-inset px-[14px] py-[13px]"
+              style={{ animationDelay: `${i * 50}ms` }}
+            >
+              <div className="flex flex-1 flex-wrap items-center gap-2">
+                {renderRow(row)}
+              </div>
               <button
                 type="button"
                 onClick={() => onRemove(row.key)}
-                className="flex items-center gap-1 font-mono text-[11px] tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+                className="shrink-0 text-[13px] text-ink-dim underline decoration-dotted underline-offset-4"
               >
-                <TrashIcon className="h-3.5 w-3.5" />
                 remove
               </button>
             </div>
@@ -53,27 +55,27 @@ export function ReminderListEditor<T extends { key: number }>({
             type="button"
             disabled={rows.length >= max}
             onClick={preset.onClick}
-            className="rounded-tab border border-kraft px-3 py-1.5 font-mono text-[11px] tracking-wide text-ink disabled:opacity-50"
+            className="rounded-full border border-line bg-card px-3 py-1.5 text-[12.5px] text-ink disabled:opacity-50"
           >
-            + {preset.label}
+            {preset.label}
           </button>
         ))}
         <button
           type="button"
           disabled={rows.length >= max}
           onClick={onAdd}
-          className="flex items-center gap-1 rounded-tab border border-dotted border-kraft px-3 py-1.5 font-mono text-[11px] tracking-wide text-ink-faint disabled:opacity-50"
+          className="flex items-center gap-1 rounded-full border border-dashed border-line bg-card px-3 py-1.5 text-[12.5px] text-ink-dim disabled:opacity-50"
         >
           <PlusIcon className="h-3 w-3" />
           Blank
         </button>
       </div>
 
-      {rows.length >= max && (
-        <p className="font-mono text-[11px] text-ink-faint">
-          Maximum {max} reminders.
-        </p>
-      )}
+      <p className="text-[12px] text-ink-dim">
+        {rows.length >= max
+          ? `Maximum ${max} reminders.`
+          : `${rows.length} of ${max}`}
+      </p>
     </div>
   )
 }
