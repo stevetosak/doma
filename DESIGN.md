@@ -191,9 +191,10 @@ Four radius steps: `--radius-control` (12px) for form fields, steppers, segmente
 
 ### Inputs / Fields
 
-- **Style:** the shared `.field` utility class — `bg-inset`, no border, `rounded-control`, `13px 14px` padding, `font-body` at `15px`. Never a bare browser-default input.
+- **Style:** the shared `.field` utility class — `bg-inset`, no border, `rounded-control`, `13px 14px` padding, `font-body` at `15px`. A single-line `input.field`/`select.field` is pinned to a `46px` height (a `textarea.field` stays organically sized by its `rows`) — see The Reminder List Editor for why. Never a bare browser-default input.
 - **Focus:** the global `:focus-visible` accent outline (no border-color shift, since there's no border).
 - **Numbers are never free-typed.** Every previous `<input type="number">` (chore interval, day-of-month, reminder day-offset) is a `Stepper` — an inset well with a display-only value and two round buttons — so there is no controlled-input value left to snap to 0 when cleared mid-edit. Quantity is the one exception: a `DecimalStepper` keeps a real, freely-typable text input alongside the buttons, since it's genuinely decimal-capable.
+- **A short-text field sits at a width proportionate to what it holds**, not `flex-1` filling whatever room is left — the shopping-item Unit field (`w-24`, next to the Qty stepper) is the concrete case: at `flex-1` it stretched to fill most of the row for text that's almost always 1-3 characters ("kg", "pcs").
 - **Weekday selection** is a `WeekdayStrip` (seven equal-width toggle cells, `second`-filled when on), not seven checkboxes.
 - **Small-enum choices** (Repeats, Assignment) are a `SegmentedControl` — an inset track with a sliding `card`-colored thumb.
 - **Error / Disabled:** error text (not the field itself) renders in `text-error`. Disabled controls drop to `opacity-50`.
@@ -235,7 +236,7 @@ The one exception to the standing no-toast convention: a bottom-anchored pill (`
 
 ### The Sheet
 
-Add/edit forms live in a `Sheet`, not inline in the resting list — a `bg-card` panel with a 38×4px grabber, `rounded-sheet` top corners only, `shadow-sheet`, docked to the bottom edge on every viewport (never a right-side drawer). It slides up (`translateY(100%)` → `0`, 0.38s `var(--ease-spring)`) over a blurred backdrop (`rgb(29 35 32 / 0.34)` + `blur(3px)`, fading in 0.3s), snapping into place under `prefers-reduced-motion`. The close control is a 30px circular `bg-inset` button with a literal `×`. `role="dialog"` `aria-modal="true"`, traps Tab/Shift+Tab focus inside the panel, closes on Escape or backdrop click, and returns focus to whatever opened it on close.
+Add/edit forms live in a `Sheet`, not inline in the resting list — a `bg-card` panel with a 38×4px grabber, `rounded-sheet` top corners only, `shadow-sheet`, docked to the bottom edge on every viewport (never a right-side drawer). It slides up (`translateY(100%)` → `0`, 0.38s `var(--ease-spring)`) over a blurred backdrop (`rgb(29 35 32 / 0.34)` + `blur(3px)`, fading in 0.3s), snapping into place under `prefers-reduced-motion`. The close control is a 30px circular `bg-inset` button with a literal `×`. `role="dialog"` `aria-modal="true"`, traps Tab/Shift+Tab focus inside the panel, closes on Escape or backdrop click, and returns focus to whatever opened it on close. Capped at `max-h-[85dvh]` (dynamic, not static, viewport height — a mobile browser's collapsing address bar makes a static `85vh` cap unreliable) with `min-h-0` on the scrollable body, so a long form (many reminder rows) scrolls inside the panel instead of growing it past the screen.
 
 ### The Occurrence Strip
 
@@ -243,7 +244,11 @@ A horizontal row of pills (`999px`, `12.5px`), each reading `Tue 8 Sep` — the 
 
 ### The Reminder List Editor
 
-Both chore and item reminder forms share one row card — an inset shell (`radius-control + 2`, `13px 14px`) holding a when-control (a `Stepper` + time field for chores, a datetime field for items), connective text, and a right-aligned "remove" link. Presets are `999px` pill chips (`card` fill, `1px line`), plus a dashed "+ Blank" chip; a cap note shows progress (`2 of 5`) before the cap and a fixed string (`Maximum {N} reminders.`) at it. The only remaining asymmetry between the two forms is the cap and the when-control itself, which is data, not styling.
+Both chore and item reminder forms share one row card — an inset shell (`radius-control + 2`, `12px 14px`) holding, top to bottom: the when-control (a `Stepper` + time field for chores, a datetime field for items) on its own line, then a right-aligned "remove" link on the line beneath. **Fixed rows, not a single wrapping flex row** — the control and "remove" used to share one line and fight over width, which on a real device pushed "remove" past the card's edge on a chore's row (the widest one: stepper + connective text + time field). Stacking them means "remove" can never collide with the control regardless of how wide it renders. Presets are `999px` pill chips (`card` fill, `1px line`), plus a dashed "+ Blank" chip; a cap note shows progress (`2 of 5`) before the cap and a fixed string (`Maximum {N} reminders.`) at it. The only remaining asymmetry between the two forms is the cap and the when-control itself, which is data, not styling.
+
+A chore's day-offset stepper reads and writes a **positive "days before"** number (0-30) — the person types/steppers what they mean ("3" = three days before), never a negative number counting up to zero. The sign flip to the server's `offsetDays` (stored 0-or-negative, added straight onto the due date) happens only at the form's two data boundaries — reading `chore.reminders` in and building the save payload out — never in the UI itself.
+
+`Stepper`/`DecimalStepper` are 46px tall (buttons bumped 30px→38px), matching `input.field`/`select.field`'s pinned 46px height — the two used to differ by a few px whenever they sit side by side (a reminder row's stepper next to its time field, the shopping-item Qty stepper next to the Unit field) and visibly didn't line up.
 
 ### Reorderable Lists
 

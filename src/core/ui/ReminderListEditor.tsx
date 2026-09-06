@@ -30,16 +30,23 @@ export function ReminderListEditor<T extends { key: number }>({
           {rows.map((row, i) => (
             <div
               key={row.key}
-              className="slip flex items-center gap-3 rounded-[14px] bg-inset px-[14px] py-[13px]"
+              className="slip flex flex-col gap-1.5 rounded-[14px] bg-inset px-[14px] py-[12px]"
               style={{ animationDelay: `${i * 50}ms` }}
             >
-              <div className="flex flex-1 flex-wrap items-center gap-2">
+              {/* The when-control and "remove" used to share one row and
+                  fight over width — on a chore's row (stepper + text +
+                  time field) that pushed "remove" past the edge instead
+                  of wrapping cleanly. Fixed rows: the control gets the
+                  full width to itself (wrapping if it must), "remove"
+                  always sits on its own line underneath, so it can never
+                  collide with the control regardless of how wide it is. */}
+              <div className="flex flex-wrap items-center gap-1.5">
                 {renderRow(row)}
               </div>
               <button
                 type="button"
                 onClick={() => onRemove(row.key)}
-                className="shrink-0 text-[13px] text-ink-dim underline decoration-dotted underline-offset-4"
+                className="self-end text-[12px] text-ink-dim underline decoration-dotted underline-offset-4"
               >
                 remove
               </button>

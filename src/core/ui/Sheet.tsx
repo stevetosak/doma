@@ -71,7 +71,7 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
-        className="sheet-panel absolute inset-x-0 bottom-0 mx-auto flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-sheet bg-card shadow-sheet"
+        className="sheet-panel absolute inset-x-0 bottom-0 mx-auto flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-sheet bg-card shadow-sheet"
       >
         <div
           aria-hidden="true"
@@ -93,7 +93,7 @@ export function Sheet({
             ×
           </button>
         </div>
-        <div className="overflow-y-auto px-5 pt-[10px] pb-[30px]">
+        <div className="min-h-0 overflow-y-auto px-5 pt-[10px] pb-[30px]">
           {children}
         </div>
       </div>
