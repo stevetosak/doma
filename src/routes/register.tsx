@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { Field } from '#/core/ui/Field'
 import { isBootstrapMode } from '#/core/auth/auth-context.functions'
 
 export const Route = createFileRoute('/register')({
@@ -58,12 +59,9 @@ function RegisterPage() {
       </h1>
       <form
         onSubmit={handleSubmit}
-        className="ruled mt-6 flex flex-col gap-4 rounded-card border border-line bg-card p-6 shadow-card"
+        className="mt-6 flex flex-col gap-4 rounded-card bg-card p-6 shadow-card"
       >
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Email
-          </span>
+        <Field label="Email">
           <input
             type="email"
             required
@@ -71,11 +69,8 @@ function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="field"
           />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Password
-          </span>
+        </Field>
+        <Field label="Password">
           <input
             type="password"
             required
@@ -84,48 +79,35 @@ function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="field"
           />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Name (optional)
-          </span>
+        </Field>
+        <Field label="Name (optional)">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="field"
           />
-        </label>
+        </Field>
         {bootstrap ? (
-          <label className="flex flex-col gap-1">
-            <span className="font-mono text-xs tracking-wide text-ink-dim">
-              Household name
-            </span>
+          <Field label="Household name">
             <input
               required
               value={householdName}
               onChange={(e) => setHouseholdName(e.target.value)}
               className="field"
             />
-          </label>
+          </Field>
         ) : (
-          <label className="flex flex-col gap-1">
-            <span className="font-mono text-xs tracking-wide text-ink-dim">
-              Invite code
-            </span>
+          <Field label="Invite code">
             <input
               required
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
               className="field"
             />
-          </label>
+          </Field>
         )}
         {error && <p className="text-sm text-error">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
-        >
+        <button type="submit" disabled={submitting} className="btn-primary">
           {bootstrap ? 'Create account' : 'Join'}
         </button>
       </form>

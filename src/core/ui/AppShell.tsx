@@ -16,19 +16,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="relative min-h-screen">
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-10 transition-[background-image] duration-[3000ms] ease-linear"
+        className="ambient-wash pointer-events-none fixed inset-0 -z-10 transition-[background-image] duration-[3000ms] ease-linear"
         style={washStyle}
       />
       <TabSpine />
-      <main className="mx-auto max-w-3xl px-4 pt-8 pb-24 md:pt-10 md:pr-8 md:pb-10 md:pl-24">
+      <main className="mx-auto max-w-3xl px-4 pt-8 pb-[calc(104px+env(safe-area-inset-bottom))] md:pt-10 md:pr-8 md:pb-10 md:pl-24">
         <div className="mb-8 flex items-center gap-2 md:hidden">
           <AppMark className="h-7 w-7" />
           <span className="font-display text-xl text-ink">doma</span>
         </div>
         {children}
-        <p className="mt-16 font-mono text-[11px] tracking-wide text-ink-faint">
-          doma · {version}
-        </p>
+        <p className="mt-16 text-[11px] text-ink-dim">doma · {version}</p>
       </main>
     </div>
   )

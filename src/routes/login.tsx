@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { Field } from '#/core/ui/Field'
 import { sanitizeRedirectTarget } from '#/core/auth/redirect'
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -66,12 +67,9 @@ function LoginPage() {
       )}
       <form
         onSubmit={handleSubmit}
-        className="ruled mt-6 flex flex-col gap-4 rounded-card border border-line bg-card p-6 shadow-card"
+        className="mt-6 flex flex-col gap-4 rounded-card bg-card p-6 shadow-card"
       >
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Email
-          </span>
+        <Field label="Email">
           <input
             type="email"
             required
@@ -79,11 +77,8 @@ function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="field"
           />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Password
-          </span>
+        </Field>
+        <Field label="Password">
           <input
             type="password"
             required
@@ -91,25 +86,21 @@ function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="field"
           />
-        </label>
+        </Field>
         {error && <p className="text-sm text-error">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
-        >
+        <button type="submit" disabled={submitting} className="btn-primary">
           Sign in
         </button>
       </form>
       <a
         href={`/auth/google?returnTo=${encodeURIComponent(returnTo)}`}
-        className="mt-3 block rounded-tab border border-kraft/50 bg-card px-4 py-3 text-center text-sm text-ink shadow-card"
+        className="btn-secondary mt-3"
       >
         Sign in with Google
       </a>
-      <p className="mt-6 font-mono text-xs text-ink-dim">
+      <p className="mt-6 text-xs text-ink-dim">
         No account?{' '}
-        <a href="/register" className="text-rust underline decoration-dotted">
+        <a href="/register" className="text-accent underline decoration-dotted">
           Register
         </a>{' '}
         (needs an invite code, unless this is the very first account).

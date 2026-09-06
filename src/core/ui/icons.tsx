@@ -1,7 +1,7 @@
 /**
  * A small, hand-picked action-icon set (§ bucket 4 extension) — plain
  * geometric strokes at a thin weight, not a dropped-in generic icon-library
- * look. `currentColor` throughout so each icon inherits whatever ink/rust
+ * look. `currentColor` throughout so each icon inherits whatever ink/accent
  * tone its surrounding text already carries.
  */
 type IconProps = { className?: string }
