@@ -71,6 +71,13 @@
       "when": 1788727701000,
       "tag": "0009_quiet_alice",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788716495626,
+      "tag": "0010_bizarre_taskmaster",
+      "breakpoints": true
     }
   ]
 }
