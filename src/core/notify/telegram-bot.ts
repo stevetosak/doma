@@ -1,5 +1,7 @@
+import type { InlineKeyboard } from 'grammy'
 import { Bot, webhookCallback } from 'grammy'
 import { optionalEnv, requireEnv } from '#/core/env'
+import { handleMarkDoneCallback } from './mark-done'
 import { consumeLinkToken } from './telegram-links-repo'
 
 /**
@@ -35,6 +37,13 @@ function buildBot(): Bot {
         : 'That link expired. Generate a new one from doma and try again.',
     )
   })
+  instance.callbackQuery(/^done:/, async (ctx) => {
+    const notificationId = ctx.callbackQuery.data.slice('done:'.length)
+    const chatId = String(ctx.chat?.id ?? '')
+    await handleMarkDoneCallback(notificationId, chatId)
+    await ctx.answerCallbackQuery({ text: 'Marked done ✅' })
+    await ctx.editMessageReplyMarkup()
+  })
   return instance
 }
 
@@ -47,9 +56,13 @@ async function ensureInited(): Promise<Bot> {
 export async function sendTelegramMessage(
   chatId: string,
   text: string,
+  options?: { replyMarkup?: InlineKeyboard },
 ): Promise<void> {
   const instance = await ensureInited()
-  await instance.api.sendMessage(chatId, text)
+  await instance.api.sendMessage(chatId, text, {
+    parse_mode: 'HTML',
+    reply_markup: options?.replyMarkup,
+  })
 }
 
 let webhookHandler: ((request: Request) => Promise<Response>) | undefined
