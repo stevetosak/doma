@@ -1,10 +1,11 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
 import { FlipCard } from '#/core/ui/FlipCard'
 import {
+  BellIcon,
   CheckIcon,
   CloseIcon,
   EditIcon,
@@ -13,17 +14,24 @@ import {
   UndoIcon,
 } from '#/core/ui/icons'
 import { MutationStatus } from '#/core/ui/MutationStatus'
+import { ReminderListEditor } from '#/core/ui/ReminderListEditor'
 import { Sheet } from '#/core/ui/Sheet'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
+  defaultLocalInputValue,
+  toLocalInputValue,
+} from '#/modules/shopping/reminder-time'
+import {
   addItemAction,
   deleteCategoryAction,
   getShoppingData,
+  MAX_ITEM_REMINDERS,
   reAddItemAction,
   removeItemAction,
   reorderCategoryAction,
   setItemCheckedAction,
+  setItemRemindersAction,
   updateItemAction,
 } from '#/modules/shopping/shopping.functions'
 import type {
@@ -137,6 +145,7 @@ function ShoppingPage() {
                     item={item}
                     categories={data.categories}
                     memberName={memberName}
+                    timezone={data.timezone}
                     onChange={refresh}
                   />
                 ))}
@@ -192,15 +201,18 @@ function ItemCard({
   item,
   categories,
   memberName,
+  timezone,
   onChange,
 }: {
   item: ItemView
   categories: CategoryView[]
   memberName: Map<string, string>
+  timezone: string
   onChange: () => Promise<void>
 }) {
   const { status, error, run } = useHouseholdMutation()
   const [editOpen, setEditOpen] = useState(false)
+  const [remindersOpen, setRemindersOpen] = useState(false)
 
   async function markBought() {
     await run(() =>
@@ -262,6 +274,15 @@ function ItemCard({
               </button>
               <button
                 type="button"
+                onClick={() => setRemindersOpen(true)}
+                className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
+              >
+                <BellIcon className="h-3.5 w-3.5" />
+                remind
+                {item.reminders.length > 0 ? ` (${item.reminders.length})` : ''}
+              </button>
+              <button
+                type="button"
                 onClick={handleRemove}
                 className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
               >
@@ -291,7 +312,129 @@ function ItemCard({
           onCancel={() => setEditOpen(false)}
         />
       </Sheet>
+
+      <Sheet
+        open={remindersOpen}
+        onClose={() => setRemindersOpen(false)}
+        title="Item reminders"
+      >
+        <ItemReminderForm
+          item={item}
+          timezone={timezone}
+          onSaved={async () => {
+            setRemindersOpen(false)
+            await onChange()
+          }}
+          onCancel={() => setRemindersOpen(false)}
+        />
+      </Sheet>
     </>
+  )
+}
+
+interface ItemReminderRow {
+  key: number
+  fireAt: string
+}
+
+function ItemReminderForm({
+  item,
+  timezone,
+  onSaved,
+  onCancel,
+}: {
+  item: ItemView
+  timezone: string
+  onSaved: () => Promise<void>
+  onCancel: () => void
+}) {
+  const nextKey = useRef(0)
+  const [rows, setRows] = useState<ItemReminderRow[]>(() =>
+    item.reminders.map((r) => ({
+      key: nextKey.current++,
+      fireAt: toLocalInputValue(r.fireAt, timezone),
+    })),
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  function addRow() {
+    setRows((current) =>
+      current.length >= MAX_ITEM_REMINDERS
+        ? current
+        : [
+            ...current,
+            {
+              key: nextKey.current++,
+              fireAt: defaultLocalInputValue(timezone),
+            },
+          ],
+    )
+  }
+
+  function updateRow(key: number, fireAt: string) {
+    setRows((current) =>
+      current.map((r) => (r.key === key ? { ...r, fireAt } : r)),
+    )
+  }
+
+  function removeRow(key: number) {
+    setRows((current) => current.filter((r) => r.key !== key))
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      await setItemRemindersAction({
+        data: {
+          itemId: item.id,
+          reminders: rows.map(({ fireAt }) => ({ fireAt })),
+        },
+      })
+      await onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <ReminderListEditor
+        rows={rows}
+        max={MAX_ITEM_REMINDERS}
+        onAdd={addRow}
+        onRemove={removeRow}
+        renderRow={(row) => (
+          <input
+            type="datetime-local"
+            className="field"
+            value={row.fireAt}
+            onChange={(e) => updateRow(row.key, e.target.value)}
+          />
+        )}
+      />
+      {error && <p className="text-sm text-rust">{error}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="self-start rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
+        >
+          Save reminders
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex items-center gap-1 font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   )
 }
 
