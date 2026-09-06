@@ -4,6 +4,7 @@ import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 // otherwise imports @tanstack/react-start's types, so without this, plain
 // `tsc` (unlike the Vite plugin) doesn't know server route files exist.
 import type {} from '@tanstack/react-start'
+import { RouteError, RoutePending } from '#/core/ui/RouteStates'
 import { routeTree } from './routeTree.gen'
 
 export function getRouter() {
@@ -12,6 +13,8 @@ export function getRouter() {
     scrollRestoration: true,
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0,
+    defaultPendingComponent: RoutePending,
+    defaultErrorComponent: RouteError,
   })
 
   return router

@@ -1,48 +1,44 @@
 ---
 name: doma
-description: The household's own recipe/index-card file box on the counter — chores, shopping, and whatever's next.
+description: A ledger left open on the counter — chores, shopping, and whatever's next, tracked in a plain, well-kept hand.
 colors:
-  ground: '#eadfc6'
-  ground-deep: '#ddcda8'
-  card: '#faf6ea'
-  card-back: '#f2ead6'
-  kraft: '#ab8352'
-  kraft-dark: '#7c5c34'
-  kraft-ink: '#4a3620'
-  ink: '#2a241c'
-  ink-dim: '#524a40'
-  ink-faint: '#686056'
-  rust: '#a1401a'
-  rust-ink: '#7c3113'
-  rust-soft: '#ecd8c3'
-  rust-wash: '#f4e5d2'
-  blue: '#3d5266'
-  blue-soft: '#dde5e8'
-  line: '#d9c8a3'
-  line-soft: '#e6dabb'
+  ground: '#e9e4d8'
+  card: '#f6f3ec'
+  inset: '#ece5d6'
+  ink: '#1d2320'
+  ink-dim: '#6f6a5f'
+  ink-ghost: '#a09884'
+  accent: '#8c2f24'
+  accent-deep: '#6f2419'
+  accent-tint: '#f0dcd4'
+  second: '#5f6f5c'
+  line: '#ddd6c8'
+  line-soft: '#e6dfd0'
   error: '#9a2c1d'
 typography:
   display:
-    fontFamily: 'Architects Daughter, Segoe Print, cursive'
+    fontFamily: 'Outfit Variable, Outfit, system-ui, sans-serif'
     fontSize: '1.25rem–3rem'
-    fontWeight: 400
+    fontWeight: 600
     lineHeight: 1.2
-    letterSpacing: 'normal'
+    letterSpacing: 'normal to -0.015em at sheet-title scale'
   body:
-    fontFamily: 'Public Sans Variable, Public Sans, system-ui, sans-serif'
-    fontSize: '0.875rem–1rem'
+    fontFamily: 'Work Sans Variable, Work Sans, system-ui, sans-serif'
+    fontSize: '0.75rem–1rem'
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: 'normal'
-  label:
+  mono:
     fontFamily: 'JetBrains Mono Variable, JetBrains Mono, ui-monospace, monospace'
-    fontSize: '0.6875rem–0.75rem'
+    fontSize: 'reserved, not used for UI metadata'
     fontWeight: 400
     lineHeight: 1.4
-    letterSpacing: '0.02em'
+    letterSpacing: 'normal'
 rounded:
-  tab: '0.5rem'
-  card: '0.85rem'
+  control: '12px'
+  card: '18px'
+  sheet: '24px'
+  btn: '14px'
 spacing:
   sm: '0.5rem'
   md: '1rem'
@@ -50,211 +46,227 @@ spacing:
   xl: '2.5rem'
 components:
   button-primary:
-    backgroundColor: '{colors.rust}'
+    backgroundColor: '{colors.accent}'
     textColor: '{colors.card}'
-    rounded: '{rounded.tab}'
-    padding: '0.5rem 1rem'
-  button-primary-disabled:
-    backgroundColor: '{colors.rust}'
-    textColor: '{colors.card}'
-    rounded: '{rounded.tab}'
-    padding: '0.5rem 1rem'
-  button-ghost:
+    rounded: '{rounded.btn}'
+    padding: '15px'
+  button-secondary:
     backgroundColor: '{colors.card}'
     textColor: '{colors.ink}'
-    rounded: '{rounded.tab}'
-    padding: '0.5rem 1rem'
+    rounded: '{rounded.btn}'
+    padding: '15px'
   card-front:
     backgroundColor: '{colors.card}'
     textColor: '{colors.ink}'
     rounded: '{rounded.card}'
     padding: '1.25rem'
   card-back:
-    backgroundColor: '{colors.card-back}'
+    backgroundColor: '{colors.inset}'
     textColor: '{colors.ink}'
     rounded: '{rounded.card}'
     padding: '1.25rem'
   field:
-    backgroundColor: '{colors.card}'
+    backgroundColor: '{colors.inset}'
     textColor: '{colors.ink}'
-    rounded: '{rounded.tab}'
-    padding: '0.4rem 0.65rem'
+    rounded: '{rounded.control}'
+    padding: '13px 14px'
 ---
 
 # Design System: doma
 
 ## Overview
 
-**Creative North Star: "The Recipe Box"**
+**Creative North Star: "Ledger Slate"**
 
-doma reads as the household's own recipe/index-card file box left open on the counter, not a productivity dashboard. Cream cardstock cards sit under kraft-brown tab dividers; a rust/terracotta ink marks whatever is active or due, and a quiet graphite-blue marks settled, already-typed metadata. Every card face is ruled like real index-card stock. The box is genuinely a box — a "screen" is a stack of cards you flip through, and navigation is a tab spine down the left edge (a bottom bar on mobile), not a sidebar-and-card-grid SaaS layout.
+doma reads as a ledger left open on the counter, not a productivity dashboard and not the stationery-box metaphor ("The Recipe Box") it shipped with before this pass. A near-white drafting ground holds flat cards with no border and no paper texture; oxblood marks whatever is active or due, sage marks what's already settled. Nothing is ruled, nothing is kraft-brown, nothing is handwritten — the display face is a confident geometric sans (Outfit), body copy is a warm grotesk (Work Sans), and metadata no longer gets its own monospace register. Depth comes from ink-tinted shadows, never neutral gray. Fields and steppers sit in pressed-in _insets_ rather than bordered boxes — status still reads through ink color and a small corner dot, never a border fighting a card's rounded corners.
 
-This build shipped the world essentially as specified in `docs/design-direction.md` — no material divergence between the locked direction and the built surfaces. The one thing the build adds beyond the brief's letter is an ambient time-of-day background wash (`useAmbientWash.ts`) that tints the page behind the cards on a 4-part day cycle (morning/midday/evening/night), confirmed in the brief's "raises carried" list as atmosphere-only, never load-bearing for meaning or state.
-
-doma is explicitly not corporate/SaaS, not clinical, and not twee/scrapbook — it avoids both the sidebar-dashboard genre and the cream-paper-plus-serif-plus-lamplight default a "warm domestic app" brief reaches for by habit.
+This is the second visual system doma has shipped (see git history / `docs/design-direction.md` for "The Recipe Box," the first). The redesign was scoped through two paired handoff documents produced outside this repo (a fresh design pass against a snapshot of the shipped app, then an implementation-detail companion) rather than through this project's own `/impeccable` workflow — that tooling was removed partway through this project's life. Structural interaction patterns carry forward unchanged: the card flip, the docked sheet, the "filed, not deleted" done stack, the offline-honest mutation status line, swipe alongside (not instead of) the tap-to-flip gesture.
 
 **Key Characteristics:**
 
-- Cardstock-cream palette with kraft-brown structure and one warm accent (rust) plus one cool accent (blue) — no third hue
-- A handwritten display face (Architects Daughter) reserved for headings only; body and metadata stay in a clean grotesk/mono pairing
+- A near-white drafting ground with flat cards, inset (pressed-in) form fields, and one warm accent (oxblood) plus one cool accent (sage) — no third hue, no border, no texture
+- A geometric display face (Outfit) reserved for headings only; body copy is a warm grotesk (Work Sans); metadata reads in the same body face, not a separate monospace register
 - Status reads through ink color and a small corner dot, never a heavy accent border
-- Depth comes from warm, brown-tinted drop shadows (never neutral-gray), never from a bevel or gradient fill
-- Completed work is filed, not deleted — the "done" stack pattern
+- Depth comes from warm, ink-tinted drop shadows (never neutral-gray), never from a bevel or gradient fill
+- Completed work is filed, not deleted — the "done" stack pattern, now a plain inset toggle rather than rotated paper
+- Every number input in the app is a stepper, never free-typed — nothing left to snap to 0 mid-edit
 
 ## Colors
 
-The palette is cardstock-cream and kraft-brown with two accent inks; every hex is the literal `--color-*` custom property shipped in `src/styles.css`.
+Every hex below is the literal `--color-*` custom property shipped in `src/styles.css`.
 
 ### Primary
 
-- **Rust** (`#a1401a`): the one warm accent — active/due status text, overdue corner dots, primary buttons (Sign in, Add chore, Add item, Done), the `::selection` background, `:focus-visible` outline ring, and the app's `theme-color` (browser chrome + PWA manifest).
+- **Accent** (`#8c2f24`): the one warm accent — active/due status text, overdue and due-today corner dots and occurrence pills, primary buttons (Sign in, Add chore, Add item, Done, Got it), the `::selection` background, `:focus-visible` outline ring, and the app's `theme-color` (browser chrome + PWA manifest).
+- **Accent Deep** (`#6f2419`): the same register at higher contrast for text set on `accent-tint`, and the retrying-mutation message. `accent` itself is legal for a 12px uppercase kicker but not for paragraph text (6.4:1 vs the ~4.5:1 body floor).
+- **Accent Tint** (`#f0dcd4`): the "due today, not the actionable one" occurrence-pill fill.
 
 ### Secondary
 
-- **Blue** (`#3d5266`): the settled/typed-metadata ink — due dates on card backs, filed items in the done stack. Never used for interactive elements; it marks information that is already resolved, in contrast to rust's "this needs you" register.
+- **Second** (`#5f6f5c`): the settled/cool ink — weekday-strip "on" fill, filed done-stack slip text. Never used for interactive primary actions; it marks information that's already resolved, in contrast to accent's "this needs you" register.
 
 ### Neutral
 
-- **Ground** (`#eadfc6`) / **Ground Deep** (`#ddcda8`): the counter itself — page background and its darker variant used in the ambient wash gradient.
-- **Card** (`#faf6ea`): card front surface, form surfaces, field backgrounds.
-- **Card Back** (`#f2ead6`): the flipped card face and filed/done-stack item background — one step warmer-dim than the front, so a flipped or filed card reads as "the other side of the paper," not a new material.
-- **Kraft** (`#ab8352`) / **Kraft Dark** (`#7c5c34`) / **Kraft Ink** (`#4a3620`): the tab-divider family — desktop spine background (kraft-dark), mobile bar top border and reserved-tab dividers (kraft), category-label ink (kraft-ink, e.g. shopping aisle headers).
-- **Ink** (`#2a241c`) / **Ink Dim** (`#524a40`) / **Ink Faint** (`#686056`): the three-step text ramp — headings/primary content, secondary text (subtitles, dates), and tertiary/hint text (mono captions, "tap to flip").
-- **Line** (`#d9c8a3`) / **Line Soft** (`#e6dabb`): card borders and the ruled-baseline stripe pattern respectively.
-- **Error** (`#9a2c1d`): form validation and mutation failure text only — distinct from rust so a genuine error never reads as merely "due."
+- **Ground** (`#e9e4d8`): the page background, under the ambient time-of-day wash.
+- **Card** (`#f6f3ec`): every card's front surface, sheet panels, form-section surfaces, and the raised half of a stepper/segmented control.
+- **Inset** (`#ece5d6`): a pressed-in well — form fields, a `FlipCard`'s back face, a `DoneStack` row, a stepper/segmented-control track. Reads as "recessed," never as a second card material.
+- **Ink** (`#1d2320`) / **Ink Dim** (`#6f6a5f`) / **Ink Ghost** (`#a09884`): the text ramp. `ink` is headings/primary content; `ink-dim` (4.86:1 on card, 4.5:1 on inset) is every piece of secondary/metadata text a user actually reads. `ink-ghost` is **glyph-only** — it measures 2.6:1/2.3:1, below body-text contrast, and is legal only for the drag-handle grip, a select caret, and the done-stack's rule glyph. See The Ghost Rule below.
+- **Line** (`#ddd6c8`) / **Line Soft** (`#e6dfd0`): the one remaining border color, used sparingly (secondary buttons, occurrence-pill outlines, preset chips) — cards themselves are borderless.
+- **Error** (`#9a2c1d`): form validation and mutation failure text only — distinct from accent so a genuine error never reads as merely "due."
 
 ### Named Rules
 
-**The Ink-Not-Border Rule.** Status (overdue, active) is carried by text color and a small corner stamp-dot, never a thick accent border competing with the card's rounded silhouette. See `FlipCard`'s `ACCENT_DOT` and `HeroCard`'s corner dot.
+**The Ghost Rule.** `ink-ghost` is for marks, not words: the drag-handle grip, a `<select>` caret, the done-stack's three-rule glyph. Every string a person reads — hints, counts, empty-state copy, version footer — is `ink-dim`. This rule exists because an earlier draft used ghost for body text and failed contrast review; don't reintroduce that.
 
-**The One Warm, One Cool Rule.** Rust marks what needs attention; blue marks what's already settled. No third status color exists in the shipped system — don't introduce one for a new state without collapsing it into this pair or arguing why it's exempt.
+**The Ink-Not-Border Rule.** Status (overdue, active) is carried by text color and a small corner stamp-dot, never a thick accent border competing with the card's rounded silhouette. See `FlipCard`'s `urgent` prop and `HeroCard`'s corner dot.
+
+**The One Warm, One Cool Rule.** Accent marks what needs attention; second marks what's already settled. No third status color exists in the shipped system — don't introduce one for a new state without collapsing it into this pair or arguing why it's exempt.
 
 ## Typography
 
-**Display Font:** Architects Daughter (with Segoe Print, cursive fallback)
-**Body Font:** Public Sans Variable (with Public Sans, system-ui, sans-serif fallback)
-**Label/Mono Font:** JetBrains Mono Variable (with JetBrains Mono, ui-monospace, monospace fallback)
+**Display Font:** Outfit Variable (with Outfit, system-ui, sans-serif fallback)
+**Body Font:** Work Sans Variable (with Work Sans, system-ui, sans-serif fallback)
+**Mono Font:** JetBrains Mono Variable — kept as a token, but not currently used anywhere in the UI; metadata reads in the body face now.
 
-**Character:** A handwriting-adjacent display face reads as the household's own hand on every heading, paired with a clean grotesk for reading content and a mono face for anything that behaves like typed metadata (dates, status words, captions) — the three-way split keeps the handwritten face from ever being asked to carry a sentence of body prose.
+**Character:** A confident geometric display face carries every heading; body copy is a warm, humane grotesk. There is no longer a third, monospace register for "system-generated facts" (dates, statuses, counts) — those read in the same body face as everything else, at a smaller size and `ink-dim` color, so the app reads as one consistent hand rather than a typewriter tape glued onto a page.
 
 ### Hierarchy
 
-- **Display / Headline** (400, `text-4xl`/`text-5xl` page titles down to `text-xl`/`text-2xl` section and card-title level, line-height ~1.2): `font-display`, every `<h1>`/`<h2>`/`<h3>` and hero-card title. Never used for body copy or form labels.
-- **Body** (400, `text-sm`–`text-lg`): `font-sans` (the theme default), used for card front/back prose, empty-state copy, member lists.
-- **Label** (400, `text-[11px]`–`text-xs`, tracking-wide, sometimes uppercase): `font-mono`, used for every piece of metadata — due dates, "OVERDUE"/"TODAY" status words, "tap to flip" captions, form field labels, the done-stack count line, mutation status text.
-
-### Named Rules
-
-**The Metadata-Is-Mono Rule.** Any text that reads as a system-generated fact rather than authored content — dates, statuses, counts, captions — renders in `font-mono` at a small tracked-out size. This is what makes the cardstock world read as "index cards," not "a form."
+- **Display / Headline** (600, `text-4xl`/`text-5xl` page titles down to `text-xl`/`text-2xl` section and card-title level, line-height ~1.2, `-0.015em` tracking at sheet-title scale): `font-display`, every `<h1>`/`<h2>`/`<h3>`, sheet titles, hero-card title. Never used for body copy or form labels.
+- **Body** (400, `text-sm`–`text-lg`): `font-body` (the theme default), used for card front/back prose, empty-state copy, member lists.
+- **Metadata** (400–600, `text-[11px]`–`text-sm`, `ink-dim`, sentence case unless the string itself is a stamp word like OVERDUE): still `font-body`, just smaller and dimmer. Status stamps (OVERDUE, DUE TODAY) are the one place metadata goes uppercase with `0.06em` tracking, and only when urgent.
 
 ## Layout
 
-Content stays spacious and card-based, never a dense data table — the brief's target range is ~3–8 open chores and ~5–15 shopping items for a 2-person household, and the layout doesn't try to accommodate more. `AppShell`'s `<main>` caps at `max-w-3xl`, centered, with `px-4 pt-8 pb-24` on mobile (bottom padding clears the fixed bottom nav bar) and `md:pt-10 md:pr-8 md:pb-10 md:pl-24` on desktop (left padding clears the fixed spine).
+Content stays spacious and card-based, never a dense data table — the target range is ~3–8 open chores and ~5–15 shopping items for a 2-person household, and the layout doesn't try to accommodate more. `AppShell`'s `<main>` caps at `max-w-3xl`, centered, with `px-4 pt-8` and a safe-area-aware bottom clearance (`pb-[calc(104px+env(safe-area-inset-bottom))]`) on mobile that clears the fixed bottom nav bar, and `md:pt-10 md:pr-8 md:pb-10 md:pl-24` on desktop (left padding clears the fixed spine).
 
-Navigation is a fixed spine, not in-flow chrome: a 4rem-wide (`w-16`) vertical bar pinned to the left edge on `md:` and up, replaced below that breakpoint by a fixed bottom bar. Both list the same modules in the same order.
+Navigation is a fixed spine, not in-flow chrome: a 4rem-wide (`w-16`) vertical bar pinned to the left edge on `md:` and up, replaced below that breakpoint by a fixed, blurred-glass bottom bar. Both list the same three modules in the same order — Today, Chores, Shopping — with no reserved slots for unbuilt modules; a new module simply adds a tab when it ships.
 
-The Today dashboard's card fan is the signature spatial pattern: on `md:` and up, secondary cards genuinely overlap (negative `-4.5rem` margin, descending scale 1 → 0.96 → 0.93 → 0.9, alternating small rotation, ascending z-index toward the front) rather than sitting in a same-plane row with a tilt effect; hovering a card lifts it to the front (`translateY(-6px) scale(1.02)`, z-index 10). Below `md:`, `.card-fan` drops to a plain vertical stack — the fan is a desktop-only affordance, mobile is an honest deck. The fan's own wrapper is unbounded — it lays out every "rest" card in one row with no cap — so on `md:` its containing div carries `overflow-x-auto` with `pt-2 pb-10` reserved padding (the transformed cards' translate/rotate/hover excursions need real box space, since a CSS transform doesn't grow an `auto`-height container): a household with more today-cards than fit at the viewport's width gets a horizontally scrollable fan instead of a page that overflows its own viewport.
+The Today dashboard's card fan is the signature spatial pattern: on `md:` and up, secondary cards genuinely overlap (negative `-4.5rem` margin, descending scale 1 → 0.96 → 0.93 → 0.9, alternating small rotation, ascending z-index toward the front) rather than sitting in a same-plane row with a tilt effect; hovering a card lifts it to the front (`translateY(-6px) scale(1.02)`, z-index 10). Below `md:`, `.card-fan` drops to a plain vertical stack. The fan's wrapper carries `overflow-x-auto` with `pt-2 pb-10` reserved padding on `md:` so the transformed cards' translate/rotate/hover excursions have real box space.
 
 Grids elsewhere (occurrence cards, shopping items) use a plain 1-column mobile / 2-column (`sm:grid-cols-2`) desktop grid with `gap-4`; sections stack vertically with `gap-10` between them.
 
 ### Named Rules
 
-**The Forty-Four-Pixel Rule.** Every primary, filled `bg-rust` button and every bottom-bar/spine nav tab holds a real 44px tap target (`py-3` at `text-sm`), not just a comfortable-looking one. This is the mobile-pass floor (Apple HIG / Material both cite ~44–48px) — it applies to the single most-committal action per surface and to primary navigation, not to secondary text-links, small reorder controls, or quick-add chips, which stay compact on purpose.
+**The Forty-Four-Pixel Rule.** Every primary, filled `btn-primary` button and every bottom-bar/spine nav tab holds a real 44px tap target, not just a comfortable-looking one. This applies to the single most-committal action per surface and to primary navigation, not to secondary text-links, small reorder controls, or quick-add chips, which stay compact on purpose.
 
 ## Elevation & Depth
 
-The system uses real shadows, warm-tinted to the kraft/ink palette rather than neutral gray, layered rather than flat. Depth is structural (it marks a card's position in the physical stack), not merely decorative hover polish.
+The system uses real shadows, warm-tinted to the ink palette rather than neutral gray, layered rather than flat. Depth is structural (it marks a card's position in the stack or a sheet's position above the list), not merely decorative hover polish.
 
 ### Shadow Vocabulary
 
-- **Card** (`box-shadow: 0 1px 2px rgba(74,54,32,0.12), 0 8px 20px -6px rgba(74,54,32,0.28)`): the resting elevation for every card, form panel, and filed done-stack item.
-- **Card Lifted** (`box-shadow: 0 4px 6px rgba(74,54,32,0.14), 0 20px 34px -10px rgba(74,54,32,0.38)`): the hero card at rest, and any card's hover/focus state — a deliberate step up, reinforcing "this card is now on top of the stack."
-- **Spine** (`box-shadow: 2px 0 10px rgba(74,54,32,0.18)`): the fixed desktop spine and mobile bottom bar, separating persistent chrome from the scrolling content beneath it.
+- **Card** (`0 10px 26px -12px rgb(29 35 32 / 0.35)`): the resting elevation for every card and form panel.
+- **Lifted** (`0 12px 26px -10px rgb(29 35 32 / 0.45)`): the hero card at rest, any card's hover/focus state, and a category row being dragged.
+- **Sheet** (`0 -18px 44px -14px rgb(29 35 32 / 0.5)`): the docked sheet panel, casting upward since it's pinned to the bottom edge.
+- **Accent** (`0 8px 20px -10px rgb(140 47 36 / 0.5)`): the primary button's own colored glow, under its inset highlight.
 
 ### Named Rules
 
-**The Lift-On-Front Rule.** Elevation increases only when a card becomes (or is about to become) the frontmost thing — hover/focus on any card tile, and the hero card's permanent lifted shadow. Elevation is never used as ambient screen-wide decoration.
+**The Lift-On-Front Rule.** Elevation increases only when a card becomes (or is about to become) the frontmost thing — hover/focus on any card tile, the hero card's permanent lifted shadow, a dragged reorder row. Elevation is never used as ambient screen-wide decoration.
 
 ## Shapes
 
-Two radius steps only: `--radius-card` (0.85rem) for every card, panel, and form section, and `--radius-tab` (0.5rem) for buttons, form fields, and small chip-like controls. Nothing in the shipped system uses a third radius or a fully square/fully pill corner. Card silhouettes are rounded-rectangle with a 1px `border-line` hairline; the ruled-baseline background-image (`repeating-linear-gradient`, a rule every 28px) renders on every card face regardless of which background color utility it layers over, and is the one recurring textured surface treatment in the system — nothing else in doma carries a pattern or texture.
+Four radius steps: `--radius-control` (12px) for form fields, steppers, segmented controls, and inset rows; `--radius-card` (18px) for cards and panels; `--radius-sheet` (24px, top corners only) for the docked sheet; `--radius-btn` (14px) for every button. Nothing in the shipped system uses a fifth radius. Card silhouettes are borderless rounded rectangles — no hairline border, no ruled-baseline texture anywhere. The one recurring surface treatment is the flat card vs. inset-well distinction, not a pattern or texture.
 
 ## Components
 
 ### Buttons
 
-- **Shape:** `rounded-tab` (0.5rem) on every button, no exceptions.
-- **Primary:** `bg-rust` / `text-card`, `px-3–4 py-3`, `text-sm font-medium`, `disabled:opacity-50`. Used for the single most-committal action per surface (Sign in, Add chore, Add item, Generate invite code, Done). `py-3` is load-bearing, not decorative — at `text-sm` it lands the tap target at 44px tall, the mobile-pass floor (see The Forty-Four-Pixel Rule).
-- **Secondary / Ghost:** `border border-kraft` (or `border-kraft/50`), `text-ink`, transparent or `bg-card` fill. Used for the lower-commitment sibling action (Skip, Register).
-- **Hover / Focus:** buttons don't carry a distinct hover treatment of their own beyond the shared `:focus-visible` rust outline (`2px solid var(--color-rust)`, `2px` offset) and browser default `:active`; the flip and card-lift interactions carry the system's motion budget, not button chrome.
+- **Primary:** `.btn-primary` — accent fill with a 15% white top-wash sheen fading out by mid-height, `card` text, `15px` padding, `600 15px` body type, `shadow-accent` plus a 1px inner highlight, `scale(0.97)` on press. Used for the single most-committal action per surface (Sign in, Add chore, Add item, Generate invite code, Done, Got it). A `.btn-compact` modifier (`12px 16px`, `14px` type, `flex:none; white-space:nowrap`) stacks onto it for header-scale and inline card-back buttons so they never wrap at 390px.
+- **Secondary:** `.btn-secondary` — `card` fill, `1px solid line`, `ink` text, same padding/press behavior, no sheen. Used for the lower-commitment sibling action (Skip, Register, "Sign in with Google").
+- **Tertiary:** `.btn-tertiary` — plain `13px ink-dim` text, no background, `scale(0.9)` on press. Used for "Cancel," stacked below the primary action it cancels.
+- **Focus:** the shared `:focus-visible` accent outline (`2px solid var(--color-accent)`, `2px` offset).
 
 ### Cards / Containers
 
-- **Corner Style:** `rounded-card` (0.85rem).
-- **Background:** `bg-card` for the front/default face, `bg-card-back` for a flipped face and filed done-stack items.
-- **Shadow Strategy:** `shadow-card` at rest, `shadow-card-lifted` on hover/focus or for the hero card (see Elevation & Depth).
-- **Border:** `border border-line` (1px), or `border-kraft/40`–`/60` for the smaller filed/reserved-tab elements.
+- **Corner Style:** `rounded-card` (18px).
+- **Background:** `bg-card` for the front/default face, `bg-inset` for a flipped `FlipCard` back and `DoneStack`/reorderable rows.
+- **Shadow Strategy:** `shadow-card` at rest, `shadow-lifted` on hover/focus or for the hero card and a dragged row.
+- **Border:** none. Cards are flat; the one place a 1px `line` border survives is a secondary button, an occurrence-pill outline, or a preset chip.
 - **Internal Padding:** `p-5`–`p-8` for cards, `p-6` for form-panel sections.
 
 ### Inputs / Fields
 
-- **Style:** the shared `.field` utility class — `bg-card`, `border border-line`, `rounded-tab`, `0.4rem 0.65rem` padding, `font-sans` at `0.9rem`. Never a bare browser-default input.
-- **Focus:** border shifts to `border-rust` (no glow, no shadow change) plus the global `:focus-visible` outline.
-- **Error / Disabled:** error text (not the field itself) renders in `text-error`, distinct from the rust "due/active" register. Disabled controls drop to `opacity-50`.
+- **Style:** the shared `.field` utility class — `bg-inset`, no border, `rounded-control`, `13px 14px` padding, `font-body` at `15px`. Never a bare browser-default input.
+- **Focus:** the global `:focus-visible` accent outline (no border-color shift, since there's no border).
+- **Numbers are never free-typed.** Every previous `<input type="number">` (chore interval, day-of-month, reminder day-offset) is a `Stepper` — an inset well with a display-only value and two round buttons — so there is no controlled-input value left to snap to 0 when cleared mid-edit. Quantity is the one exception: a `DecimalStepper` keeps a real, freely-typable text input alongside the buttons, since it's genuinely decimal-capable.
+- **Weekday selection** is a `WeekdayStrip` (seven equal-width toggle cells, `second`-filled when on), not seven checkboxes.
+- **Small-enum choices** (Repeats, Assignment) are a `SegmentedControl` — an inset track with a sliding `card`-colored thumb.
+- **Error / Disabled:** error text (not the field itself) renders in `text-error`. Disabled controls drop to `opacity-50`.
 
 ### Navigation
 
-- **Desktop spine:** fixed left, `bg-kraft-dark`, `w-16`, each module tab is a 5rem-tall (`h-20`) vertical-text label (`writingMode: vertical-rl`) in `font-display text-card/90`; the active tab flips to horizontal text on a `bg-card`/`text-ink` panel. Reserved (not-yet-built) module slots render as blank `h-14` bands with a `border-y border-kraft/40` and only a screen-reader label — same visual weight as a real tab, deliberately not grayed or disabled-looking.
-- **Mobile bottom bar:** fixed bottom, `bg-card`, `border-t-2 border-kraft`, evenly-split flex tabs in `font-display text-sm text-ink-dim`, active tab in `text-rust`. Reserved slots use the same blank treatment with `border-x border-kraft/40` dividers between them, so the bar's rhythm of dividers stays identical whether a slot is live or reserved.
+- **Desktop spine:** fixed left, `bg-[#2b2f2a]` (a warm near-black, not a token — the one deliberately off-system color, reserved for this one surface), `w-16`, each module tab is a 5rem-tall (`h-20`) vertical-text label (`writingMode: vertical-rl`) in `font-display text-card/90`; the active tab flips to horizontal text on a `bg-card`/`text-ink` panel.
+- **Mobile bottom bar:** fixed bottom, translucent blurred glass (`rgb(246 243 236 / 0.72)` + `backdrop-blur(26px) saturate(1.4)`), a hairline top border, three tabs only (Today/Chores/Shopping, each a real icon — `CalendarDotIcon`/`ListChecksIcon`/`BasketIcon` — plus an `11.5px` label), active tab in `accent` with the icon at `scale(1.12)`. Bottom padding is safe-area aware (`calc(24px + env(safe-area-inset-bottom))`). No reserved slots for unbuilt modules on either surface — a module simply adds a tab when it ships.
 
 ### The Flip Card (signature component)
 
-Every actionable item — a chore, a shopping item — is a `FlipCard`: front and back are two separately-focusable elements inside a `perspective`-transformed scene, not a single button with swapped content. Tapping the front runs a real 3D `rotateY(180deg)` transform over 0.55s (`cubic-bezier(0.2, 0.7, 0.2, 1)`), snapping instantly instead under `prefers-reduced-motion`. The front carries every readable fact about the card (title, status, assignee/note, metadata) and a `tap to flip — {label}` mono hint; the back carries only its actions (Done/Skip, edit, delete, the primary check/complete control) plus any `MutationStatus` for whichever action lives there — see The Front-Is-Info Rule below. Front and back are genuinely different card-back-colored materials (`bg-card` vs `bg-card-back`), not a re-skinned front. Whichever face is hidden is `inert`, so its controls drop out of tab order and can't be triggered while off-screen; tapping anywhere on the back outside a real control flips back to the front — there is no separate "flip back" link, since one more redundant control would just be more surface to keep inert-correct.
+Every actionable item — a chore, a shopping item — is a `FlipCard`: front and back are two separately-focusable elements inside a `perspective`-transformed scene, not a single button with swapped content. Tapping the front runs a real 3D `rotateY(180deg)` transform over 0.55s (`var(--ease-flip)`), snapping instantly instead under `prefers-reduced-motion`. The front carries every readable fact about the card (title, status, assignee, metadata) and a "tap to flip" (or "tap to flip · swipe to complete") hint; the back carries only its actions plus any `MutationStatus`. Front is `bg-card`, back is `bg-inset` — the flip's own wrapper is transparent, so the rotation never reveals a colored plate behind the card. Faces get a floor height (`minHeight`, 200px for a chore, 114px for a shopping item at a 390px viewport) so the back's action row never clips; content that needs more room grows the container past that floor. Whichever face is hidden is `inert`.
+
+**Swipe-to-complete** lives alongside the flip on the front face only: a horizontal drag (clamped 0–140px) reveals an accent-ink "✓ Done"/"✓ Got it" label behind the card as it translates right; releasing past 92px runs the same mutation as the back's primary button, releasing under 7px is treated as a tap (flips the card), anything between springs back. Drag state lives on a ref, not render state, so a `setState` on the first `pointermove` can't reset the gesture's origin mid-drag.
 
 ### Named Rules
 
-**The Front-Is-Info, Back-Is-Actions Rule.** A card's front is read-only — title, status, assignee, notes, metadata — never a control past the flip trigger itself. A card's back holds nothing but its actions and their `MutationStatus`. This is a firm split, not a preference: it's what lets a card be safely `inert`-toggled by face, and it's why shopping's primary check action lives on the back next to Done/Skip's chore equivalent, not on the front despite being the single most frequent tap on that page.
+**The Front-Is-Info, Back-Is-Actions Rule.** A card's front is read-only — title, status, assignee, notes, metadata — never a control past the flip trigger and the swipe gesture. A card's back holds nothing but its actions and their `MutationStatus`.
 
 ### The Done Stack (signature component)
 
-Completed/skipped items file face-down into a `DoneStack` instead of disappearing: a toggle button showing two overlapping card-back rectangles (rotated ±6–12°, `bg-card-back`/`bg-card`) plus a mono count line ("N filed — riffle through"). Expanding it reveals each item as a small `font-mono text-blue` slip, alternately rotated ±0.5° so the pile reads as genuinely riffled paper, not a clean list. A filed slip can carry its own small `actions` — an icon plus a mono underlined label (`undo` on a chore occurrence, `undo`/`remove` on a bought item) — so filing something is never a one-way trip: a mis-tap has a way back without needing to flip a card that no longer exists in the active list.
+Completed/skipped items file into a `DoneStack` instead of disappearing — the rotated-paper metaphor is retired. The toggle is a plain inset row with a three-rule glyph (`ink-ghost`, glyph-only per The Ghost Rule) and an `ink-dim` label: `"{N} done — show all"` (chores) / `"Already bought · {N}"` (shopping). Expanding it reveals each item as an inset row, `second`-colored text, entering with a staggered `slip` animation. A filed slip can carry its own small actions (`undo` on a chore occurrence, `undo`/`remove` on a bought item) — filing something is never a one-way trip.
 
 ### Mutation Status (signature component)
 
-A shared, wordless-by-default status line for offline/failed writes: silent on success, `text-rust-ink` "not saved — retrying…" while an automatic retry is in flight, `text-error` with the server's message on hard failure. Never a toast, never a spinner — the honesty is carried entirely in mono text adjacent to the action that failed.
+A shared, wordless-by-default status line for offline/failed writes: silent on success, `accent-deep` "not saved — retrying…" while an automatic retry is in flight, `error` with the server's message on hard failure. A reserved `min-height` keeps the card from jumping when the status appears or clears. Never a toast, never a spinner. Currently wraps only chore Done/Skip and item "Got it" — extending it to edit/delete/reorder/settings writes is a known gap, not yet done.
 
 ### The Sheet
 
-Add/edit forms live in a `Sheet`, not inline in the resting list — a card-back-colored panel (`bg-card-back`, `ruled`, `border-line`, `shadow-card-lifted`) docked to the bottom edge on every viewport (never a right-side drawer) that slides up (`translateY(100%)` → `0`, 0.35s, the flip's own `cubic-bezier(0.2, 0.7, 0.2, 1)`), snapping into place under `prefers-reduced-motion` rather than sliding. It reads as a card pulled forward out of the box: the same rounded-card radius (top corners only) and shadow vocabulary as any other card, not a generic centered modal. `role="dialog"` `aria-modal="true"`, traps Tab/Shift+Tab focus inside the panel, closes on Escape or backdrop click, and returns focus to whatever opened it on close.
+Add/edit forms live in a `Sheet`, not inline in the resting list — a `bg-card` panel with a 38×4px grabber, `rounded-sheet` top corners only, `shadow-sheet`, docked to the bottom edge on every viewport (never a right-side drawer). It slides up (`translateY(100%)` → `0`, 0.38s `var(--ease-spring)`) over a blurred backdrop (`rgb(29 35 32 / 0.34)` + `blur(3px)`, fading in 0.3s), snapping into place under `prefers-reduced-motion`. The close control is a 30px circular `bg-inset` button with a literal `×`. `role="dialog"` `aria-modal="true"`, traps Tab/Shift+Tab focus inside the panel, closes on Escape or backdrop click, and returns focus to whatever opened it on close.
 
 ### The Occurrence Strip
 
-A horizontal row of small `font-mono` date chips (`text-[11px]`, the system's label floor), each reading `Wed 09-14` — the weekday first, so a due date registers without doing calendar math in your head. Previews a chore's upcoming due dates. The single occurrence actually actionable from the card — the soonest pending one — renders filled `bg-rust`/`text-card`; the rest of an overdue backlog that has piled up but isn't reachable from this card reads as an outlined `border-rust/50`/`text-rust-ink` chip instead, so a run of overdue dates doesn't look like a run of things you can act on right now. A date due today (when it isn't also the actionable one) is `bg-rust-soft`/`text-rust-ink`; future dates are a bare `border-kraft/40` outline. Appears on a chore's collapsed card front and, live-recomputed from the same recurrence engine as the field values change, inside the add/edit `Sheet` — so the preview always matches what will actually be materialized.
+A horizontal row of pills (`999px`, `12.5px`), each reading `Tue 8 Sep` — the weekday first, day before month, and the month name repeats only when it differs from the chip before it (so a monthly recurrence doesn't render three chips that all say "8"). Four states, not two: the single occurrence actually actionable from the card (the soonest pending one) is filled `accent` with the button sheen; the rest of an overdue backlog that isn't reachable from this card is `card` fill with an `accent` outline; a date due today that isn't the actionable one is `accent-tint` fill; a future date is a bare `line`-outlined `card` chip. Appears on a chore's collapsed card front and, live-recomputed from the same recurrence engine as the field values change, inside the add/edit `Sheet`.
+
+### The Reminder List Editor
+
+Both chore and item reminder forms share one row card — an inset shell (`radius-control + 2`, `13px 14px`) holding a when-control (a `Stepper` + time field for chores, a datetime field for items), connective text, and a right-aligned "remove" link. Presets are `999px` pill chips (`card` fill, `1px line`), plus a dashed "+ Blank" chip; a cap note shows progress (`2 of 5`) before the cap and a fixed string (`Maximum {N} reminders.`) at it. The only remaining asymmetry between the two forms is the cap and the when-control itself, which is data, not styling.
+
+### Reorderable Lists
+
+Category order (shopping) and rotation order (chores) are drag-reorderable, not Up/Down buttons: an inset row with a grip handle (`GripIcon`, `ink-ghost`) on the left, dragging a row lifts it to `card` fill with an `accent` border and `shadow-lifted`. Drag swaps one step at a time as the pointer crosses a neighbor's row height, then resets its origin so a single gesture can move several positions — built on the existing single-step reorder action, no new backend endpoint. Both keep a keyboard path (focus the handle, arrow keys move the row).
+
+### Priority Marks
+
+Specified but **not implemented**: three values of one hue (`#8c2f24`/`#b0705f`/`#d8c3b4`, never red/yellow/green) as a 4px bar on a shopping item card's left inside edge. No `priority` column exists in the schema yet — this needs its own schema/migration/repo pass before the visual half means anything.
 
 ### Icons
 
-A small, hand-picked action-icon set (`src/core/ui/icons.tsx`) — plain geometric strokes (`stroke="currentColor"`, weight 1.75, rounded caps/joins, no fill), not a dropped-in generic icon-library look. Each icon inherits whatever ink/rust tone its surrounding text already carries, so a `PlusIcon` in a rust button reads `text-card` and an `EditIcon` in a mono action link reads `text-ink-faint`, automatically. Paired with a text label, never icon-only — recognition speed is the point, not an icon-only minimalism the household would have to learn.
+A small, hand-picked action-icon set (`src/core/ui/icons.tsx`) — plain geometric strokes (`stroke="currentColor"`, weight 1.75, rounded caps/joins, no fill) for most icons, filled dots for the one glyph-only exception (`GripIcon`, the drag handle). Each icon inherits whatever ink/accent tone its surrounding text already carries. Paired with a text label, never icon-only, except the three bottom-nav tab icons which pair with their own short label directly beneath.
 
 ### The App Mark
 
-`src/core/ui/AppMark.tsx` — the app's logo, the same overlapping, slightly-rotated card silhouette `DoneStack`'s toggle already uses to say "a stack of index cards," redrawn as a standalone SVG rather than a new, unrelated glyph. Sits at the top of the desktop spine (replacing what used to be empty padding) and in a mobile-only header row above each page's own title (`AppShell`, `md:hidden`) — desktop's mark lives in the persistent spine, so it isn't repeated in the scrolling content there.
+`src/core/ui/AppMark.tsx` — three stacked rules in an accent rounded square, matching `DoneStack`'s new toggle glyph. Sits at the top of the desktop spine and in a mobile-only header row above each page's own title (`AppShell`, `md:hidden`).
+
+### Route Pending / Error States
+
+Newly added — neither existed before this pass. A route transition shows a centered, bare "Loading…" line (`RoutePending`); a thrown loader error shows "That didn't load" / "Check your connection and try again." with a `Retry` button that calls the router's own `reset()` (`RouteError`), wired as the router's `defaultPendingComponent`/`defaultErrorComponent`.
 
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** keep the display face (Architects Daughter) to headings only; route every metadata, date, status, and caption string through `font-mono`.
-- **Do** carry status through ink color and a small corner dot, matching the shipped rust-overdue / blue-settled pair — don't add a third status color without collapsing it into this system.
-- **Do** use warm, kraft/ink-tinted shadow color (`rgba(74,54,32,…)`) for any new elevation, never neutral gray.
-- **Do** render a not-yet-built module as a blank, same-weight reserved tab (spine band or bar slot with only a screen-reader label) — never gray it out, disable-style it, or hide it.
-- **Do** keep the ruled-baseline background-image as the system's only texture; it belongs on card faces (front and back), not as a general decorative device.
-- **Do** use the two-step radius scale only (`rounded-tab` 0.5rem for controls, `rounded-card` 0.85rem for cards/panels) — no third radius.
+- **Do** keep the display face (Outfit) to headings only; body and metadata both stay in Work Sans, just at different sizes/colors.
+- **Do** carry status through ink color and a small corner dot, matching the accent-overdue / second-settled pair — don't add a third status color without collapsing it into this system.
+- **Do** use warm, ink-tinted shadow color (`rgb(29 35 32 / …)`) for any new elevation, never neutral gray.
+- **Do** reach for `ink-dim` for any text a person reads; reserve `ink-ghost` for glyphs only (drag handles, carets, the done-stack rule mark) — see The Ghost Rule.
+- **Do** use a `Stepper` (or `DecimalStepper` for genuinely decimal values) for any numeric input — never a bare `<input type="number">`.
+- **Do** use the radius scale as assigned by role (`control`/`card`/`sheet`/`btn`) — no ad hoc fifth radius.
 - **Do** keep a `FlipCard` front read-only and put every control on the back, primary check/complete actions included — see The Front-Is-Info, Back-Is-Actions Rule.
-- **Do** pair a new icon with its text label; icon-only controls aren't part of the system.
+- **Do** pair a new icon with its text label; icon-only controls aren't part of the system (outside the three nav tabs, which already carry their own label).
 
 ### Don't:
 
-- **Don't** put the primary flow inside a sidebar-and-card-grid dashboard layout. The tab spine plus card-fan/deck is the system's only navigation-plus-content topology; a settings-style two-pane admin layout is out of world.
+- **Don't** put the primary flow inside a sidebar-and-card-grid dashboard layout. The tab spine plus card-fan/deck is the system's only navigation-plus-content topology.
 - **Don't** fade a card flip or a live-update settle. Both have named, deliberate motion (a real 3D rotate; a View Transitions crossfade), never a plain opacity fade, and both must respect `prefers-reduced-motion` by snapping instead of animating.
 - **Don't** hard-delete a completed item from view. It files into a `DoneStack`; the interaction vocabulary has no "vanish" state for finished work.
-- **Don't** use the ambient time-of-day wash for anything but atmosphere — it must never be the only signal for a state or a piece of information (per the direction brief's own raise).
+- **Don't** use the ambient time-of-day wash for anything but atmosphere — it must never be the only signal for a state or a piece of information.
+- **Don't** add a border or a texture to a plain content card. Depth comes from a shadow, not a hairline; the ruled-baseline texture from the previous system is retired everywhere, not just on cards.
