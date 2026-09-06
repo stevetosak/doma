@@ -4,9 +4,13 @@ import { resolveAuthContext } from '#/core/auth/context'
 import { publish } from '#/core/events/hub'
 import { listMembers } from '#/core/household/members-repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
+import { replaceRemindersForItem } from '#/core/items/repo'
+import { resolveReminderFireAt } from '#/modules/shopping/reminder-time'
+import { scheduleRemindersForItem } from '#/modules/shopping/reminders'
 import {
   addItem,
   deleteCategory,
+  getItem,
   getOrCreateDefaultList,
   listCategories,
   listItems,
@@ -27,6 +31,7 @@ export class ShoppingAccessError extends Error {}
 interface MemberContext {
   userId: string
   householdId: string
+  timezone: string
 }
 
 async function requireMember(): Promise<MemberContext> {
@@ -34,7 +39,11 @@ async function requireMember(): Promise<MemberContext> {
   if (!auth.user || !auth.household) {
     throw new ShoppingAccessError('Not signed in to a household.')
   }
-  return { userId: auth.user.id, householdId: auth.household.id }
+  return {
+    userId: auth.user.id,
+    householdId: auth.household.id,
+    timezone: auth.household.timezone,
+  }
 }
 
 export interface ShoppingData {
@@ -43,11 +52,12 @@ export interface ShoppingData {
   categories: CategoryView[]
   recentlyBought: RecentlyBoughtView[]
   members: HouseholdMember[]
+  timezone: string
 }
 
 export const getShoppingData = createServerFn({ method: 'GET' }).handler(
   async (): Promise<ShoppingData> => {
-    const { householdId } = await requireMember()
+    const { householdId, timezone } = await requireMember()
     const listId = await getOrCreateDefaultList(householdId)
     const [items, categories, recentlyBought, members] = await Promise.all([
       listItems(householdId, listId),
@@ -55,7 +65,7 @@ export const getShoppingData = createServerFn({ method: 'GET' }).handler(
       listRecentlyBought(householdId, listId),
       listMembers(householdId),
     ])
-    return { listId, items, categories, recentlyBought, members }
+    return { listId, items, categories, recentlyBought, members, timezone }
   },
 )
 
@@ -95,6 +105,44 @@ export const updateItemAction = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { householdId } = await requireMember()
     await updateItem({ householdId, ...data })
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'item',
+      action: 'updated',
+    })
+    return { ok: true as const }
+  })
+
+export const MAX_ITEM_REMINDERS = 6
+
+const itemReminderInput = z.object({
+  fireAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
+})
+
+const setItemRemindersInput = z.object({
+  itemId: z.string().uuid(),
+  reminders: z.array(itemReminderInput).max(MAX_ITEM_REMINDERS),
+})
+
+export const setItemRemindersAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => setItemRemindersInput.parse(input))
+  .handler(async ({ data }) => {
+    const { userId, householdId, timezone } = await requireMember()
+    await replaceRemindersForItem(
+      data.itemId,
+      householdId,
+      data.reminders.map((r) => ({
+        fireAt: resolveReminderFireAt(r.fireAt, timezone),
+      })),
+    )
+    const item = await getItem(data.itemId, householdId)
+    if (item)
+      await scheduleRemindersForItem(
+        data.itemId,
+        householdId,
+        userId,
+        item.name,
+      )
     publish(householdId, {
       module: 'shopping',
       entity: 'item',
