@@ -1,3 +1,4 @@
+import { InlineKeyboard } from 'grammy'
 import { stillExists } from './existence'
 import { isStillLive } from './liveness'
 import { claimOutboxRow, markFailed, markSent } from './outbox-repo'
@@ -48,7 +49,13 @@ export async function dispatchNotification(data: NotifyJobData): Promise<void> {
   if (!claimed) return // already sent, already failed-and-tracked, or in flight elsewhere
 
   try {
-    await sendTelegramMessage(link.chatId, `${data.title}\n\n${data.body}`)
+    const keyboard = new InlineKeyboard().text(
+      '✅ Mark done',
+      `done:${claimed.id}`,
+    )
+    await sendTelegramMessage(link.chatId, `${data.title}\n\n${data.body}`, {
+      replyMarkup: keyboard,
+    })
     await markSent(claimed.id)
   } catch (err) {
     console.error('Telegram send failed:', err)
