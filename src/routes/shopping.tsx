@@ -414,6 +414,7 @@ function ItemReminderForm({
             className="field"
             value={row.fireAt}
             onChange={(e) => updateRow(row.key, e.target.value)}
+            required
           />
         )}
       />

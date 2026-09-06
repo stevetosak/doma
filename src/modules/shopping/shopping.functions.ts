@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { DateTime } from 'luxon'
 import { z } from 'zod'
 import { resolveAuthContext } from '#/core/auth/context'
 import { publish } from '#/core/events/hub'
@@ -116,7 +117,12 @@ export const updateItemAction = createServerFn({ method: 'POST' })
 export const MAX_ITEM_REMINDERS = 6
 
 const itemReminderInput = z.object({
-  fireAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
+  fireAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+    .refine((value) => DateTime.fromISO(value).isValid, {
+      message: 'Invalid date or time.',
+    }),
 })
 
 const setItemRemindersInput = z.object({
@@ -128,6 +134,10 @@ export const setItemRemindersAction = createServerFn({ method: 'POST' })
   .validator((input: unknown) => setItemRemindersInput.parse(input))
   .handler(async ({ data }) => {
     const { userId, householdId, timezone } = await requireMember()
+    const item = await getItem(data.itemId, householdId)
+    if (!item) {
+      throw new ShoppingAccessError('That item no longer exists.')
+    }
     await replaceRemindersForItem(
       data.itemId,
       householdId,
@@ -135,14 +145,7 @@ export const setItemRemindersAction = createServerFn({ method: 'POST' })
         fireAt: resolveReminderFireAt(r.fireAt, timezone),
       })),
     )
-    const item = await getItem(data.itemId, householdId)
-    if (item)
-      await scheduleRemindersForItem(
-        data.itemId,
-        householdId,
-        userId,
-        item.name,
-      )
+    await scheduleRemindersForItem(data.itemId, householdId, userId, item.name)
     publish(householdId, {
       module: 'shopping',
       entity: 'item',
