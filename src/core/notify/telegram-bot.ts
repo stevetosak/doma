@@ -22,6 +22,10 @@ export function isTelegramConfigured(): boolean {
 function buildBot(): Bot {
   const instance = new Bot(requireEnv('TELEGRAM_BOT_TOKEN'))
   instance.command('start', async (ctx) => {
+    if (ctx.chat.type !== 'private') {
+      await ctx.reply('Please message me directly to link your account.')
+      return
+    }
     const token = ctx.match.trim()
     const chatId = String(ctx.chat.id)
     if (!token) {
@@ -38,11 +42,28 @@ function buildBot(): Bot {
     )
   })
   instance.callbackQuery(/^done:/, async (ctx) => {
-    const notificationId = ctx.callbackQuery.data.slice('done:'.length)
-    const chatId = String(ctx.chat?.id ?? '')
-    await handleMarkDoneCallback(notificationId, chatId)
-    await ctx.answerCallbackQuery({ text: 'Marked done ✅' })
-    await ctx.editMessageReplyMarkup()
+    try {
+      if (ctx.chat?.type !== 'private') {
+        await ctx.answerCallbackQuery()
+        return
+      }
+      const notificationId = ctx.callbackQuery.data.slice('done:'.length)
+      const chatId = String(ctx.chat.id)
+      const outcome = await handleMarkDoneCallback(notificationId, chatId)
+      if (outcome === 'completed') {
+        await ctx.answerCallbackQuery({ text: 'Marked done ✅' })
+        await ctx.editMessageReplyMarkup()
+      } else {
+        await ctx.answerCallbackQuery()
+      }
+    } catch (err) {
+      console.error('Mark-done callback failed:', err)
+      try {
+        await ctx.answerCallbackQuery()
+      } catch {
+        // best-effort — the callback query may already be too old to answer
+      }
+    }
   })
   return instance
 }

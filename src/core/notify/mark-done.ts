@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/core/db/client'
 import { setOccurrenceStatus } from '#/modules/chores/repo'
 import { setItemChecked } from '#/modules/shopping/repo'
+import { isStillLive } from './liveness'
 import { getLinkByChatId } from './telegram-links-repo'
 import { notifications } from './schema'
 
@@ -23,29 +24,41 @@ const COMPLETIONS: Record<
 /**
  * Handles a "✅ Mark done" button press. Authorizes by confirming the
  * pressing chat is the exact one linked to this notification's own
- * recipient — a forged callback_data can't act on someone else's
- * reminder. Silently no-ops on any mismatch (unknown notification, wrong
- * chat, unrecognized kind) rather than surfacing an error to the button
- * presser — there's nothing actionable they could do about it.
+ * recipient — the caller restricts this to private chats first (a
+ * private chat's id is the same as its one member's Telegram user id),
+ * so "the linked chat" and "the presser" are the same person. Idempotent:
+ * skips the write entirely if the subject is no longer live (already
+ * done/checked, e.g. from a Telegram redelivery or a double-tap) rather
+ * than re-running a non-idempotent update. Returns 'skipped' for any
+ * no-op case (unknown notification, wrong chat, unrecognized kind,
+ * already done) — the caller uses this only to decide what to tell the
+ * button presser, never to distinguish "unauthorized" from "already
+ * done" in the response itself (no information leak either way).
  */
 export async function handleMarkDoneCallback(
   notificationId: string,
   chatId: string,
-): Promise<void> {
+): Promise<'completed' | 'skipped'> {
   const [notification] = await db
     .select()
     .from(notifications)
     .where(eq(notifications.id, notificationId))
-  if (!notification) return
+  if (!notification) return 'skipped'
 
   const link = await getLinkByChatId(chatId)
-  if (!link || link.userId !== notification.userId) return
+  if (!link || link.userId !== notification.userId) return 'skipped'
 
   const complete = COMPLETIONS[notification.kind]
-  if (!complete) return
+  if (!complete) return 'skipped'
+
+  if (!(await isStillLive(notification.kind, notification.subjectId))) {
+    return 'skipped'
+  }
+
   await complete(
     notification.subjectId,
     notification.householdId,
     notification.userId,
   )
+  return 'completed'
 }

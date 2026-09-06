@@ -22,6 +22,7 @@ export async function getLinkByChatId(
     .select({ userId: telegramLinks.userId })
     .from(telegramLinks)
     .where(eq(telegramLinks.chatId, chatId))
+    .limit(1)
   return row
 }
 
