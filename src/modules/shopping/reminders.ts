@@ -1,3 +1,4 @@
+import { escapeHtml } from '#/core/notify/html'
 import { notify } from '#/core/notify/notify'
 import { listRemindersForItem } from '#/core/items/repo'
 
@@ -22,7 +23,7 @@ export async function scheduleRemindersForItem(
       moduleId: 'shopping',
       kind: 'shopping_item_reminder',
       subjectId: itemId,
-      title: `Reminder: ${itemName}`,
+      title: `🛒 Reminder: <b>${escapeHtml(itemName)}</b>`,
       body: 'Still on your shopping list.',
       deepLink: '/shopping',
       at: reminder.fireAt,
