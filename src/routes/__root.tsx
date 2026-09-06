@@ -5,6 +5,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import appCss from '../styles.css?url'
 import { getAuthContext } from '#/core/auth/auth-context.functions'
 import { ServiceWorkerRegistrar } from '#/core/pwa/ServiceWorkerRegistrar'
+import { ToastProvider } from '#/core/ui/Toast'
 import { getAppVersion } from '#/core/version.functions'
 
 export const Route = createRootRoute({
@@ -64,7 +65,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        <ToastProvider>{children}</ToastProvider>
         <ServiceWorkerRegistrar />
         <TanStackDevtools
           config={{
