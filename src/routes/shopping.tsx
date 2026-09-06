@@ -3,12 +3,13 @@ import { useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
+import { Field } from '#/core/ui/Field'
 import { FlipCard } from '#/core/ui/FlipCard'
 import {
   BellIcon,
   CheckIcon,
-  CloseIcon,
   EditIcon,
+  GripIcon,
   PlusIcon,
   TrashIcon,
   UndoIcon,
@@ -16,11 +17,15 @@ import {
 import { MutationStatus } from '#/core/ui/MutationStatus'
 import { ReminderListEditor } from '#/core/ui/ReminderListEditor'
 import { Sheet } from '#/core/ui/Sheet'
+import { DecimalStepper } from '#/core/ui/Stepper'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { useHouseholdMutation } from '#/core/mutations/useHouseholdMutation'
 import {
   defaultLocalInputValue,
+  nextSaturdayMorningLocalInputValue,
   toLocalInputValue,
+  tomorrowMorningLocalInputValue,
+  tonightLocalInputValue,
 } from '#/modules/shopping/reminder-time'
 import {
   addItemAction,
@@ -98,6 +103,10 @@ function ShoppingPage() {
         : []),
     ].filter((g) => g.items.length > 0)
 
+  const itemCountByCategory = new Map(
+    data.categories.map((c) => [c.id, grouped.get(c.id)?.length ?? 0]),
+  )
+
   const checkedItems = data.items.filter((i) => i.isChecked)
   const memberName = new Map(
     data.members.map((m) => [m.userId, m.name ?? m.email]),
@@ -120,7 +129,7 @@ function ShoppingPage() {
         <button
           type="button"
           onClick={() => setAddOpen(true)}
-          className="flex shrink-0 items-center gap-1.5 rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card"
+          className="btn-primary btn-compact"
         >
           <PlusIcon className="h-4 w-4" />
           Add item
@@ -133,21 +142,26 @@ function ShoppingPage() {
         </p>
       ) : (
         <div className="mt-8 flex flex-col gap-10">
-          {orderedGroups.map((group) => (
+          {orderedGroups.map((group, gi) => (
             <section key={group.category?.id ?? 'uncategorized'}>
-              <h2 className="font-mono text-xs font-semibold tracking-wide text-kraft-ink uppercase">
+              <h2 className="text-xs font-semibold tracking-wide text-ink-dim uppercase">
                 {group.category?.name ?? 'Uncategorized'}
               </h2>
               <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {group.items.map((item) => (
-                  <ItemCard
+                {group.items.map((item, i) => (
+                  <div
                     key={item.id}
-                    item={item}
-                    categories={data.categories}
-                    memberName={memberName}
-                    timezone={data.timezone}
-                    onChange={refresh}
-                  />
+                    className="rise"
+                    style={{ animationDelay: `${(gi * 4 + i) * 50}ms` }}
+                  >
+                    <ItemCard
+                      item={item}
+                      categories={data.categories}
+                      memberName={memberName}
+                      timezone={data.timezone}
+                      onChange={refresh}
+                    />
+                  </div>
                 ))}
               </div>
             </section>
@@ -156,7 +170,8 @@ function ShoppingPage() {
       )}
 
       <DoneStack
-        label="already bought"
+        labelClosed={`Already bought · ${checkedItems.length}`}
+        labelOpen={`Already bought · ${checkedItems.length} — hide`}
         items={checkedItems.map((item) => ({
           id: item.id,
           content: itemLine(item),
@@ -180,7 +195,11 @@ function ShoppingPage() {
         suggestions={data.recentlyBought}
         onChange={refresh}
       />
-      <CategoryOrder categories={data.categories} onChange={refresh} />
+      <CategoryOrder
+        categories={data.categories}
+        itemCounts={itemCountByCategory}
+        onChange={refresh}
+      />
 
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Add item">
         <NewItemForm
@@ -231,13 +250,14 @@ function ItemCard({
   return (
     <>
       <FlipCard
-        accent="neutral"
-        flipLabel="actions"
+        minHeight={114}
+        swipeCompleteLabel={!busy ? '✓ Got it' : undefined}
+        onSwipeComplete={!busy ? markBought : undefined}
         front={
           <>
             <span className="block text-lg text-ink">{item.name}</span>
             {(item.quantity != null || item.unit) && (
-              <span className="mt-1 block font-mono text-xs text-ink-dim">
+              <span className="mt-1 block text-xs text-ink-dim">
                 {item.quantity ?? ''} {item.unit ?? ''}
               </span>
             )}
@@ -245,7 +265,7 @@ function ItemCard({
               <p className="mt-2 text-sm text-ink-dim">{item.note}</p>
             )}
             {item.addedBy && memberName.get(item.addedBy) && (
-              <p className="mt-3 font-mono text-[11px] tracking-wide text-ink-faint">
+              <p className="mt-3 text-[11px] text-ink-dim">
                 added by {memberName.get(item.addedBy)}
               </p>
             )}
@@ -257,13 +277,13 @@ function ItemCard({
               type="button"
               disabled={busy}
               onClick={markBought}
-              className="flex items-center gap-1.5 self-start rounded-tab bg-rust px-3 py-3 text-sm font-medium text-card disabled:opacity-50"
+              className="btn-primary btn-compact self-start"
             >
               <CheckIcon className="h-4 w-4" />
               Got it
             </button>
             <MutationStatus status={status} error={error} />
-            <div className="mt-auto flex gap-3 border-t border-line pt-3 font-mono text-[11px] tracking-wide text-ink-faint">
+            <div className="mt-auto flex gap-3 border-t border-line pt-3 text-[11px] text-ink-dim">
               <button
                 type="button"
                 onClick={() => setEditOpen(true)}
@@ -287,7 +307,7 @@ function ItemCard({
                 className="flex items-center gap-1 underline decoration-dotted underline-offset-4"
               >
                 <TrashIcon className="h-3.5 w-3.5" />
-                remove
+                delete
               </button>
             </div>
           </div>
@@ -358,17 +378,11 @@ function ItemReminderForm({
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  function addRow() {
+  function addRow(fireAt: string) {
     setRows((current) =>
       current.length >= MAX_ITEM_REMINDERS
         ? current
-        : [
-            ...current,
-            {
-              key: nextKey.current++,
-              fireAt: defaultLocalInputValue(timezone),
-            },
-          ],
+        : [...current, { key: nextKey.current++, fireAt }],
     )
   }
 
@@ -406,8 +420,22 @@ function ItemReminderForm({
       <ReminderListEditor
         rows={rows}
         max={MAX_ITEM_REMINDERS}
-        onAdd={addRow}
+        onAdd={() => addRow(defaultLocalInputValue(timezone))}
         onRemove={removeRow}
+        presets={[
+          {
+            label: 'Tonight, 6:00 PM',
+            onClick: () => addRow(tonightLocalInputValue(timezone)),
+          },
+          {
+            label: 'Tomorrow, 9:00 AM',
+            onClick: () => addRow(tomorrowMorningLocalInputValue(timezone)),
+          },
+          {
+            label: 'Saturday, 10:00 AM',
+            onClick: () => addRow(nextSaturdayMorningLocalInputValue(timezone)),
+          },
+        ]}
         renderRow={(row) => (
           <input
             type="datetime-local"
@@ -418,20 +446,12 @@ function ItemReminderForm({
           />
         )}
       />
-      {error && <p className="text-sm text-rust">{error}</p>}
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="self-start rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
-        >
+      {error && <p className="text-sm text-error">{error}</p>}
+      <div className="flex flex-col items-start gap-3">
+        <button type="submit" disabled={submitting} className="btn-primary">
           Save reminders
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex items-center gap-1 font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
-        >
+        <button type="button" onClick={onCancel} className="btn-tertiary">
           Cancel
         </button>
       </div>
@@ -486,56 +506,40 @@ function ItemEditForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1">
-        <span className="font-mono text-xs tracking-wide text-ink-dim">
-          Name
-        </span>
+      <Field label="Name">
         <input
           className="field"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
         />
-      </label>
+      </Field>
       <div className="flex gap-3">
-        <label className="flex flex-1 flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Qty
-          </span>
-          <input
-            type="number"
-            step="any"
-            min={0}
-            className="field"
+        <Field label="Qty">
+          <DecimalStepper
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={setQuantity}
+            ariaLabel="Quantity"
           />
-        </label>
-        <label className="flex flex-1 flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Unit
-          </span>
-          <input
-            className="field"
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-          />
-        </label>
+        </Field>
+        <div className="flex-1">
+          <Field label="Unit">
+            <input
+              className="field"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+            />
+          </Field>
+        </div>
       </div>
-      <label className="flex flex-col gap-1">
-        <span className="font-mono text-xs tracking-wide text-ink-dim">
-          Note
-        </span>
+      <Field label="Note">
         <input
           className="field"
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="font-mono text-xs tracking-wide text-ink-dim">
-          Category
-        </span>
+      </Field>
+      <Field label="Category">
         <input
           className="field"
           list={categoryListId}
@@ -547,23 +551,14 @@ function ItemEditForm({
             <option key={c.id} value={c.name} />
           ))}
         </datalist>
-      </label>
+      </Field>
       {error && <p className="text-sm text-error">{error}</p>}
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="self-start rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
-        >
+      <div className="flex flex-col items-start gap-3">
+        <button type="submit" disabled={submitting} className="btn-primary">
           Save changes
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex items-center gap-1 font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
-        >
-          <CloseIcon className="h-3.5 w-3.5" />
-          cancel
+        <button type="button" onClick={onCancel} className="btn-tertiary">
+          Cancel
         </button>
       </div>
     </form>
@@ -588,7 +583,7 @@ function RecentlyBought({
         {suggestions.map((s) => (
           <button
             key={s.nameNormalized}
-            className="rounded-tab border border-kraft/50 bg-card px-3 py-1 font-mono text-xs text-ink"
+            className="rounded-full border border-line bg-card px-3 py-1.5 text-xs text-ink"
             onClick={async () => {
               await reAddItemAction({
                 data: { listId, name: s.nameNormalized },
@@ -654,56 +649,40 @@ function NewItemForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1">
-        <span className="font-mono text-xs tracking-wide text-ink-dim">
-          Name
-        </span>
+      <Field label="Name">
         <input
           className="field"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
         />
-      </label>
+      </Field>
       <div className="flex gap-3">
-        <label className="flex flex-1 flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Qty
-          </span>
-          <input
-            type="number"
-            step="any"
-            min={0}
-            className="field"
+        <Field label="Qty">
+          <DecimalStepper
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={setQuantity}
+            ariaLabel="Quantity"
           />
-        </label>
-        <label className="flex flex-1 flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Unit
-          </span>
-          <input
-            className="field"
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-          />
-        </label>
+        </Field>
+        <div className="flex-1">
+          <Field label="Unit">
+            <input
+              className="field"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+            />
+          </Field>
+        </div>
       </div>
-      <label className="flex flex-col gap-1">
-        <span className="font-mono text-xs tracking-wide text-ink-dim">
-          Note
-        </span>
+      <Field label="Note">
         <input
           className="field"
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="font-mono text-xs tracking-wide text-ink-dim">
-          Category
-        </span>
+      </Field>
+      <Field label="Category">
         <input
           className="field"
           list={categoryListId}
@@ -715,24 +694,15 @@ function NewItemForm({
             <option key={c.id} value={c.name} />
           ))}
         </datalist>
-      </label>
+      </Field>
       {error && <p className="text-sm text-error">{error}</p>}
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="self-start rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
-        >
+      <div className="flex flex-col items-start gap-3">
+        <button type="submit" disabled={submitting} className="btn-primary">
           Add
         </button>
         {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex items-center gap-1 font-mono text-xs tracking-wide text-ink-faint underline decoration-dotted underline-offset-4"
-          >
-            <CloseIcon className="h-3.5 w-3.5" />
-            cancel
+          <button type="button" onClick={onCancel} className="btn-tertiary">
+            Cancel
           </button>
         )}
       </div>
@@ -740,63 +710,116 @@ function NewItemForm({
   )
 }
 
+const CATEGORY_ROW_HEIGHT = 46
+
+/**
+ * Category reordering — the visual half of #68 (§2.11). Drag swaps one
+ * step at a time as the pointer crosses a neighbor's row height, then
+ * resets its origin so a single gesture can move several positions —
+ * built on the existing single-step reorderCategoryAction, no backend
+ * change needed. Delete stays a small trailing icon rather than the
+ * spec's long-press menu — keeping it always reachable by keyboard and
+ * screen reader beat matching the gesture exactly.
+ */
 function CategoryOrder({
   categories,
+  itemCounts,
   onChange,
 }: {
   categories: CategoryView[]
+  itemCounts: Map<string, number>
   onChange: () => Promise<void>
 }) {
+  const drag = useRef<{ id: string; y: number } | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+
   if (categories.length === 0) return null
+
+  async function move(id: string, direction: 'up' | 'down') {
+    await reorderCategoryAction({ data: { categoryId: id, direction } })
+    await onChange()
+  }
+
+  function handlePointerDown(id: string, event: React.PointerEvent) {
+    drag.current = { id, y: event.clientY }
+    setDraggingId(id)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function handlePointerMove(event: React.PointerEvent) {
+    if (!drag.current) return
+    const delta = event.clientY - drag.current.y
+    if (Math.abs(delta) > CATEGORY_ROW_HEIGHT) {
+      const direction = delta > 0 ? 'down' : 'up'
+      drag.current.y = event.clientY
+      void move(drag.current.id, direction)
+    }
+  }
+
+  function handlePointerUp() {
+    drag.current = null
+    setDraggingId(null)
+  }
 
   return (
     <section className="mt-10">
       <h2 className="font-display text-2xl text-ink">Category order</h2>
-      <ul className="mt-3 flex flex-col gap-1.5">
-        {categories.map((category, index) => (
-          <li
-            key={category.id}
-            className="flex items-center gap-2 font-mono text-sm text-ink"
-          >
-            <span className="w-40">{category.name}</span>
-            <button
-              className="rounded-tab border border-kraft/50 px-2 py-0.5 text-xs disabled:opacity-30"
-              disabled={index === 0}
-              onClick={async () => {
-                await reorderCategoryAction({
-                  data: { categoryId: category.id, direction: 'up' },
-                })
-                await onChange()
-              }}
+      <ul className="mt-3 flex flex-col gap-[7px]">
+        {categories.map((category) => {
+          const isDragging = draggingId === category.id
+          return (
+            <li
+              key={category.id}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              className={`flex touch-none items-center gap-3 rounded-control px-[14px] py-[13px] transition-[transform,box-shadow] ${
+                isDragging
+                  ? 'scale-[1.02] border border-accent bg-card shadow-lifted'
+                  : 'bg-inset'
+              }`}
             >
-              Up
-            </button>
-            <button
-              className="rounded-tab border border-kraft/50 px-2 py-0.5 text-xs disabled:opacity-30"
-              disabled={index === categories.length - 1}
-              onClick={async () => {
-                await reorderCategoryAction({
-                  data: { categoryId: category.id, direction: 'down' },
-                })
-                await onChange()
-              }}
-            >
-              Down
-            </button>
-            <button
-              className="flex items-center gap-1 rounded-tab border border-kraft/50 px-2 py-0.5 text-xs text-ink-faint"
-              onClick={async () => {
-                await deleteCategoryAction({
-                  data: { categoryId: category.id },
-                })
-                await onChange()
-              }}
-            >
-              <TrashIcon className="h-3 w-3" />
-              Delete
-            </button>
-          </li>
-        ))}
+              <button
+                type="button"
+                aria-label={`Reorder ${category.name}`}
+                onPointerDown={(e) => handlePointerDown(category.id, e)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    void move(category.id, 'up')
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    void move(category.id, 'down')
+                  }
+                }}
+                className={
+                  isDragging
+                    ? 'shrink-0 cursor-grabbing text-accent'
+                    : 'shrink-0 cursor-grab text-ink-ghost'
+                }
+              >
+                <GripIcon className="h-4 w-4" />
+              </button>
+              <span className="flex-1 text-sm text-ink">{category.name}</span>
+              <span className="text-xs text-ink-dim">
+                {itemCounts.get(category.id) ?? 0}
+              </span>
+              <button
+                type="button"
+                aria-label={`Delete ${category.name}`}
+                onClick={async () => {
+                  await deleteCategoryAction({
+                    data: { categoryId: category.id },
+                  })
+                  await onChange()
+                }}
+                className="shrink-0 text-ink-dim"
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </section>
   )

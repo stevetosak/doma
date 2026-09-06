@@ -1,29 +1,34 @@
 import { Link } from '@tanstack/react-router'
 import { AppMark } from '#/core/ui/AppMark'
+import { BasketIcon, CalendarDotIcon, ListChecksIcon } from '#/core/ui/icons'
+import type { ComponentType } from 'react'
 
-const MODULES = [
-  { id: 'today', label: 'Today', href: '/' as const },
-  { id: 'chores', label: 'Chores', href: '/chores' as const },
-  { id: 'shopping', label: 'Shopping', href: '/shopping' as const },
+const MODULES: {
+  id: string
+  label: string
+  href: '/' | '/chores' | '/shopping'
+  Icon: ComponentType<{ className?: string }>
+}[] = [
+  { id: 'today', label: 'Today', href: '/', Icon: CalendarDotIcon },
+  { id: 'chores', label: 'Chores', href: '/chores', Icon: ListChecksIcon },
+  { id: 'shopping', label: 'Shopping', href: '/shopping', Icon: BasketIcon },
 ]
-
-/**
- * Honest blank tabs for the not-yet-built modules (§3, §6) — doma's real
- * architecture, made physically legible: a module is a new divider, never a
- * redesign. Same weight as the active tabs, no placeholder label.
- */
-const RESERVED = ['Meals', 'Bills', 'Maintenance']
 
 const linkActiveProps = {
   activeOptions: { exact: true },
 } as const
 
+/**
+ * Three tabs, no reserved slots (§2.10) — a not-yet-built module just adds
+ * a tab when it ships. The "honest blank divider" convention retired with
+ * the rest of the box vocabulary.
+ */
 export function TabSpine() {
   return (
     <>
       <nav
         aria-label="Household modules"
-        className="fixed inset-y-0 left-0 z-20 hidden w-16 flex-col items-stretch gap-1 bg-kraft-dark pt-6 shadow-spine md:flex"
+        className="fixed inset-y-0 left-0 z-20 hidden w-16 flex-col items-stretch gap-1 bg-[#2b2f2a] pt-6 shadow-lifted md:flex"
       >
         <div className="flex justify-center pt-2 pb-6" aria-hidden="true">
           <AppMark className="h-9 w-9" />
@@ -31,22 +36,19 @@ export function TabSpine() {
         {MODULES.map((tab) => (
           <SpineTab key={tab.id} label={tab.label} href={tab.href} />
         ))}
-        <div className="mt-2 flex flex-col gap-1">
-          {RESERVED.map((label) => (
-            <ReservedSpineTab key={label} label={label} />
-          ))}
-        </div>
       </nav>
 
       <nav
         aria-label="Household modules"
-        className="fixed inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t-2 border-kraft bg-card shadow-spine md:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t border-[rgb(29_35_32_/_0.08)] bg-[rgb(246_243_236_/_0.72)] pb-[calc(24px+env(safe-area-inset-bottom))] shadow-[0_-10px_26px_-16px_rgb(29_35_32_/_0.3)] backdrop-blur-[26px] backdrop-saturate-[1.4] md:hidden"
       >
         {MODULES.map((tab) => (
-          <BarTab key={tab.id} label={tab.label} href={tab.href} />
-        ))}
-        {RESERVED.map((label) => (
-          <ReservedBarTab key={label} label={label} />
+          <BarTab
+            key={tab.id}
+            label={tab.label}
+            href={tab.href}
+            Icon={tab.Icon}
+          />
         ))}
       </nav>
     </>
@@ -71,36 +73,37 @@ function SpineTab({ label, href }: { label: string; href: string }) {
   )
 }
 
-function ReservedSpineTab({ label }: { label: string }) {
-  return (
-    <div
-      aria-disabled="true"
-      className="flex h-14 items-center justify-center border-y border-kraft/40"
-    >
-      <span className="sr-only">{label} — reserved for a future module</span>
-    </div>
-  )
-}
-
-function BarTab({ label, href }: { label: string; href: string }) {
+function BarTab({
+  label,
+  href,
+  Icon,
+}: {
+  label: string
+  href: string
+  Icon: ComponentType<{ className?: string }>
+}) {
   return (
     <Link
       to={href}
       {...linkActiveProps}
-      className="flex flex-1 flex-col items-center justify-center gap-0.5 px-2 py-3 font-display text-sm text-ink-dim [&.active]:text-rust"
+      className="flex flex-1 flex-col items-center justify-center gap-1 px-2 py-3"
     >
-      {label}
+      {({ isActive }: { isActive: boolean }) => (
+        <>
+          <Icon
+            className={`h-[23px] w-[23px] transition-transform duration-[240ms] ${
+              isActive ? 'scale-[1.12] text-accent' : 'text-ink-dim'
+            }`}
+          />
+          <span
+            className={`text-[11.5px] font-semibold ${
+              isActive ? 'text-accent' : 'text-ink-dim'
+            }`}
+          >
+            {label}
+          </span>
+        </>
+      )}
     </Link>
-  )
-}
-
-function ReservedBarTab({ label }: { label: string }) {
-  return (
-    <div
-      aria-disabled="true"
-      className="flex flex-1 flex-col items-center justify-center gap-0.5 border-x border-kraft/40 px-2 py-3"
-    >
-      <span className="sr-only">{label} — reserved for a future module</span>
-    </div>
   )
 }

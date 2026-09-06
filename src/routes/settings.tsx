@@ -2,6 +2,8 @@ import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { AppShell } from '#/core/ui/AppShell'
+import { Checkbox } from '#/core/ui/Checkbox'
+import { Field } from '#/core/ui/Field'
 import {
   changeMemberRoleAction,
   createInviteAction,
@@ -39,9 +41,9 @@ function SettingsPage() {
         {data.household.name} — settings
       </h1>
 
-      <section className="ruled mt-8 rounded-card border border-line bg-card p-6 shadow-card">
+      <section className="mt-8 rounded-card bg-card p-6 shadow-card">
         <h2 className="font-display text-2xl text-ink">Members</h2>
-        <ul className="mt-3 flex flex-col gap-3">
+        <ul className="mt-3 flex flex-col gap-2">
           {data.members.map((member) => (
             <MemberRow
               key={member.userId}
@@ -56,7 +58,7 @@ function SettingsPage() {
 
       <InviteGenerator />
 
-      <section className="ruled mt-8 rounded-card border border-line bg-card p-6 shadow-card">
+      <section className="mt-8 rounded-card bg-card p-6 shadow-card">
         <h2 className="font-display text-2xl text-ink">Modules</h2>
         {data.modules.length === 0 ? (
           <p className="mt-2 text-sm text-ink-dim">No optional modules yet.</p>
@@ -64,19 +66,16 @@ function SettingsPage() {
           <ul className="mt-3 flex flex-col gap-1.5">
             {data.modules.map((mod) => (
               <li key={mod.id}>
-                <label className="flex items-center gap-2 text-sm text-ink">
-                  <input
-                    type="checkbox"
-                    checked={mod.enabled}
-                    onChange={async (e) => {
-                      await setModuleEnabledAction({
-                        data: { moduleId: mod.id, enabled: e.target.checked },
-                      })
-                      await router.invalidate({ sync: true })
-                    }}
-                  />
-                  {mod.name}
-                </label>
+                <Checkbox
+                  checked={mod.enabled}
+                  onChange={async () => {
+                    await setModuleEnabledAction({
+                      data: { moduleId: mod.id, enabled: !mod.enabled },
+                    })
+                    await router.invalidate({ sync: true })
+                  }}
+                  label={mod.name}
+                />
               </li>
             ))}
           </ul>
@@ -128,13 +127,13 @@ function MemberRow({
   }
 
   return (
-    <li className="flex flex-col gap-1 font-mono text-sm text-ink">
+    <li className="flex flex-col gap-1 rounded-control bg-inset px-[14px] py-[13px] text-sm text-ink">
       <div className="flex items-center justify-between gap-3">
         <span>
           {member.name ?? member.email}
           <span className="text-ink-dim"> — {member.role}</span>
         </span>
-        <span className="flex gap-3 text-[11px] tracking-wide text-ink-faint">
+        <span className="flex gap-3 text-[11px] text-ink-dim">
           <button
             type="button"
             disabled={submitting}
@@ -179,13 +178,10 @@ function InviteGenerator() {
   }
 
   return (
-    <section className="ruled mt-8 rounded-card border border-line bg-card p-6 shadow-card">
+    <section className="mt-8 rounded-card bg-card p-6 shadow-card">
       <h2 className="font-display text-2xl text-ink">Invite someone</h2>
       <form onSubmit={handleSubmit} className="mt-3 flex items-end gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-xs tracking-wide text-ink-dim">
-            Role
-          </span>
+        <Field label="Role">
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as 'owner' | 'member')}
@@ -194,20 +190,16 @@ function InviteGenerator() {
             <option value="member">Member</option>
             <option value="owner">Owner</option>
           </select>
-        </label>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
-        >
+        </Field>
+        <button type="submit" disabled={submitting} className="btn-primary">
           Generate invite code
         </button>
       </form>
       {error && <p className="mt-2 text-sm text-error">{error}</p>}
       {code && (
-        <p className="mt-3 font-mono text-sm text-ink">
-          Invite code: <strong className="text-rust">{code}</strong> — share it
-          with them; it works once.
+        <p className="mt-3 text-sm text-ink">
+          Invite code: <strong className="text-accent">{code}</strong> — share
+          it with them; it works once.
         </p>
       )}
     </section>

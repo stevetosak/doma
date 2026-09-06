@@ -53,21 +53,18 @@ function LoggedOutSplash() {
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
       <h1 className="font-display text-5xl text-ink">doma</h1>
       <p className="mt-3 text-ink-dim">
-        The household's own recipe-box of what needs doing — chores, shopping,
-        and whatever comes next.
+        Everything the two of you need to keep the place running — chores,
+        shopping, and whatever comes next.
       </p>
       <div className="mt-8 flex gap-3">
         <Link
           to="/login"
           search={{ returnTo: '/', error: undefined }}
-          className="rounded-tab bg-ink px-4 py-3 text-center font-sans text-sm font-medium text-card"
+          className="btn-primary flex-1"
         >
           Sign in
         </Link>
-        <Link
-          to="/register"
-          className="rounded-tab border border-kraft px-4 py-3 text-center font-sans text-sm font-medium text-ink"
-        >
+        <Link to="/register" className="btn-secondary flex-1">
           Register
         </Link>
       </div>
@@ -94,7 +91,7 @@ function TodayDashboard({
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-4xl text-ink">{householdName}</h1>
-          <p className="mt-1 font-mono text-xs tracking-wide text-ink-dim">
+          <p className="mt-1 text-xs text-ink-dim">
             {new Date().toLocaleDateString(undefined, {
               weekday: 'long',
               month: 'long',
@@ -102,7 +99,7 @@ function TodayDashboard({
             })}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-3 font-mono text-xs tracking-wide text-ink-faint">
+        <div className="flex flex-col items-end gap-3 text-xs text-ink-dim">
           <Link
             to="/account"
             className="underline decoration-dotted underline-offset-4"
@@ -149,13 +146,11 @@ function TodayDashboard({
 
 function EmptyBox() {
   return (
-    <div className="mt-16 flex flex-col items-center rounded-card border-2 border-dashed border-kraft/50 px-8 py-16 text-center">
-      <p className="font-display text-2xl text-ink-dim">
-        The box is empty today
-      </p>
-      <p className="mt-2 text-sm text-ink-faint">
-        Nothing due across chores or shopping — check back tomorrow, or add
-        something from a tab on the left.
+    <div className="mt-16 flex flex-col items-center rounded-card border-2 border-dashed border-line px-8 py-16 text-center">
+      <p className="font-display text-2xl text-ink-dim">Nothing due today</p>
+      <p className="mt-2 text-sm text-ink-dim">
+        You're clear across chores and shopping. Add something from the tabs
+        below.
       </p>
     </div>
   )
@@ -165,18 +160,18 @@ function HeroCard({ card }: { card: TodayCard }) {
   return (
     <Link
       to={card.href}
-      className="ruled relative block rounded-card border border-line bg-card p-8 shadow-card-lifted transition-transform hover:-translate-y-0.5"
+      className="relative block rounded-card bg-card p-8 shadow-lifted transition-transform hover:-translate-y-0.5"
     >
       {card.overdue && (
         <span
           aria-hidden="true"
-          className="absolute top-6 right-6 h-3 w-3 rounded-full bg-rust"
+          className="absolute top-6 right-6 h-3 w-3 rounded-full bg-accent"
         />
       )}
       {card.dueLabel && (
         <span
-          className={`font-mono text-xs font-semibold tracking-wide ${
-            card.overdue ? 'text-rust' : 'text-ink-dim'
+          className={`text-xs font-semibold tracking-[0.06em] uppercase ${
+            card.overdue ? 'text-accent' : 'text-ink-dim'
           }`}
         >
           {card.dueLabel.toUpperCase()}
@@ -184,7 +179,7 @@ function HeroCard({ card }: { card: TodayCard }) {
       )}
       <h2 className="mt-2 font-display text-3xl text-ink">{card.title}</h2>
       {card.subtitle && (
-        <p className="mt-2 font-mono text-sm text-ink-dim">{card.subtitle}</p>
+        <p className="mt-2 text-sm text-ink-dim">{card.subtitle}</p>
       )}
     </Link>
   )
@@ -194,24 +189,22 @@ function TodayCardTile({ card }: { card: TodayCard }) {
   return (
     <Link
       to={card.href}
-      className="ruled relative block rounded-card border border-line bg-card p-5 shadow-card transition-shadow hover:shadow-card-lifted"
+      className="relative block rounded-card bg-card p-5 shadow-card transition-shadow hover:shadow-lifted"
     >
       {card.overdue && (
         <span
           aria-hidden="true"
-          className="absolute top-4 right-4 h-2.5 w-2.5 rounded-full bg-rust"
+          className="absolute top-4 right-4 h-2.5 w-2.5 rounded-full bg-accent"
         />
       )}
       {card.dueLabel && (
-        <span className="font-mono text-[11px] font-semibold tracking-wide text-rust">
+        <span className="text-[11px] font-semibold tracking-[0.06em] text-accent uppercase">
           {card.dueLabel.toUpperCase()}
         </span>
       )}
       <h3 className="mt-1 font-display text-xl text-ink">{card.title}</h3>
       {card.subtitle && (
-        <p className="mt-1 truncate font-mono text-xs text-ink-dim">
-          {card.subtitle}
-        </p>
+        <p className="mt-1 truncate text-xs text-ink-dim">{card.subtitle}</p>
       )}
     </Link>
   )

@@ -26,7 +26,7 @@ function AccountPage() {
     <AppShell>
       <h1 className="font-display text-4xl text-ink">Account</h1>
 
-      <section className="ruled mt-8 rounded-card border border-line bg-card p-6 shadow-card">
+      <section className="mt-8 rounded-card bg-card p-6 shadow-card">
         <h2 className="font-display text-2xl text-ink">Telegram reminders</h2>
         {!status.configured ? (
           <p className="mt-2 text-sm text-ink-dim">
@@ -61,12 +61,12 @@ function TelegramLinkPanel({ linked }: { linked: boolean }) {
   if (linked && !deepLink) {
     return (
       <p className="mt-2 text-sm text-ink-dim">
-        Linked — chore reminders you turn on will DM you here.{' '}
+        Linked — reminders you turn on will DM you here.{' '}
         <button
           type="button"
           onClick={handleLink}
           disabled={submitting}
-          className="text-rust underline decoration-dotted underline-offset-4 disabled:opacity-50"
+          className="text-accent underline decoration-dotted underline-offset-4 disabled:opacity-50"
         >
           Re-link
         </button>
@@ -80,12 +80,12 @@ function TelegramLinkPanel({ linked }: { linked: boolean }) {
         Link your Telegram to get a DM before a chore is due.
       </p>
       {deepLink ? (
-        <p className="mt-3 font-mono text-sm text-ink">
+        <p className="mt-3 text-sm text-ink">
           <a
             href={deepLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-rust underline decoration-dotted underline-offset-4"
+            className="text-accent underline decoration-dotted underline-offset-4"
           >
             Open Telegram to finish linking
           </a>{' '}
@@ -96,7 +96,7 @@ function TelegramLinkPanel({ linked }: { linked: boolean }) {
           type="button"
           onClick={handleLink}
           disabled={submitting}
-          className="mt-3 rounded-tab bg-rust px-4 py-3 text-sm font-medium text-card disabled:opacity-50"
+          className="btn-primary btn-compact mt-3"
         >
           Get a link
         </button>
