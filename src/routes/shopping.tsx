@@ -10,6 +10,7 @@ import {
   CheckIcon,
   EditIcon,
   FlagIcon,
+  FolderIcon,
   GripIcon,
   PlusIcon,
   TrashIcon,
@@ -49,6 +50,8 @@ import type {
   ItemView,
   RecentlyBoughtView,
 } from '#/modules/shopping/repo'
+import { UNCATEGORIZED, buildBoard } from '#/modules/shopping/board'
+import type { Board } from '#/modules/shopping/board'
 
 // Sentinel for the segmented control (§2.12) — SegmentedControl's options
 // are string-keyed, and `null` isn't a legal option value, so the form
@@ -114,7 +117,7 @@ function ShoppingPage() {
   // target looked up against live loader data so the sheet closes itself
   // if the item disappears.
   const [itemSheet, setItemSheet] = useState<{
-    kind: 'edit' | 'reminders' | 'priority'
+    kind: 'edit' | 'reminders' | 'priority' | 'move'
     id: string
   } | null>(null)
   const activeItem = itemSheet
@@ -177,29 +180,10 @@ function ShoppingPage() {
     })
   }
 
-  const grouped = new Map<string | null, ItemView[]>()
-  for (const item of data.items) {
-    if (item.isChecked || pendingDeleteIds.has(item.id)) continue
-    const key = item.categoryId
-    const list = grouped.get(key) ?? []
-    list.push(item)
-    grouped.set(key, list)
-  }
-
-  const orderedGroups: { category: CategoryView | null; items: ItemView[] }[] =
-    [
-      ...data.categories.map((category) => ({
-        category,
-        items: grouped.get(category.id) ?? [],
-      })),
-      ...(grouped.has(null)
-        ? [{ category: null, items: grouped.get(null) ?? [] }]
-        : []),
-    ].filter((g) => g.items.length > 0)
-
-  const itemCountByCategory = new Map(
-    data.categories.map((c) => [c.id, grouped.get(c.id)?.length ?? 0]),
+  const visibleItems = data.items.filter(
+    (i) => !i.isChecked && !pendingDeleteIds.has(i.id),
   )
+  const itemsById = new Map(data.items.map((i) => [i.id, i]))
 
   const checkedItems = data.items.filter((i) => i.isChecked)
   const memberName = new Map(
@@ -236,46 +220,19 @@ function ShoppingPage() {
         </button>
       </div>
 
-      {orderedGroups.length === 0 ? (
-        <p className="mt-8 text-ink-dim">
-          The list is empty — add something above.
-        </p>
-      ) : (
-        <div className="mt-8 flex flex-col gap-10">
-          {orderedGroups.map((group, gi) => (
-            <section key={group.category?.id ?? 'uncategorized'}>
-              <h2 className="text-xs font-semibold tracking-wide text-ink-dim uppercase">
-                {group.category?.name ?? 'Uncategorized'}
-              </h2>
-              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {group.items.map((item, i) => (
-                  <div
-                    key={item.id}
-                    className="rise"
-                    style={{ animationDelay: `${(gi * 4 + i) * 50}ms` }}
-                  >
-                    <ItemCard
-                      item={item}
-                      memberName={memberName}
-                      onChange={refresh}
-                      onRequestDelete={() =>
-                        requestDeleteItem(item.id, item.name)
-                      }
-                      onEdit={() => setItemSheet({ kind: 'edit', id: item.id })}
-                      onRemind={() =>
-                        setItemSheet({ kind: 'reminders', id: item.id })
-                      }
-                      onSetPriority={() =>
-                        setItemSheet({ kind: 'priority', id: item.id })
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+      <ShoppingList
+        categories={data.categories}
+        items={visibleItems}
+        hiddenIds={pendingDeleteIds}
+        itemsById={itemsById}
+        memberName={memberName}
+        onEdit={(id) => setItemSheet({ kind: 'edit', id })}
+        onRemind={(id) => setItemSheet({ kind: 'reminders', id })}
+        onSetPriority={(id) => setItemSheet({ kind: 'priority', id })}
+        onMove={(id) => setItemSheet({ kind: 'move', id })}
+        onRequestDelete={requestDeleteItem}
+        onChange={refresh}
+      />
 
       <DoneStack
         labelClosed={`Already bought · ${checkedItems.length}`}
@@ -305,7 +262,14 @@ function ShoppingPage() {
       />
       <CategoryOrder
         categories={data.categories}
-        itemCounts={itemCountByCategory}
+        itemCounts={
+          new Map(
+            data.categories.map((c) => [
+              c.id,
+              visibleItems.filter((i) => i.categoryId === c.id).length,
+            ]),
+          )
+        }
         onChange={refresh}
       />
 
@@ -371,6 +335,95 @@ function ShoppingPage() {
   )
 }
 
+/**
+ * The grouped shopping list, rendered from a `board` state (category order
+ * + item ids per bucket). Batch B wraps this in one `<DndContext>`; for now
+ * it just renders. The board is rebuilt from loader data on every change,
+ * so a failed drag save snaps back to server truth.
+ */
+function ShoppingList({
+  categories,
+  items,
+  hiddenIds,
+  itemsById,
+  memberName,
+  onEdit,
+  onRemind,
+  onSetPriority,
+  onMove,
+  onRequestDelete,
+  onChange,
+}: {
+  categories: CategoryView[]
+  items: ItemView[]
+  hiddenIds: ReadonlySet<string>
+  itemsById: Map<string, ItemView>
+  memberName: Map<string, string>
+  onEdit: (id: string) => void
+  onRemind: (id: string) => void
+  onSetPriority: (id: string) => void
+  onMove: (id: string) => void
+  onRequestDelete: (id: string, name: string) => void
+  onChange: () => Promise<void>
+}) {
+  const [board, setBoard] = useState<Board>(() =>
+    buildBoard({ categories, items }, hiddenIds),
+  )
+
+  useEffect(() => {
+    setBoard(buildBoard({ categories, items }, hiddenIds))
+  }, [categories, items, hiddenIds])
+
+  const categoryById = new Map(categories.map((c) => [c.id, c]))
+  const orderedKeys = [
+    ...board.categoryOrder,
+    ...(board.itemsByBucket[UNCATEGORIZED]?.length ? [UNCATEGORIZED] : []),
+  ]
+
+  if (orderedKeys.length === 0) {
+    return (
+      <p className="mt-8 text-ink-dim">
+        The list is empty — add something above.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-8 flex flex-col gap-10">
+      {orderedKeys.map((key) => {
+        const category = key === UNCATEGORIZED ? null : categoryById.get(key)
+        const itemIds = board.itemsByBucket[key] ?? []
+        return (
+          <section key={key}>
+            <h2 className="text-xs font-semibold tracking-wide text-ink-dim uppercase">
+              {category ? category.name : 'Uncategorized'}
+            </h2>
+            <div className="mt-3 flex flex-col gap-4">
+              {itemIds.map((id) => {
+                const item = itemsById.get(id)
+                if (!item) return null
+                return (
+                  <ItemCard
+                    key={id}
+                    item={item}
+                    memberName={memberName}
+                    onChange={onChange}
+                    onRequestDelete={() => onRequestDelete(item.id, item.name)}
+                    onEdit={() => onEdit(item.id)}
+                    onRemind={() => onRemind(item.id)}
+                    onSetPriority={() => onSetPriority(item.id)}
+                    onMove={() => onMove(item.id)}
+                  />
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
 function ItemCard({
   item,
   memberName,
@@ -379,6 +432,7 @@ function ItemCard({
   onEdit,
   onRemind,
   onSetPriority,
+  onMove,
 }: {
   item: ItemView
   memberName: Map<string, string>
@@ -387,6 +441,7 @@ function ItemCard({
   onEdit: () => void
   onRemind: () => void
   onSetPriority: () => void
+  onMove: () => void
 }) {
   const { status, error, run } = useHouseholdMutation()
 
@@ -452,6 +507,12 @@ function ItemCard({
               ? `Priority: ${item.priority}`
               : 'Set priority',
             onClick: onSetPriority,
+          },
+          {
+            key: 'move',
+            icon: <FolderIcon className="h-[18px] w-[18px]" />,
+            label: 'Move to category',
+            onClick: onMove,
           },
           {
             key: 'edit',
