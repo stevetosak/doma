@@ -1,0 +1,78 @@
+# Changelog
+
+## [0.3.0](https://github.com/stevetosak/doma/compare/v0.2.0...v0.3.0) (2026-09-08)
+
+
+### Features
+
+* 'Move to category' sheet as the non-pointer path ([0250d35](https://github.com/stevetosak/doma/commit/0250d35c984ae69ddfd8d7e5bb58656eaa44a711))
+* add BellIcon and the shared ReminderListEditor shell ([e37b2d4](https://github.com/stevetosak/doma/commit/e37b2d43771b2614d4ecaa83b3f614d2c0c8cd38))
+* add createItemRecord/deleteItemRecord and generic reminders CRUD ([a5c0df8](https://github.com/stevetosak/doma/commit/a5c0df85d1fd017155b9d0887b9400e1033fc64d))
+* add escapeHtml for Telegram HTML-mode messages ([cb7adef](https://github.com/stevetosak/doma/commit/cb7adefc1bf87257b2dd957a162d7b3300f4f69f))
+* add icons and HTML-escaped titles to reminder messages ([01e3857](https://github.com/stevetosak/doma/commit/01e3857492c7724dc9d4b3a268eea59dfff21e0c))
+* add moveItem repo fn + moveItemAction for shopping drops ([2890ac1](https://github.com/stevetosak/doma/commit/2890ac176e00226d1176162c27be8d272f6f5b28))
+* add pure board module for shopping drag order ([4cc9dc5](https://github.com/stevetosak/doma/commit/4cc9dc5a96c3c7ba7849969072ce71f0aa305b36))
+* add setChoreRemindersAction, decouple reminders from chore create/edit ([6a81b4e](https://github.com/stevetosak/doma/commit/6a81b4e090bb56fd13f0cbe0bc6cf9930ec9138d))
+* add setItemRemindersAction ([db65132](https://github.com/stevetosak/doma/commit/db651329e399d15e5fa8c60d55fb54a4c5c588d4))
+* add shared items/reminders schema ([10e00cf](https://github.com/stevetosak/doma/commit/10e00cf8c39ac959f264c41615fb4191f9b59304))
+* add shopping reminder time helpers ([1e47e7c](https://github.com/stevetosak/doma/commit/1e47e7c07e7e87f5045d1567322208bb3df97120))
+* add shopping_items.sort column for manual item order ([2290f45](https://github.com/stevetosak/doma/commit/2290f45492f5b23e15d0869d2aeaa50120cff5a4))
+* category create/rename actions; items no longer pick a category on create ([95573d8](https://github.com/stevetosak/doma/commit/95573d84ac03781bb8d5d3436e3c9d5f64c28cb4))
+* chore reminders — exact time, multiple per chore, staleness fix ([be93597](https://github.com/stevetosak/doma/commit/be935978f08d0adff894e6e8274366fc08917167))
+* chore reminders — exact time, multiple per chore, staleness fix ([1ef6a35](https://github.com/stevetosak/doma/commit/1ef6a35d050945859c54688369d061328fb48848))
+* create a shopping category inline from the list ([947f594](https://github.com/stevetosak/doma/commit/947f594add2374f991f42b396158c70ec448dc2b))
+* decouple chore reminders into their own editor sheet ([b26ffdc](https://github.com/stevetosak/doma/commit/b26ffdc00aed8f5a375eedb1a324246bdd499f34))
+* decoupled chore reminder editor (M9) ([49bff30](https://github.com/stevetosak/doma/commit/49bff30c0d69257326b3a7488903038fc8b28ed2))
+* drag preview, drop highlight, offline-honest save for shopping DnD ([d06e718](https://github.com/stevetosak/doma/commit/d06e71868d9b4ebb756860002188786777a3a676))
+* drag shopping items to reorder and re-file into categories ([29be02f](https://github.com/stevetosak/doma/commit/29be02f33f931438e37508c6599bb720f20ba3d0))
+* IconRail can host a drag-handle slot ([d9893bc](https://github.com/stevetosak/doma/commit/d9893bc1b714d39c43dcc2ca8e063053667631d7))
+* inline mark-done button on Telegram reminders ([7ef99fb](https://github.com/stevetosak/doma/commit/7ef99fb9d24fa42cdd94104e97ed2e940d174a69))
+* keep uncategorized visible as a drop target; flat list with no categories ([f6cc27e](https://github.com/stevetosak/doma/commit/f6cc27ee1f4ab29c59e79bf4a015c16c44257974))
+* M8 — Telegram reminders and nightly chore materialize ([86e8be3](https://github.com/stevetosak/doma/commit/86e8be36815c484d98ea9848883a0aa6f863ba6f))
+* migrate notifications to a single reminder_id pointer ([7763177](https://github.com/stevetosak/doma/commit/7763177512bf6e462f3f5ae10b01468e1cf5cde2))
+* migrate to the shared items/reminders schema ([715776f](https://github.com/stevetosak/doma/commit/715776f09b468e18afa594783ce1f37ae91968e3))
+* notify layer liveness check (M9) ([07e1f83](https://github.com/stevetosak/doma/commit/07e1f8376983f1efc6dce983d03b361d455a15ba))
+* rename a shopping category inline from its header ([ea82bf6](https://github.com/stevetosak/doma/commit/ea82bf6623058f4614a07e2512347d58f92a636b))
+* reorder shopping categories by dragging their headers ([ad64c02](https://github.com/stevetosak/doma/commit/ad64c020e03529a54924281fd96a79c5c6d6a6ff))
+* replace one-step category reorder with a full-order action ([ad163af](https://github.com/stevetosak/doma/commit/ad163af0ca557f2011d60f3d4c0f8d95d0211351))
+* rewire chores reminders onto the shared items/reminders tables ([0b07f84](https://github.com/stevetosak/doma/commit/0b07f84f93e4b7bab336334c9eaf261e3adf3167))
+* rewire shopping items onto createItemRecord/deleteItemRecord ([4a99e06](https://github.com/stevetosak/doma/commit/4a99e060c7c4e6507c272a33ba2afbfdee765f92))
+* semver via release-please + git-describe version string ([8324916](https://github.com/stevetosak/doma/commit/83249161f005941825fc3f5e6878df14da7aa10c))
+* shared items/reminders schema + polymorphic item enforcement ([fe35c8e](https://github.com/stevetosak/doma/commit/fe35c8e8ccf1a0b527e938e594507cf47b96ba86))
+* shopping drag-and-drop — categories and item placement ([ad778b6](https://github.com/stevetosak/doma/commit/ad778b6316cc8bf1210065cadbb685ab73842925))
+* shopping item reminders — repo + scheduling ([f7a1b89](https://github.com/stevetosak/doma/commit/f7a1b89ed517dd7615571a5ca0e1a6a0db14f973))
+* shopping item reminders (M9) ([8ff7bc0](https://github.com/stevetosak/doma/commit/8ff7bc0c835e059aa911f56d535428cc82bc7809))
+* shopping item reminders UI ([6e8212d](https://github.com/stevetosak/doma/commit/6e8212d83bc10845abe59d706e14885e9d418eb3))
+* simplify existence check, add kind-keyed liveness check ([f981977](https://github.com/stevetosak/doma/commit/f981977087689275a4da1175280af4388206d4a0))
+* Telegram HTML formatting + inline mark-done (M9) ([e20c30c](https://github.com/stevetosak/doma/commit/e20c30cd227c52a12d29a1ac5d86ae534e28d0f9))
+* Telegram HTML parse mode, inline keyboard, mark-done callback wiring ([b48179b](https://github.com/stevetosak/doma/commit/b48179b278831b7ae6fddff72fe5b330b6ac609b))
+
+
+### Fixes
+
+* address final review findings for chore reminders editor ([88d85b6](https://github.com/stevetosak/doma/commit/88d85b666085aaa2ce45ea771fa26052d025ad43))
+* address final review findings on generic items/reminders branch ([4d3b807](https://github.com/stevetosak/doma/commit/4d3b807c1936770f28440ec9b90081e56225ec9b))
+* correct migration 0010's journal timestamp so it actually runs ([2720cd4](https://github.com/stevetosak/doma/commit/2720cd4fdc541f19a28e85d895b0550aa88c187a))
+* don't fail Docker build when husky is unavailable ([df0879c](https://github.com/stevetosak/doma/commit/df0879c0d9c2ed5ea37b42502f31c981e9bcde4d))
+* don't fail npm ci when husky is unavailable (Docker build) ([0aada16](https://github.com/stevetosak/doma/commit/0aada167a82654c0fc73b7010a170d14b436263f))
+* exclude the Telegram webhook route from CSRF validation ([5027c31](https://github.com/stevetosak/doma/commit/5027c3128093f347073115bc36582092ab7e922b))
+* fall back to legacy existenceCheck.id for pre-deploy notify jobs ([419c7b1](https://github.com/stevetosak/doma/commit/419c7b124efaf5939ca7d016725ef3ef96f53c24))
+* guard setItemRemindersAction against deleted items, validate reminder datetime ([4bd7acd](https://github.com/stevetosak/doma/commit/4bd7acd6375739c0e7c5ab86613e75678c9e4ece))
+* host card edit/reminder/priority sheets at page level ([aedfca6](https://github.com/stevetosak/doma/commit/aedfca69ff53ac41c05b519121aff096f8912985))
+* host chore/item edit, reminder & priority sheets at page level ([47e9cc4](https://github.com/stevetosak/doma/commit/47e9cc4874b3ddb6fcbbe150e0e0d150375d9ede))
+* ignore generated CHANGELOG, guard release-please concurrency, restore Dockerfile cache ([d611983](https://github.com/stevetosak/doma/commit/d611983e3a1701d134b85d8ca2e8f59e862ad522))
+* keep pg-boss/grammy out of the client bundle ([c3a6092](https://github.com/stevetosak/doma/commit/c3a60922993a1626e7657ae44e6888b4aa4f32bc))
+* move ToastProvider above the route tree, not inside AppShell ([4217a59](https://github.com/stevetosak/doma/commit/4217a59004c872b3236263dc8b1639f5ceab72d7))
+* pg-boss/grammy leaking into the client bundle ([a96402e](https://github.com/stevetosak/doma/commit/a96402e8da21bb53bbcad63d24c7bafa5224d891))
+* production — /shopping crashes, ToastProvider not in scope ([e7ba60c](https://github.com/stevetosak/doma/commit/e7ba60c6116cd8cc83ce7baacb97223456b79628))
+* production — migration 0010 (priority column) never actually ran ([31e406f](https://github.com/stevetosak/doma/commit/31e406f8db608b7823166387b418c26c0eca5900))
+* reminder editor overflow/height, form-field sizing, positive day-offset input ([e9c54e1](https://github.com/stevetosak/doma/commit/e9c54e19b31d6327aa256c38de81743aa2bcfae7))
+* reminder-editor overflow/height, form-field sizing, positive day-offset input ([28614d4](https://github.com/stevetosak/doma/commit/28614d4cd263de7ba751ba1dcfc7d0222225fe79))
+* restrict Telegram linking/mark-done to private chats, make mark-done idempotent and error-safe ([11c71ba](https://github.com/stevetosak/doma/commit/11c71ba4132c8334ac2b3d61c03a85343e683f5f))
+* Telegram webhook route was 403ing on the global CSRF middleware ([e67d514](https://github.com/stevetosak/doma/commit/e67d514b95adb11d3876b92082cde068b05eae4c))
+
+
+### Refactors
+
+* render the shopping list from a board state module ([3d3a8a1](https://github.com/stevetosak/doma/commit/3d3a8a13ae8be6ca75835914c1f231fada6f80d8))
+* single appVersion() read point for footer and health ([791161c](https://github.com/stevetosak/doma/commit/791161cd3df319aed4f497152f332d523c8102e7))
