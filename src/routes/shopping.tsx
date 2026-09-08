@@ -8,10 +8,11 @@ import {
   PointerSensor,
   TouchSensor,
   closestCorners,
+  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
 import {
   SortableContext,
   arrayMove,
@@ -56,6 +57,7 @@ import {
   deleteCategoryAction,
   getShoppingData,
   MAX_ITEM_REMINDERS,
+  moveItemAction,
   reAddItemAction,
   removeItemAction,
   reorderCategoriesAction,
@@ -70,7 +72,12 @@ import type {
   ItemView,
   RecentlyBoughtView,
 } from '#/modules/shopping/repo'
-import { UNCATEGORIZED, buildBoard } from '#/modules/shopping/board'
+import {
+  UNCATEGORIZED,
+  bucketKeyToCategoryId,
+  buildBoard,
+  placeItem,
+} from '#/modules/shopping/board'
 import type { Board } from '#/modules/shopping/board'
 
 // Sentinel for the segmented control (§2.12) — SegmentedControl's options
@@ -409,20 +416,82 @@ function ShoppingList({
     )
   }
 
+  function bucketOf(id: string): string | null {
+    for (const [key, ids] of Object.entries(board.itemsByBucket)) {
+      if (ids.includes(id)) return key
+    }
+    return null
+  }
+
+  function resolveOverBucket(overId: string, overData: unknown): string | null {
+    const data = overData as { type?: string; bucketKey?: string } | undefined
+    if (data?.type === 'bucket' && data.bucketKey) return data.bucketKey
+    if (data?.type === 'item') return bucketOf(overId)
+    if (board.itemsByBucket[overId]) return overId
+    return null
+  }
+
   function onDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id))
+  }
+
+  function onDragOver(e: DragOverEvent) {
+    const { active, over } = e
+    if (!over || active.data.current?.type !== 'item') return
+    const activeBucket = String(active.data.current.bucketKey)
+    const overBucket = resolveOverBucket(String(over.id), over.data.current)
+    if (!overBucket || overBucket === activeBucket) return
+    setBoard((b) => {
+      const overIds = b.itemsByBucket[overBucket] ?? []
+      const overIndex =
+        (over.data.current as { type?: string } | undefined)?.type === 'item'
+          ? overIds.indexOf(String(over.id))
+          : overIds.length
+      return placeItem(
+        b,
+        String(active.id),
+        overBucket,
+        overIndex < 0 ? overIds.length : overIndex,
+      )
+    })
+    active.data.current.bucketKey = overBucket
   }
 
   function onDragEnd(e: DragEndEvent) {
     setActiveId(null)
     const { active, over } = e
-    if (!over || active.data.current?.type !== 'category') return
-    const from = board.categoryOrder.indexOf(String(active.id).slice(4))
-    const to = board.categoryOrder.indexOf(String(over.id).slice(4))
-    if (from === -1 || to === -1 || from === to) return
-    const next = arrayMove(board.categoryOrder, from, to)
-    setBoard((b) => ({ ...b, categoryOrder: next }))
-    persistCategoryOrder(next)
+    if (!over) return
+
+    if (active.data.current?.type === 'category') {
+      const from = board.categoryOrder.indexOf(String(active.id).slice(4))
+      const to = board.categoryOrder.indexOf(String(over.id).slice(4))
+      if (from === -1 || to === -1 || from === to) return
+      const next = arrayMove(board.categoryOrder, from, to)
+      setBoard((b) => ({ ...b, categoryOrder: next }))
+      persistCategoryOrder(next)
+      return
+    }
+
+    if (active.data.current?.type === 'item') {
+      const bucket = resolveOverBucket(String(over.id), over.data.current)
+      if (!bucket) return
+      const ids = board.itemsByBucket[bucket] ?? []
+      let targetIndex =
+        (over.data.current as { type?: string } | undefined)?.type === 'item'
+          ? ids.indexOf(String(over.id))
+          : ids.length
+      if (targetIndex < 0) targetIndex = ids.length
+      const next = placeItem(board, String(active.id), bucket, targetIndex)
+      setBoard(next)
+      const orderedItemIds = next.itemsByBucket[bucket] ?? []
+      void moveItemAction({
+        data: {
+          itemId: String(active.id),
+          categoryId: bucketKeyToCategoryId(bucket),
+          orderedItemIds,
+        },
+      }).then(() => onChange())
+    }
   }
 
   if (orderedKeys.length === 0) {
@@ -438,6 +507,7 @@ function ShoppingList({
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={onDragStart}
+      onDragOver={onDragOver}
       onDragEnd={onDragEnd}
     >
       <div className="mt-8 flex flex-col gap-10">
@@ -508,6 +578,10 @@ function CategoryGroup({
     data: { type: 'category' },
     disabled: category == null,
   })
+  const droppable = useDroppable({
+    id: bucketKey,
+    data: { type: 'bucket', bucketKey },
+  })
 
   return (
     <section
@@ -549,31 +623,44 @@ function CategoryGroup({
           </button>
         )}
       </header>
-      <div className="mt-3 flex flex-col gap-4">
-        {itemIds.map((id) => {
-          const item = itemsById.get(id)
-          if (!item) return null
-          return (
-            <ItemCard
-              key={id}
-              item={item}
-              memberName={memberName}
-              onChange={onChange}
-              onRequestDelete={() => onRequestDelete(item.id, item.name)}
-              onEdit={() => onEdit(item.id)}
-              onRemind={() => onRemind(item.id)}
-              onSetPriority={() => onSetPriority(item.id)}
-              onMove={() => onMove(item.id)}
-            />
-          )
-        })}
-      </div>
+      <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+        <div
+          ref={droppable.setNodeRef}
+          className="mt-3 flex min-h-[44px] flex-col gap-4"
+        >
+          {itemIds.length === 0 ? (
+            <p className="rounded-card border border-dashed border-line px-4 py-3 text-sm text-ink-dim">
+              Drag items here
+            </p>
+          ) : (
+            itemIds.map((id) => {
+              const item = itemsById.get(id)
+              if (!item) return null
+              return (
+                <ItemCard
+                  key={id}
+                  item={item}
+                  bucketKey={bucketKey}
+                  memberName={memberName}
+                  onChange={onChange}
+                  onRequestDelete={() => onRequestDelete(item.id, item.name)}
+                  onEdit={() => onEdit(item.id)}
+                  onRemind={() => onRemind(item.id)}
+                  onSetPriority={() => onSetPriority(item.id)}
+                  onMove={() => onMove(item.id)}
+                />
+              )
+            })
+          )}
+        </div>
+      </SortableContext>
     </section>
   )
 }
 
 function ItemCard({
   item,
+  bucketKey,
   memberName,
   onChange,
   onRequestDelete,
@@ -583,6 +670,7 @@ function ItemCard({
   onMove,
 }: {
   item: ItemView
+  bucketKey: string
   memberName: Map<string, string>
   onChange: () => Promise<void>
   onRequestDelete: () => void
@@ -592,6 +680,10 @@ function ItemCard({
   onMove: () => void
 }) {
   const { status, error, run } = useHouseholdMutation()
+  const sortable = useSortable({
+    id: item.id,
+    data: { type: 'item', bucketKey },
+  })
 
   async function markBought() {
     await run(() =>
@@ -603,80 +695,102 @@ function ItemCard({
   const busy = status === 'pending' || status === 'retrying'
 
   return (
-    <ActionCard
-      onComplete={!busy ? markBought : undefined}
-      onNegative={onRequestDelete}
-      completeLabel="✓ Got it"
-      negativeLabel="Delete"
-      completeAriaLabel="Mark bought"
-      negativeAriaLabel="Delete item"
+    <div
+      ref={sortable.setNodeRef}
+      style={{
+        transform: CSS.Translate.toString(sortable.transform),
+        transition: sortable.transition,
+        opacity: sortable.isDragging ? 0.4 : undefined,
+      }}
     >
-      <div className="p-5">
-        <span className="flex items-center gap-1.5 text-lg text-ink">
-          {item.priority && (
-            <FlagIcon
-              className={`h-3.5 w-3.5 shrink-0 ${PRIORITY_TEXT_CLASS[item.priority]}`}
-              filled
-            />
-          )}
-          {item.name}
-        </span>
-        {(item.quantity != null || item.unit) && (
-          <span className="mt-1 block text-xs text-ink-dim">
-            {item.quantity ?? ''} {item.unit ?? ''}
-          </span>
-        )}
-        {item.note && <p className="mt-2 text-sm text-ink-dim">{item.note}</p>}
-        {item.addedBy && memberName.get(item.addedBy) && (
-          <p className="mt-3 text-[11px] text-ink-dim">
-            added by {memberName.get(item.addedBy)}
-          </p>
-        )}
-        <MutationStatus status={status} error={error} />
-      </div>
-      <IconRail
-        actions={[
-          {
-            key: 'remind',
-            icon: <BellIcon className="h-[18px] w-[18px]" />,
-            label: 'Item reminders',
-            onClick: onRemind,
-            badge: item.reminders.length,
-          },
-          {
-            key: 'priority',
-            icon: (
+      <ActionCard
+        onComplete={!busy ? markBought : undefined}
+        onNegative={onRequestDelete}
+        completeLabel="✓ Got it"
+        negativeLabel="Delete"
+        completeAriaLabel="Mark bought"
+        negativeAriaLabel="Delete item"
+      >
+        <div className="p-5">
+          <span className="flex items-center gap-1.5 text-lg text-ink">
+            {item.priority && (
               <FlagIcon
-                className={`h-[18px] w-[18px] ${item.priority ? PRIORITY_TEXT_CLASS[item.priority] : ''}`}
-                filled={item.priority != null}
+                className={`h-3.5 w-3.5 shrink-0 ${PRIORITY_TEXT_CLASS[item.priority]}`}
+                filled
               />
-            ),
-            label: item.priority
-              ? `Priority: ${item.priority}`
-              : 'Set priority',
-            onClick: onSetPriority,
-          },
-          {
-            key: 'move',
-            icon: <FolderIcon className="h-[18px] w-[18px]" />,
-            label: 'Move to category',
-            onClick: onMove,
-          },
-          {
-            key: 'edit',
-            icon: <EditIcon className="h-[18px] w-[18px]" />,
-            label: 'Edit item',
-            onClick: onEdit,
-          },
-          {
-            key: 'delete',
-            icon: <TrashIcon className="h-[18px] w-[18px]" />,
-            label: 'Delete item',
-            onClick: onRequestDelete,
-          },
-        ]}
-      />
-    </ActionCard>
+            )}
+            {item.name}
+          </span>
+          {(item.quantity != null || item.unit) && (
+            <span className="mt-1 block text-xs text-ink-dim">
+              {item.quantity ?? ''} {item.unit ?? ''}
+            </span>
+          )}
+          {item.note && (
+            <p className="mt-2 text-sm text-ink-dim">{item.note}</p>
+          )}
+          {item.addedBy && memberName.get(item.addedBy) && (
+            <p className="mt-3 text-[11px] text-ink-dim">
+              added by {memberName.get(item.addedBy)}
+            </p>
+          )}
+          <MutationStatus status={status} error={error} />
+        </div>
+        <IconRail
+          actions={[
+            {
+              key: 'drag',
+              icon: <GripIcon className="h-[18px] w-[18px]" />,
+              label: 'Reorder item',
+              handleProps: {
+                ref: sortable.setActivatorNodeRef,
+                ...sortable.attributes,
+                ...sortable.listeners,
+                className: 'cursor-grab touch-none',
+              },
+            },
+            {
+              key: 'remind',
+              icon: <BellIcon className="h-[18px] w-[18px]" />,
+              label: 'Item reminders',
+              onClick: onRemind,
+              badge: item.reminders.length,
+            },
+            {
+              key: 'priority',
+              icon: (
+                <FlagIcon
+                  className={`h-[18px] w-[18px] ${item.priority ? PRIORITY_TEXT_CLASS[item.priority] : ''}`}
+                  filled={item.priority != null}
+                />
+              ),
+              label: item.priority
+                ? `Priority: ${item.priority}`
+                : 'Set priority',
+              onClick: onSetPriority,
+            },
+            {
+              key: 'move',
+              icon: <FolderIcon className="h-[18px] w-[18px]" />,
+              label: 'Move to category',
+              onClick: onMove,
+            },
+            {
+              key: 'edit',
+              icon: <EditIcon className="h-[18px] w-[18px]" />,
+              label: 'Edit item',
+              onClick: onEdit,
+            },
+            {
+              key: 'delete',
+              icon: <TrashIcon className="h-[18px] w-[18px]" />,
+              label: 'Delete item',
+              onClick: onRequestDelete,
+            },
+          ]}
+        />
+      </ActionCard>
+    </div>
   )
 }
 
