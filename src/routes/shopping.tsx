@@ -107,6 +107,20 @@ function ShoppingPage() {
   const router = useRouter()
   useLiveSync()
   const [addOpen, setAddOpen] = useState(false)
+  // Edit / reminders / priority sheets are hosted here, once each, not
+  // inside ItemCard. A Sheet is `fixed inset-0`; a card sits in a `.rise`
+  // wrapper whose transform animation makes it the containing block for
+  // fixed descendants, which pinned a card-hosted sheet to the card and
+  // pushed it off the top of the screen. One shared bit of state, the
+  // target looked up against live loader data so the sheet closes itself
+  // if the item disappears.
+  const [itemSheet, setItemSheet] = useState<{
+    kind: 'edit' | 'reminders' | 'priority'
+    id: string
+  } | null>(null)
+  const activeItem = itemSheet
+    ? (data.items.find((i) => i.id === itemSheet.id) ?? null)
+    : null
   const { showToast } = useToast()
   // Swipe-left/rail delete (§2.1/§2.2) is optimistic-with-undo: the item
   // disappears immediately, the actual (irreversible) removeItemAction
@@ -203,6 +217,12 @@ function ShoppingPage() {
     await refresh()
   }
 
+  async function setItemPriority(itemId: string, next: ItemPriority | null) {
+    setItemSheet(null)
+    await setItemPriorityAction({ data: { itemId, priority: next } })
+    await refresh()
+  }
+
   return (
     <AppShell>
       <div className="flex items-center justify-between gap-4">
@@ -237,12 +257,17 @@ function ShoppingPage() {
                   >
                     <ItemCard
                       item={item}
-                      categories={data.categories}
                       memberName={memberName}
-                      timezone={data.timezone}
                       onChange={refresh}
                       onRequestDelete={() =>
                         requestDeleteItem(item.id, item.name)
+                      }
+                      onEdit={() => setItemSheet({ kind: 'edit', id: item.id })}
+                      onRemind={() =>
+                        setItemSheet({ kind: 'reminders', id: item.id })
+                      }
+                      onSetPriority={() =>
+                        setItemSheet({ kind: 'priority', id: item.id })
                       }
                     />
                   </div>
@@ -296,29 +321,80 @@ function ShoppingPage() {
           onCancel={() => setAddOpen(false)}
         />
       </Sheet>
+
+      <Sheet
+        open={itemSheet?.kind === 'edit' && activeItem != null}
+        onClose={() => setItemSheet(null)}
+        title="Edit item"
+      >
+        {activeItem && (
+          <ItemEditForm
+            item={activeItem}
+            categories={data.categories}
+            currentCategoryName={
+              data.categories.find((c) => c.id === activeItem.categoryId)?.name
+            }
+            onSaved={async () => {
+              setItemSheet(null)
+              await refresh()
+            }}
+            onCancel={() => setItemSheet(null)}
+          />
+        )}
+      </Sheet>
+
+      <Sheet
+        open={itemSheet?.kind === 'reminders' && activeItem != null}
+        onClose={() => setItemSheet(null)}
+        title="Item reminders"
+      >
+        {activeItem && (
+          <ItemReminderForm
+            item={activeItem}
+            timezone={data.timezone}
+            onSaved={async () => {
+              setItemSheet(null)
+              await refresh()
+            }}
+            onCancel={() => setItemSheet(null)}
+          />
+        )}
+      </Sheet>
+
+      <Sheet
+        open={itemSheet?.kind === 'priority' && activeItem != null}
+        onClose={() => setItemSheet(null)}
+        title="Priority"
+      >
+        {activeItem && (
+          <PrioritySheet
+            current={activeItem.priority}
+            onSelect={(next) => setItemPriority(activeItem.id, next)}
+          />
+        )}
+      </Sheet>
     </AppShell>
   )
 }
 
 function ItemCard({
   item,
-  categories,
   memberName,
-  timezone,
   onChange,
   onRequestDelete,
+  onEdit,
+  onRemind,
+  onSetPriority,
 }: {
   item: ItemView
-  categories: CategoryView[]
   memberName: Map<string, string>
-  timezone: string
   onChange: () => Promise<void>
   onRequestDelete: () => void
+  onEdit: () => void
+  onRemind: () => void
+  onSetPriority: () => void
 }) {
   const { status, error, run } = useHouseholdMutation()
-  const [editOpen, setEditOpen] = useState(false)
-  const [remindersOpen, setRemindersOpen] = useState(false)
-  const [priorityOpen, setPriorityOpen] = useState(false)
 
   async function markBought() {
     await run(() =>
@@ -327,130 +403,77 @@ function ItemCard({
     await onChange()
   }
 
-  async function setPriority(next: ItemPriority | null) {
-    setPriorityOpen(false)
-    await setItemPriorityAction({ data: { itemId: item.id, priority: next } })
-    await onChange()
-  }
-
   const busy = status === 'pending' || status === 'retrying'
 
   return (
-    <>
-      <ActionCard
-        onComplete={!busy ? markBought : undefined}
-        onNegative={onRequestDelete}
-        completeLabel="✓ Got it"
-        negativeLabel="Delete"
-        completeAriaLabel="Mark bought"
-        negativeAriaLabel="Delete item"
-      >
-        <div className="p-5">
-          <span className="flex items-center gap-1.5 text-lg text-ink">
-            {item.priority && (
-              <FlagIcon
-                className={`h-3.5 w-3.5 shrink-0 ${PRIORITY_TEXT_CLASS[item.priority]}`}
-                filled
-              />
-            )}
-            {item.name}
+    <ActionCard
+      onComplete={!busy ? markBought : undefined}
+      onNegative={onRequestDelete}
+      completeLabel="✓ Got it"
+      negativeLabel="Delete"
+      completeAriaLabel="Mark bought"
+      negativeAriaLabel="Delete item"
+    >
+      <div className="p-5">
+        <span className="flex items-center gap-1.5 text-lg text-ink">
+          {item.priority && (
+            <FlagIcon
+              className={`h-3.5 w-3.5 shrink-0 ${PRIORITY_TEXT_CLASS[item.priority]}`}
+              filled
+            />
+          )}
+          {item.name}
+        </span>
+        {(item.quantity != null || item.unit) && (
+          <span className="mt-1 block text-xs text-ink-dim">
+            {item.quantity ?? ''} {item.unit ?? ''}
           </span>
-          {(item.quantity != null || item.unit) && (
-            <span className="mt-1 block text-xs text-ink-dim">
-              {item.quantity ?? ''} {item.unit ?? ''}
-            </span>
-          )}
-          {item.note && (
-            <p className="mt-2 text-sm text-ink-dim">{item.note}</p>
-          )}
-          {item.addedBy && memberName.get(item.addedBy) && (
-            <p className="mt-3 text-[11px] text-ink-dim">
-              added by {memberName.get(item.addedBy)}
-            </p>
-          )}
-          <MutationStatus status={status} error={error} />
-        </div>
-        <IconRail
-          actions={[
-            {
-              key: 'remind',
-              icon: <BellIcon className="h-[18px] w-[18px]" />,
-              label: 'Item reminders',
-              onClick: () => setRemindersOpen(true),
-              badge: item.reminders.length,
-            },
-            {
-              key: 'priority',
-              icon: (
-                <FlagIcon
-                  className={`h-[18px] w-[18px] ${item.priority ? PRIORITY_TEXT_CLASS[item.priority] : ''}`}
-                  filled={item.priority != null}
-                />
-              ),
-              label: item.priority
-                ? `Priority: ${item.priority}`
-                : 'Set priority',
-              onClick: () => setPriorityOpen(true),
-            },
-            {
-              key: 'edit',
-              icon: <EditIcon className="h-[18px] w-[18px]" />,
-              label: 'Edit item',
-              onClick: () => setEditOpen(true),
-            },
-            {
-              key: 'delete',
-              icon: <TrashIcon className="h-[18px] w-[18px]" />,
-              label: 'Delete item',
-              onClick: onRequestDelete,
-            },
-          ]}
-        />
-      </ActionCard>
-
-      <Sheet
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        title="Edit item"
-      >
-        <ItemEditForm
-          item={item}
-          categories={categories}
-          currentCategoryName={
-            categories.find((c) => c.id === item.categoryId)?.name
-          }
-          onSaved={async () => {
-            setEditOpen(false)
-            await onChange()
-          }}
-          onCancel={() => setEditOpen(false)}
-        />
-      </Sheet>
-
-      <Sheet
-        open={remindersOpen}
-        onClose={() => setRemindersOpen(false)}
-        title="Item reminders"
-      >
-        <ItemReminderForm
-          item={item}
-          timezone={timezone}
-          onSaved={async () => {
-            setRemindersOpen(false)
-            await onChange()
-          }}
-          onCancel={() => setRemindersOpen(false)}
-        />
-      </Sheet>
-
-      <Sheet
-        open={priorityOpen}
-        onClose={() => setPriorityOpen(false)}
-        title="Priority"
-      >
-        <PrioritySheet current={item.priority} onSelect={setPriority} />
-      </Sheet>
-    </>
+        )}
+        {item.note && <p className="mt-2 text-sm text-ink-dim">{item.note}</p>}
+        {item.addedBy && memberName.get(item.addedBy) && (
+          <p className="mt-3 text-[11px] text-ink-dim">
+            added by {memberName.get(item.addedBy)}
+          </p>
+        )}
+        <MutationStatus status={status} error={error} />
+      </div>
+      <IconRail
+        actions={[
+          {
+            key: 'remind',
+            icon: <BellIcon className="h-[18px] w-[18px]" />,
+            label: 'Item reminders',
+            onClick: onRemind,
+            badge: item.reminders.length,
+          },
+          {
+            key: 'priority',
+            icon: (
+              <FlagIcon
+                className={`h-[18px] w-[18px] ${item.priority ? PRIORITY_TEXT_CLASS[item.priority] : ''}`}
+                filled={item.priority != null}
+              />
+            ),
+            label: item.priority
+              ? `Priority: ${item.priority}`
+              : 'Set priority',
+            onClick: onSetPriority,
+          },
+          {
+            key: 'edit',
+            icon: <EditIcon className="h-[18px] w-[18px]" />,
+            label: 'Edit item',
+            onClick: onEdit,
+          },
+          {
+            key: 'delete',
+            icon: <TrashIcon className="h-[18px] w-[18px]" />,
+            label: 'Delete item',
+            onClick: onRequestDelete,
+          },
+        ]}
+      />
+    </ActionCard>
   )
 }
 
