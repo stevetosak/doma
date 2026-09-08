@@ -235,6 +235,19 @@ function ShoppingPage() {
     await refresh()
   }
 
+  async function moveItemToCategory(itemId: string, categoryId: string | null) {
+    setItemSheet(null)
+    const destIds = data.items
+      .filter(
+        (i) => !i.isChecked && i.categoryId === categoryId && i.id !== itemId,
+      )
+      .map((i) => i.id)
+    await moveItemAction({
+      data: { itemId, categoryId, orderedItemIds: [...destIds, itemId] },
+    })
+    await refresh()
+  }
+
   return (
     <AppShell>
       <div className="flex items-center justify-between gap-4">
@@ -345,6 +358,22 @@ function ShoppingPage() {
           <PrioritySheet
             current={activeItem.priority}
             onSelect={(next) => setItemPriority(activeItem.id, next)}
+          />
+        )}
+      </Sheet>
+
+      <Sheet
+        open={itemSheet?.kind === 'move' && activeItem != null}
+        onClose={() => setItemSheet(null)}
+        title="Move to category"
+      >
+        {activeItem && (
+          <MoveToSheet
+            categories={data.categories}
+            currentCategoryId={activeItem.categoryId}
+            onSelect={(categoryId) =>
+              moveItemToCategory(activeItem.id, categoryId)
+            }
           />
         )}
       </Sheet>
@@ -928,6 +957,47 @@ function ItemCard({
           ]}
         />
       </ActionCard>
+    </div>
+  )
+}
+
+/**
+ * The non-pointer path for a cross-category move (§2.11) — opened from the
+ * rail's folder icon. Lists every category plus Uncategorized with the
+ * item's current bucket checked; a pick drops the item at the end of the
+ * chosen bucket via `moveItemAction`.
+ */
+function MoveToSheet({
+  categories,
+  currentCategoryId,
+  onSelect,
+}: {
+  categories: CategoryView[]
+  currentCategoryId: string | null
+  onSelect: (categoryId: string | null) => void
+}) {
+  const targets: { id: string | null; name: string }[] = [
+    { id: null, name: 'Uncategorized' },
+    ...categories.map((c) => ({ id: c.id, name: c.name })),
+  ]
+  return (
+    <div className="flex flex-col gap-1.5">
+      {targets.map((t) => {
+        const selected = t.id === currentCategoryId
+        return (
+          <button
+            key={t.id ?? UNCATEGORIZED}
+            type="button"
+            onClick={() => onSelect(t.id)}
+            className={`flex items-center gap-3 rounded-control px-[14px] py-[13px] text-left transition-colors ${
+              selected ? 'bg-inset' : 'hover:bg-inset'
+            }`}
+          >
+            <span className="flex-1 text-sm text-ink">{t.name}</span>
+            {selected && <CheckIcon className="h-4 w-4 text-accent" />}
+          </button>
+        )
+      })}
     </div>
   )
 }
