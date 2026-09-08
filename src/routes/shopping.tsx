@@ -54,6 +54,7 @@ import {
 } from '#/modules/shopping/reminder-time'
 import {
   addItemAction,
+  createCategoryAction,
   deleteCategoryAction,
   getShoppingData,
   MAX_ITEM_REMINDERS,
@@ -498,14 +499,6 @@ function ShoppingList({
     }
   }
 
-  if (orderedKeys.length === 0) {
-    return (
-      <p className="mt-8 text-ink-dim">
-        The list is empty — add something above.
-      </p>
-    )
-  }
-
   return (
     <DndContext
       sensors={sensors}
@@ -541,6 +534,17 @@ function ShoppingList({
             )
           })}
         </SortableContext>
+        {orderedKeys.length === 0 && (
+          <p className="text-ink-dim">
+            The list is empty — add something above.
+          </p>
+        )}
+        <NewCategoryControl
+          onCreate={async (name) => {
+            await createCategoryAction({ data: { name } })
+            await onChange()
+          }}
+        />
       </div>
       <DragOverlay>
         {activeItem ? (
@@ -666,6 +670,76 @@ function CategoryGroup({
         </div>
       </SortableContext>
     </section>
+  )
+}
+
+/**
+ * "+ New category" — a text link at the end of the list that reveals an
+ * inline input, so categories are made where they live rather than in a
+ * separate panel (§2.11). The create action is idempotent on an exact
+ * name, so a repeated name is a harmless no-op.
+ */
+function NewCategoryControl({
+  onCreate,
+}: {
+  onCreate: (name: string) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 flex items-center gap-2 self-start text-sm text-ink-dim"
+      >
+        <PlusIcon className="h-3.5 w-3.5" />
+        New category
+      </button>
+    )
+  }
+
+  async function submit() {
+    const trimmed = name.trim()
+    setName('')
+    setOpen(false)
+    if (!trimmed) return
+    setBusy(true)
+    try {
+      await onCreate(trimmed)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form
+      className="mt-2 flex gap-2"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void submit()
+      }}
+    >
+      <input
+        autoFocus
+        className="field"
+        value={name}
+        disabled={busy}
+        placeholder="Category name"
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setName('')
+            setOpen(false)
+          }
+        }}
+      />
+      <button type="submit" className="btn-primary btn-compact" disabled={busy}>
+        Add
+      </button>
+    </form>
   )
 }
 
