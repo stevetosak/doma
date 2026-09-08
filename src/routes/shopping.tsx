@@ -390,6 +390,7 @@ function ShoppingList({
   }, [categories, items, hiddenIds])
 
   const [activeId, setActiveId] = useState<string | null>(null)
+  const { status, error, run } = useHouseholdMutation()
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, {
@@ -405,14 +406,15 @@ function ShoppingList({
     ...board.categoryOrder,
     ...(board.itemsByBucket[UNCATEGORIZED]?.length ? [UNCATEGORIZED] : []),
   ]
+  const activeItem = activeId ? itemsById.get(activeId) : undefined
   const activeCategory =
     activeId && activeId.startsWith('cat:')
       ? categoryById.get(activeId.slice(4))
       : undefined
 
   function persistCategoryOrder(orderedIds: string[]) {
-    void reorderCategoriesAction({ data: { orderedIds } }).then(() =>
-      onChange(),
+    void run(() => reorderCategoriesAction({ data: { orderedIds } })).finally(
+      () => void onChange(),
     )
   }
 
@@ -484,13 +486,15 @@ function ShoppingList({
       const next = placeItem(board, String(active.id), bucket, targetIndex)
       setBoard(next)
       const orderedItemIds = next.itemsByBucket[bucket] ?? []
-      void moveItemAction({
-        data: {
-          itemId: String(active.id),
-          categoryId: bucketKeyToCategoryId(bucket),
-          orderedItemIds,
-        },
-      }).then(() => onChange())
+      void run(() =>
+        moveItemAction({
+          data: {
+            itemId: String(active.id),
+            categoryId: bucketKeyToCategoryId(bucket),
+            orderedItemIds,
+          },
+        }),
+      ).finally(() => void onChange())
     }
   }
 
@@ -511,6 +515,7 @@ function ShoppingList({
       onDragEnd={onDragEnd}
     >
       <div className="mt-8 flex flex-col gap-10">
+        <MutationStatus status={status} error={error} />
         <SortableContext
           items={board.categoryOrder.map((id) => `cat:${id}`)}
           strategy={verticalListSortingStrategy}
@@ -538,7 +543,11 @@ function ShoppingList({
         </SortableContext>
       </div>
       <DragOverlay>
-        {activeCategory ? (
+        {activeItem ? (
+          <div className="rounded-card bg-card p-5 shadow-lifted">
+            <span className="text-lg text-ink">{activeItem.name}</span>
+          </div>
+        ) : activeCategory ? (
           <div className="rounded-control bg-card px-3 py-2 text-xs font-semibold tracking-wide text-ink-dim uppercase shadow-lifted">
             {activeCategory.name}
           </div>
@@ -626,7 +635,9 @@ function CategoryGroup({
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div
           ref={droppable.setNodeRef}
-          className="mt-3 flex min-h-[44px] flex-col gap-4"
+          className={`mt-3 flex min-h-[44px] flex-col gap-4 rounded-card transition-colors ${
+            droppable.isOver ? 'bg-accent-tint ring-1 ring-accent' : ''
+          }`}
         >
           {itemIds.length === 0 ? (
             <p className="rounded-card border border-dashed border-line px-4 py-3 text-sm text-ink-dim">
