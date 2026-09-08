@@ -5,6 +5,7 @@ import {
   eq,
   inArray,
   isNull,
+  ne,
   notInArray,
   sql,
 } from 'drizzle-orm'
@@ -69,10 +70,15 @@ export async function listCategories(
     .orderBy(asc(shoppingCategories.sort))
 }
 
-async function getOrCreateCategory(
+/**
+ * Create a category, or return the existing one if the exact trimmed name
+ * is already taken. Idempotent so a "+ New category" click that repeats a
+ * name is a harmless no-op.
+ */
+export async function createCategory(
   householdId: string,
   name: string,
-): Promise<string> {
+): Promise<{ id: string }> {
   const trimmed = name.trim()
   const [existing] = await db
     .select({ id: shoppingCategories.id })
@@ -85,30 +91,48 @@ async function getOrCreateCategory(
       ),
     )
     .limit(1)
-  if (existing) return existing.id
+  if (existing) return { id: existing.id }
 
   const categories = await listCategories(householdId)
   const nextSort =
     categories.length > 0 ? Math.max(...categories.map((c) => c.sort)) + 1 : 0
-
   const [created] = await db
     .insert(shoppingCategories)
     .values({ householdId, name: trimmed, sort: nextSort })
     .returning({ id: shoppingCategories.id })
   if (!created) throw new Error('Insert did not return a row')
-  return created.id
+  return { id: created.id }
 }
 
 /**
- * Items pointing at the deleted category fall back to Uncategorized via the
- * column's own `onDelete: 'set null'` FK — no extra cleanup needed here.
+ * Rename a category. Rejects a collision with another category's exact
+ * name — a merge would look right on screen but not in the data.
  */
-export async function deleteCategory(
+export async function renameCategory(
   householdId: string,
   categoryId: string,
+  name: string,
 ): Promise<void> {
+  const trimmed = name.trim()
+  if (!trimmed) throw new Error('Category name cannot be empty')
+  const [clash] = await db
+    .select({ id: shoppingCategories.id })
+    .from(shoppingCategories)
+    .where(
+      householdScope(
+        shoppingCategories,
+        householdId,
+        and(
+          eq(shoppingCategories.name, trimmed),
+          ne(shoppingCategories.id, categoryId),
+        ),
+      ),
+    )
+    .limit(1)
+  if (clash) throw new Error('A category with that name already exists.')
   await db
-    .delete(shoppingCategories)
+    .update(shoppingCategories)
+    .set({ name: trimmed })
     .where(
       householdScope(
         shoppingCategories,
@@ -116,6 +140,55 @@ export async function deleteCategory(
         eq(shoppingCategories.id, categoryId),
       ),
     )
+}
+
+/**
+ * Delete a category. Its items fall to the uncategorized bucket via the
+ * column's `onDelete: 'set null'` FK; they keep their old per-category
+ * `sort`, which can now collide, so renumber the bucket. v1 has one list
+ * per household, so household scope is enough here.
+ */
+export async function deleteCategory(
+  householdId: string,
+  categoryId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(shoppingCategories)
+      .where(
+        householdScope(
+          shoppingCategories,
+          householdId,
+          eq(shoppingCategories.id, categoryId),
+        ),
+      )
+    const rows = await tx
+      .select({ id: shoppingItems.id })
+      .from(shoppingItems)
+      .where(
+        householdScope(
+          shoppingItems,
+          householdId,
+          and(
+            isNull(shoppingItems.categoryId),
+            eq(shoppingItems.isChecked, false),
+          ),
+        ),
+      )
+      .orderBy(asc(shoppingItems.sort), asc(shoppingItems.createdAt))
+    for (const [index, row] of rows.entries()) {
+      await tx
+        .update(shoppingItems)
+        .set({ sort: index })
+        .where(
+          householdScope(
+            shoppingItems,
+            householdId,
+            eq(shoppingItems.id, row.id),
+          ),
+        )
+    }
+  })
 }
 
 export async function reorderCategories(
@@ -338,20 +411,31 @@ export interface AddItemInput {
   quantity?: number
   unit?: string
   note?: string
-  categoryName?: string
   priority?: ItemPriority
   addedBy: string
 }
 
 export async function addItem(input: AddItemInput): Promise<string> {
-  const categoryId = input.categoryName
-    ? await getOrCreateCategory(input.householdId, input.categoryName)
-    : null
-
   return createItemRecord(
     input.householdId,
     'shopping_item',
     async (tx, id) => {
+      const [maxRow] = await tx
+        .select({
+          max: sql<number>`coalesce(max(${shoppingItems.sort}), -1)`,
+        })
+        .from(shoppingItems)
+        .where(
+          householdScope(
+            shoppingItems,
+            input.householdId,
+            and(
+              eq(shoppingItems.listId, input.listId),
+              isNull(shoppingItems.categoryId),
+              eq(shoppingItems.isChecked, false),
+            ),
+          ),
+        )
       const [row] = await tx
         .insert(shoppingItems)
         .values({
@@ -362,8 +446,9 @@ export async function addItem(input: AddItemInput): Promise<string> {
           quantity: input.quantity ?? null,
           unit: input.unit ?? null,
           note: input.note ?? null,
-          categoryId,
+          categoryId: null,
           priority: input.priority ?? null,
+          sort: (maxRow?.max ?? -1) + 1,
           addedBy: input.addedBy,
         })
         .returning({ id: shoppingItems.id })
@@ -380,15 +465,10 @@ export interface UpdateItemInput {
   quantity?: number
   unit?: string
   note?: string
-  categoryName?: string
   priority?: ItemPriority
 }
 
 export async function updateItem(input: UpdateItemInput): Promise<void> {
-  const categoryId = input.categoryName
-    ? await getOrCreateCategory(input.householdId, input.categoryName)
-    : null
-
   await db
     .update(shoppingItems)
     .set({
@@ -396,7 +476,6 @@ export async function updateItem(input: UpdateItemInput): Promise<void> {
       quantity: input.quantity ?? null,
       unit: input.unit ?? null,
       note: input.note ?? null,
-      categoryId,
       priority: input.priority ?? null,
     })
     .where(

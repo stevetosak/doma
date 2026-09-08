@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ActionCard } from '#/core/ui/ActionCard'
 import { AppShell } from '#/core/ui/AppShell'
@@ -312,7 +312,6 @@ function ShoppingPage() {
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Add item">
         <NewItemForm
           listId={data.listId}
-          categories={data.categories}
           onCreated={async () => {
             setAddOpen(false)
             await refresh()
@@ -329,10 +328,6 @@ function ShoppingPage() {
         {activeItem && (
           <ItemEditForm
             item={activeItem}
-            categories={data.categories}
-            currentCategoryName={
-              data.categories.find((c) => c.id === activeItem.categoryId)?.name
-            }
             onSaved={async () => {
               setItemSheet(null)
               await refresh()
@@ -634,23 +629,17 @@ function ItemReminderForm({
 
 function ItemEditForm({
   item,
-  categories,
-  currentCategoryName,
   onSaved,
   onCancel,
 }: {
   item: ItemView
-  categories: CategoryView[]
-  currentCategoryName: string | undefined
   onSaved: () => Promise<void>
   onCancel: () => void
 }) {
-  const categoryListId = useId()
   const [name, setName] = useState(item.name)
   const [quantity, setQuantity] = useState(item.quantity?.toString() ?? '')
   const [unit, setUnit] = useState(item.unit ?? '')
   const [note, setNote] = useState(item.note ?? '')
-  const [categoryName, setCategoryName] = useState(currentCategoryName ?? '')
   const [priority, setPriority] = useState<PriorityChoice>(
     item.priority ?? 'none',
   )
@@ -669,7 +658,6 @@ function ItemEditForm({
           quantity: quantity ? Number(quantity) : undefined,
           unit: unit || undefined,
           note: note || undefined,
-          categoryName: categoryName || undefined,
           priority: priority === 'none' ? undefined : priority,
         },
       })
@@ -713,19 +701,6 @@ function ItemEditForm({
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-      </Field>
-      <Field label="Category">
-        <input
-          className="field"
-          list={categoryListId}
-          value={categoryName}
-          onChange={(e) => setCategoryName(e.target.value)}
-        />
-        <datalist id={categoryListId}>
-          {categories.map((c) => (
-            <option key={c.id} value={c.name} />
-          ))}
-        </datalist>
       </Field>
       <Field label="Priority">
         <SegmentedControl
@@ -784,21 +759,17 @@ function RecentlyBought({
 
 function NewItemForm({
   listId,
-  categories,
   onCreated,
   onCancel,
 }: {
   listId: string
-  categories: CategoryView[]
   onCreated: () => Promise<void>
   onCancel?: () => void
 }) {
-  const categoryListId = useId()
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState('')
   const [note, setNote] = useState('')
-  const [categoryName, setCategoryName] = useState('')
   const [priority, setPriority] = useState<PriorityChoice>('none')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -815,7 +786,6 @@ function NewItemForm({
           quantity: quantity ? Number(quantity) : undefined,
           unit: unit || undefined,
           note: note || undefined,
-          categoryName: categoryName || undefined,
           priority: priority === 'none' ? undefined : priority,
         },
       })
@@ -823,7 +793,6 @@ function NewItemForm({
       setQuantity('')
       setUnit('')
       setNote('')
-      setCategoryName('')
       setPriority('none')
       await onCreated()
     } catch {
@@ -865,19 +834,6 @@ function NewItemForm({
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-      </Field>
-      <Field label="Category">
-        <input
-          className="field"
-          list={categoryListId}
-          value={categoryName}
-          onChange={(e) => setCategoryName(e.target.value)}
-        />
-        <datalist id={categoryListId}>
-          {categories.map((c) => (
-            <option key={c.id} value={c.name} />
-          ))}
-        </datalist>
       </Field>
       <Field label="Priority">
         <SegmentedControl
