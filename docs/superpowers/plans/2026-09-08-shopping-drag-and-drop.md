@@ -20,7 +20,7 @@
 - **SSE:** every mutating server action calls `publish(householdId, { module: 'shopping', entity, action })` after the write.
 - **Pinned dependency versions:** `@dnd-kit/core@6.3.1`, `@dnd-kit/sortable@10.0.0`, `@dnd-kit/utilities@3.2.2`.
 - **Local DB:** Docker Postgres, container `doma-postgres-1`, user+db `doma`. `DATABASE_URL` is in `.env.local`. Run raw SQL with `docker exec doma-postgres-1 psql -U doma -d doma -c "..."`.
-- **Scratch verification scripts:** write to `scripts/_scratch.ts`, run with `npx tsx scripts/_scratch.ts`, never commit (gitignored in Task 1).
+- **Scratch verification scripts:** write to `scripts/_scratch.ts`, run with `npx tsx --env-file=.env.local scripts/_scratch.ts`, never commit (gitignored in Task 1).
 
 ---
 
@@ -663,7 +663,7 @@ main()
 
 - [ ] **Step 4: Run the scratch verification**
 
-Run: `npx tsx scripts/_scratch.ts`
+Run: `npx tsx --env-file=.env.local scripts/_scratch.ts`
 Expected: prints `PASS`.
 
 - [ ] **Step 5: Full check suite**
@@ -1020,7 +1020,7 @@ main()
   })
 ```
 
-Run: `npx tsx scripts/_scratch.ts`
+Run: `npx tsx --env-file=.env.local scripts/_scratch.ts`
 Expected: prints `PASS`.
 
 - [ ] **Step 4: Full check suite**
@@ -1279,7 +1279,7 @@ main()
   })
 ```
 
-Run: `npx tsx scripts/_scratch.ts`
+Run: `npx tsx --env-file=.env.local scripts/_scratch.ts`
 Expected: prints `PASS`.
 
 - [ ] **Step 6: Full check suite**
