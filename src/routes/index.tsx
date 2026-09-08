@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { AppMark } from '#/core/ui/AppMark'
 import { AppShell } from '#/core/ui/AppShell'
 import { useLiveSync } from '#/core/events/useLiveSync'
 import { getTodayData } from '#/modules/today/today.functions'
@@ -146,9 +147,12 @@ function TodayDashboard({
 
 function EmptyBox() {
   return (
-    <div className="mt-16 flex flex-col items-center rounded-card border-2 border-dashed border-line px-8 py-16 text-center">
-      <p className="font-display text-2xl text-ink-dim">Nothing due today</p>
-      <p className="mt-2 text-sm text-ink-dim">
+    <div className="relative mt-16 flex flex-col items-center overflow-hidden rounded-card border-2 border-dashed border-line px-8 py-16 text-center">
+      <AppMark className="pointer-events-none absolute inset-0 m-auto h-40 w-40 text-ink opacity-[0.06]" />
+      <p className="relative font-display text-2xl text-ink-dim">
+        Nothing due today
+      </p>
+      <p className="relative mt-2 text-sm text-ink-dim">
         You're clear across chores and shopping. Add something from the tabs
         below.
       </p>

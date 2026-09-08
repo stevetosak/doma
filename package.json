@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "generate-routes": "tsr generate",
+    "generate:pwa-assets": "node scripts/generate-pwa-assets.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "start": "node scripts/start.mjs",

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="doma"><title>doma mark, small cut</title>
+  <defs>
+    <clipPath id="doma-clip-16"><circle cx="24" cy="48" r="10.5"></circle></clipPath>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 34 L32 12 L56 34" stroke="#1d2320" stroke-width="7.5"></path>
+  </g>
+  <circle cx="24" cy="48" r="10.5" fill="#1d2320"></circle>
+  <circle cx="40" cy="48" r="10.5" fill="#8c2f24"></circle>
+  <g clip-path="url(#doma-clip-16)"><circle cx="40" cy="48" r="10.5" fill="#120806"></circle></g>
+</svg>

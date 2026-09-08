@@ -31,7 +31,7 @@ export function TabSpine() {
         className="fixed inset-y-0 left-0 z-20 hidden w-16 flex-col items-stretch gap-1 bg-[#2b2f2a] pt-6 shadow-lifted md:flex"
       >
         <div className="flex justify-center pt-2 pb-6" aria-hidden="true">
-          <AppMark className="h-9 w-9" />
+          <AppMark className="h-9 w-9 text-card" />
         </div>
         {MODULES.map((tab) => (
           <SpineTab key={tab.id} label={tab.label} href={tab.href} />

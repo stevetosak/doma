@@ -9,16 +9,51 @@
   "theme_color": "#8c2f24",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
+      "src": "/pwa-64x64.png",
+      "sizes": "64x64",
+      "type": "image/png"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/maskable-icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
+    },
+    {
+      "src": "/doma-mark-mono.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "monochrome"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Today",
+      "short_name": "Today",
+      "url": "/",
+      "icons": [{ "src": "/shortcut-today.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Add shopping item",
+      "short_name": "Add item",
+      "url": "/shopping?add=1",
+      "icons": [{ "src": "/shortcut-shopping.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Add chore",
+      "short_name": "Add chore",
+      "url": "/chores?add=1",
+      "icons": [{ "src": "/shortcut-chore.png", "sizes": "96x96" }]
     }
   ]
 }
