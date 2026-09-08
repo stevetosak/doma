@@ -11,12 +11,6 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-# The deployed commit, surfaced in /api/health and the app's own footer
-# (src/core/version.functions.ts) — passed via --build-arg in deploy.yaml,
-# unset (falls back to "dev") for a local `docker build`.
-ARG GIT_SHA=dev
-ENV GIT_SHA=$GIT_SHA
-
 # scripts/start.mjs and scripts/migrate.mjs run outside the Nitro bundle
 # (plain, unbundled ESM — see their own comments), so they need a real
 # node_modules for dotenv/pg/drizzle-orm. .output/ itself is already
@@ -24,6 +18,14 @@ ENV GIT_SHA=$GIT_SHA
 # @node-rs/argon2 during the build).
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
+
+# The deployed version string (a `git describe --tags` value), surfaced in
+# /api/health and the app's own footer via src/core/version.ts — passed as
+# --build-arg APP_VERSION in deploy.yaml, unset (falls back to "dev") for a
+# local `docker build`. Kept below `npm ci` so a new per-commit version
+# string does not invalidate the production dependency layer.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 
 COPY --from=build /app/.output ./.output
 COPY --from=build /app/scripts ./scripts
