@@ -1,6 +1,26 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCorners,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { ActionCard } from '#/core/ui/ActionCard'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
@@ -10,6 +30,7 @@ import {
   CheckIcon,
   EditIcon,
   FlagIcon,
+  FolderIcon,
   GripIcon,
   PlusIcon,
   TrashIcon,
@@ -33,12 +54,15 @@ import {
 } from '#/modules/shopping/reminder-time'
 import {
   addItemAction,
+  createCategoryAction,
   deleteCategoryAction,
   getShoppingData,
   MAX_ITEM_REMINDERS,
+  moveItemAction,
   reAddItemAction,
   removeItemAction,
-  reorderCategoryAction,
+  renameCategoryAction,
+  reorderCategoriesAction,
   setItemCheckedAction,
   setItemPriorityAction,
   setItemRemindersAction,
@@ -50,6 +74,13 @@ import type {
   ItemView,
   RecentlyBoughtView,
 } from '#/modules/shopping/repo'
+import {
+  UNCATEGORIZED,
+  bucketKeyToCategoryId,
+  buildBoard,
+  placeItem,
+} from '#/modules/shopping/board'
+import type { Board } from '#/modules/shopping/board'
 
 // Sentinel for the segmented control (§2.12) — SegmentedControl's options
 // are string-keyed, and `null` isn't a legal option value, so the form
@@ -115,7 +146,7 @@ function ShoppingPage() {
   // target looked up against live loader data so the sheet closes itself
   // if the item disappears.
   const [itemSheet, setItemSheet] = useState<{
-    kind: 'edit' | 'reminders' | 'priority'
+    kind: 'edit' | 'reminders' | 'priority' | 'move'
     id: string
   } | null>(null)
   const activeItem = itemSheet
@@ -178,29 +209,10 @@ function ShoppingPage() {
     })
   }
 
-  const grouped = new Map<string | null, ItemView[]>()
-  for (const item of data.items) {
-    if (item.isChecked || pendingDeleteIds.has(item.id)) continue
-    const key = item.categoryId
-    const list = grouped.get(key) ?? []
-    list.push(item)
-    grouped.set(key, list)
-  }
-
-  const orderedGroups: { category: CategoryView | null; items: ItemView[] }[] =
-    [
-      ...data.categories.map((category) => ({
-        category,
-        items: grouped.get(category.id) ?? [],
-      })),
-      ...(grouped.has(null)
-        ? [{ category: null, items: grouped.get(null) ?? [] }]
-        : []),
-    ].filter((g) => g.items.length > 0)
-
-  const itemCountByCategory = new Map(
-    data.categories.map((c) => [c.id, grouped.get(c.id)?.length ?? 0]),
+  const visibleItems = data.items.filter(
+    (i) => !i.isChecked && !pendingDeleteIds.has(i.id),
   )
+  const itemsById = new Map(data.items.map((i) => [i.id, i]))
 
   const checkedItems = data.items.filter((i) => i.isChecked)
   const memberName = new Map(
@@ -223,6 +235,19 @@ function ShoppingPage() {
     await refresh()
   }
 
+  async function moveItemToCategory(itemId: string, categoryId: string | null) {
+    setItemSheet(null)
+    const destIds = data.items
+      .filter(
+        (i) => !i.isChecked && i.categoryId === categoryId && i.id !== itemId,
+      )
+      .map((i) => i.id)
+    await moveItemAction({
+      data: { itemId, categoryId, orderedItemIds: [...destIds, itemId] },
+    })
+    await refresh()
+  }
+
   return (
     <AppShell>
       <div className="flex items-center justify-between gap-4">
@@ -237,46 +262,19 @@ function ShoppingPage() {
         </button>
       </div>
 
-      {orderedGroups.length === 0 ? (
-        <p className="mt-8 text-ink-dim">
-          The list is empty — add something above.
-        </p>
-      ) : (
-        <div className="mt-8 flex flex-col gap-10">
-          {orderedGroups.map((group, gi) => (
-            <section key={group.category?.id ?? 'uncategorized'}>
-              <h2 className="text-xs font-semibold tracking-wide text-ink-dim uppercase">
-                {group.category?.name ?? 'Uncategorized'}
-              </h2>
-              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {group.items.map((item, i) => (
-                  <div
-                    key={item.id}
-                    className="rise"
-                    style={{ animationDelay: `${(gi * 4 + i) * 50}ms` }}
-                  >
-                    <ItemCard
-                      item={item}
-                      memberName={memberName}
-                      onChange={refresh}
-                      onRequestDelete={() =>
-                        requestDeleteItem(item.id, item.name)
-                      }
-                      onEdit={() => setItemSheet({ kind: 'edit', id: item.id })}
-                      onRemind={() =>
-                        setItemSheet({ kind: 'reminders', id: item.id })
-                      }
-                      onSetPriority={() =>
-                        setItemSheet({ kind: 'priority', id: item.id })
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+      <ShoppingList
+        categories={data.categories}
+        items={visibleItems}
+        hiddenIds={pendingDeleteIds}
+        itemsById={itemsById}
+        memberName={memberName}
+        onEdit={(id) => setItemSheet({ kind: 'edit', id })}
+        onRemind={(id) => setItemSheet({ kind: 'reminders', id })}
+        onSetPriority={(id) => setItemSheet({ kind: 'priority', id })}
+        onMove={(id) => setItemSheet({ kind: 'move', id })}
+        onRequestDelete={requestDeleteItem}
+        onChange={refresh}
+      />
 
       <DoneStack
         labelClosed={`Already bought · ${checkedItems.length}`}
@@ -304,16 +302,10 @@ function ShoppingPage() {
         suggestions={data.recentlyBought}
         onChange={refresh}
       />
-      <CategoryOrder
-        categories={data.categories}
-        itemCounts={itemCountByCategory}
-        onChange={refresh}
-      />
 
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Add item">
         <NewItemForm
           listId={data.listId}
-          categories={data.categories}
           onCreated={async () => {
             setAddOpen(false)
             await refresh()
@@ -330,10 +322,6 @@ function ShoppingPage() {
         {activeItem && (
           <ItemEditForm
             item={activeItem}
-            categories={data.categories}
-            currentCategoryName={
-              data.categories.find((c) => c.id === activeItem.categoryId)?.name
-            }
             onSaved={async () => {
               setItemSheet(null)
               await refresh()
@@ -373,28 +361,506 @@ function ShoppingPage() {
           />
         )}
       </Sheet>
+
+      <Sheet
+        open={itemSheet?.kind === 'move' && activeItem != null}
+        onClose={() => setItemSheet(null)}
+        title="Move to category"
+      >
+        {activeItem && (
+          <MoveToSheet
+            categories={data.categories}
+            currentCategoryId={activeItem.categoryId}
+            onSelect={(categoryId) =>
+              moveItemToCategory(activeItem.id, categoryId)
+            }
+          />
+        )}
+      </Sheet>
     </AppShell>
+  )
+}
+
+/**
+ * The grouped shopping list, rendered from a `board` state (category order
+ * + item ids per bucket). Batch B wraps this in one `<DndContext>`; for now
+ * it just renders. The board is rebuilt from loader data on every change,
+ * so a failed drag save snaps back to server truth.
+ */
+function ShoppingList({
+  categories,
+  items,
+  hiddenIds,
+  itemsById,
+  memberName,
+  onEdit,
+  onRemind,
+  onSetPriority,
+  onMove,
+  onRequestDelete,
+  onChange,
+}: {
+  categories: CategoryView[]
+  items: ItemView[]
+  hiddenIds: ReadonlySet<string>
+  itemsById: Map<string, ItemView>
+  memberName: Map<string, string>
+  onEdit: (id: string) => void
+  onRemind: (id: string) => void
+  onSetPriority: (id: string) => void
+  onMove: (id: string) => void
+  onRequestDelete: (id: string, name: string) => void
+  onChange: () => Promise<void>
+}) {
+  const [board, setBoard] = useState<Board>(() =>
+    buildBoard({ categories, items }, hiddenIds),
+  )
+
+  useEffect(() => {
+    setBoard(buildBoard({ categories, items }, hiddenIds))
+  }, [categories, items, hiddenIds])
+
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const { status, error, run } = useHouseholdMutation()
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
+  const categoryById = new Map(categories.map((c) => [c.id, c]))
+  const hasCategories = board.categoryOrder.length > 0
+  const uncatCount = board.itemsByBucket[UNCATEGORIZED]?.length ?? 0
+  const showUncat = hasCategories || uncatCount > 0
+  const orderedKeys = [
+    ...board.categoryOrder,
+    ...(showUncat ? [UNCATEGORIZED] : []),
+  ]
+  const activeItem = activeId ? itemsById.get(activeId) : undefined
+  const activeCategory =
+    activeId && activeId.startsWith('cat:')
+      ? categoryById.get(activeId.slice(4))
+      : undefined
+
+  function persistCategoryOrder(orderedIds: string[]) {
+    void run(() => reorderCategoriesAction({ data: { orderedIds } })).finally(
+      () => void onChange(),
+    )
+  }
+
+  function bucketOf(id: string): string | null {
+    for (const [key, ids] of Object.entries(board.itemsByBucket)) {
+      if (ids.includes(id)) return key
+    }
+    return null
+  }
+
+  function resolveOverBucket(overId: string, overData: unknown): string | null {
+    const data = overData as { type?: string; bucketKey?: string } | undefined
+    if (data?.type === 'bucket' && data.bucketKey) return data.bucketKey
+    if (data?.type === 'item') return bucketOf(overId)
+    if (board.itemsByBucket[overId]) return overId
+    return null
+  }
+
+  function onDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id))
+  }
+
+  function onDragOver(e: DragOverEvent) {
+    const { active, over } = e
+    if (!over || active.data.current?.type !== 'item') return
+    const activeBucket = String(active.data.current.bucketKey)
+    const overBucket = resolveOverBucket(String(over.id), over.data.current)
+    if (!overBucket || overBucket === activeBucket) return
+    setBoard((b) => {
+      const overIds = b.itemsByBucket[overBucket] ?? []
+      const overIndex =
+        (over.data.current as { type?: string } | undefined)?.type === 'item'
+          ? overIds.indexOf(String(over.id))
+          : overIds.length
+      return placeItem(
+        b,
+        String(active.id),
+        overBucket,
+        overIndex < 0 ? overIds.length : overIndex,
+      )
+    })
+    active.data.current.bucketKey = overBucket
+  }
+
+  function onDragEnd(e: DragEndEvent) {
+    setActiveId(null)
+    const { active, over } = e
+    if (!over) return
+
+    if (active.data.current?.type === 'category') {
+      const from = board.categoryOrder.indexOf(String(active.id).slice(4))
+      const to = board.categoryOrder.indexOf(String(over.id).slice(4))
+      if (from === -1 || to === -1 || from === to) return
+      const next = arrayMove(board.categoryOrder, from, to)
+      setBoard((b) => ({ ...b, categoryOrder: next }))
+      persistCategoryOrder(next)
+      return
+    }
+
+    if (active.data.current?.type === 'item') {
+      const bucket = resolveOverBucket(String(over.id), over.data.current)
+      if (!bucket) return
+      const ids = board.itemsByBucket[bucket] ?? []
+      let targetIndex =
+        (over.data.current as { type?: string } | undefined)?.type === 'item'
+          ? ids.indexOf(String(over.id))
+          : ids.length
+      if (targetIndex < 0) targetIndex = ids.length
+      const next = placeItem(board, String(active.id), bucket, targetIndex)
+      setBoard(next)
+      const orderedItemIds = next.itemsByBucket[bucket] ?? []
+      void run(() =>
+        moveItemAction({
+          data: {
+            itemId: String(active.id),
+            categoryId: bucketKeyToCategoryId(bucket),
+            orderedItemIds,
+          },
+        }),
+      ).finally(() => void onChange())
+    }
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+    >
+      <div className="mt-8 flex flex-col gap-10">
+        <MutationStatus status={status} error={error} />
+        <SortableContext
+          items={board.categoryOrder.map((id) => `cat:${id}`)}
+          strategy={verticalListSortingStrategy}
+        >
+          {orderedKeys.map((key) => {
+            const category =
+              key === UNCATEGORIZED ? null : categoryById.get(key)
+            return (
+              <CategoryGroup
+                key={key}
+                bucketKey={key}
+                category={category ?? null}
+                hasCategories={hasCategories}
+                itemIds={board.itemsByBucket[key] ?? []}
+                itemsById={itemsById}
+                memberName={memberName}
+                onEdit={onEdit}
+                onRemind={onRemind}
+                onSetPriority={onSetPriority}
+                onMove={onMove}
+                onRequestDelete={onRequestDelete}
+                onChange={onChange}
+              />
+            )
+          })}
+        </SortableContext>
+        {orderedKeys.length === 0 && (
+          <p className="text-ink-dim">
+            The list is empty — add something above.
+          </p>
+        )}
+        <NewCategoryControl
+          onCreate={async (name) => {
+            await createCategoryAction({ data: { name } })
+            await onChange()
+          }}
+        />
+      </div>
+      <DragOverlay>
+        {activeItem ? (
+          <div className="rounded-card bg-card p-5 shadow-lifted">
+            <span className="text-lg text-ink">{activeItem.name}</span>
+          </div>
+        ) : activeCategory ? (
+          <div className="rounded-control bg-card px-3 py-2 text-xs font-semibold tracking-wide text-ink-dim uppercase shadow-lifted">
+            {activeCategory.name}
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  )
+}
+
+function CategoryGroup({
+  bucketKey,
+  category,
+  hasCategories,
+  itemIds,
+  itemsById,
+  memberName,
+  onEdit,
+  onRemind,
+  onSetPriority,
+  onMove,
+  onRequestDelete,
+  onChange,
+}: {
+  bucketKey: string
+  category: CategoryView | null
+  hasCategories: boolean
+  itemIds: string[]
+  itemsById: Map<string, ItemView>
+  memberName: Map<string, string>
+  onEdit: (id: string) => void
+  onRemind: (id: string) => void
+  onSetPriority: (id: string) => void
+  onMove: (id: string) => void
+  onRequestDelete: (id: string, name: string) => void
+  onChange: () => Promise<void>
+}) {
+  const sortable = useSortable({
+    id: `cat:${category?.id ?? bucketKey}`,
+    data: { type: 'category' },
+    disabled: category == null,
+  })
+  const droppable = useDroppable({
+    id: bucketKey,
+    data: { type: 'bucket', bucketKey },
+  })
+  const [renaming, setRenaming] = useState(false)
+  const [draft, setDraft] = useState(category?.name ?? '')
+
+  useEffect(() => {
+    setDraft(category?.name ?? '')
+  }, [category?.name])
+
+  async function submitRename() {
+    setRenaming(false)
+    const trimmed = draft.trim()
+    if (!category || !trimmed || trimmed === category.name) {
+      setDraft(category?.name ?? '')
+      return
+    }
+    try {
+      await renameCategoryAction({
+        data: { categoryId: category.id, name: trimmed },
+      })
+      await onChange()
+    } catch {
+      setDraft(category.name)
+    }
+  }
+
+  return (
+    <section
+      ref={sortable.setNodeRef}
+      style={{
+        transform: CSS.Translate.toString(sortable.transform),
+        transition: sortable.transition,
+      }}
+      className={sortable.isDragging ? 'relative z-10' : undefined}
+    >
+      {(category || hasCategories) && (
+        <header className="flex items-center gap-2">
+          {category && (
+            <button
+              type="button"
+              ref={sortable.setActivatorNodeRef}
+              {...sortable.attributes}
+              {...sortable.listeners}
+              aria-label={`Reorder ${category.name}`}
+              className="-ml-1 flex h-7 w-7 shrink-0 cursor-grab touch-none items-center justify-center text-ink-ghost"
+            >
+              <GripIcon className="h-4 w-4" />
+            </button>
+          )}
+          {renaming && category ? (
+            <form
+              className="flex-1"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void submitRename()
+              }}
+            >
+              <input
+                autoFocus
+                className="field h-8 w-full py-0 text-sm"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => void submitRename()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setRenaming(false)
+                    setDraft(category.name)
+                  }
+                }}
+              />
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => category && setRenaming(true)}
+              disabled={!category}
+              className="flex-1 text-left text-xs font-semibold tracking-wide text-ink-dim uppercase disabled:cursor-default"
+            >
+              {category ? category.name : 'Uncategorized'}
+            </button>
+          )}
+          <span className="text-xs text-ink-dim">{itemIds.length}</span>
+          {category && (
+            <button
+              type="button"
+              aria-label={`Delete ${category.name}`}
+              onClick={async () => {
+                await deleteCategoryAction({
+                  data: { categoryId: category.id },
+                })
+                await onChange()
+              }}
+              className="shrink-0 text-ink-dim"
+            >
+              <TrashIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </header>
+      )}
+      <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+        <div
+          ref={droppable.setNodeRef}
+          className={`flex min-h-[44px] flex-col gap-4 rounded-card transition-colors ${
+            category || hasCategories ? 'mt-3 ' : ''
+          }${droppable.isOver ? 'bg-accent-tint ring-1 ring-accent' : ''}`}
+        >
+          {itemIds.length === 0 ? (
+            <p className="rounded-card border border-dashed border-line px-4 py-3 text-sm text-ink-dim">
+              Drag items here
+            </p>
+          ) : (
+            itemIds.map((id) => {
+              const item = itemsById.get(id)
+              if (!item) return null
+              return (
+                <ItemCard
+                  key={id}
+                  item={item}
+                  bucketKey={bucketKey}
+                  memberName={memberName}
+                  onChange={onChange}
+                  onRequestDelete={() => onRequestDelete(item.id, item.name)}
+                  onEdit={() => onEdit(item.id)}
+                  onRemind={() => onRemind(item.id)}
+                  onSetPriority={() => onSetPriority(item.id)}
+                  onMove={() => onMove(item.id)}
+                />
+              )
+            })
+          )}
+        </div>
+      </SortableContext>
+    </section>
+  )
+}
+
+/**
+ * "+ New category" — a text link at the end of the list that reveals an
+ * inline input, so categories are made where they live rather than in a
+ * separate panel (§2.11). The create action is idempotent on an exact
+ * name, so a repeated name is a harmless no-op.
+ */
+function NewCategoryControl({
+  onCreate,
+}: {
+  onCreate: (name: string) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 flex items-center gap-2 self-start text-sm text-ink-dim"
+      >
+        <PlusIcon className="h-3.5 w-3.5" />
+        New category
+      </button>
+    )
+  }
+
+  async function submit() {
+    const trimmed = name.trim()
+    setName('')
+    setOpen(false)
+    if (!trimmed) return
+    setBusy(true)
+    try {
+      await onCreate(trimmed)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form
+      className="mt-2 flex gap-2"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void submit()
+      }}
+    >
+      <input
+        autoFocus
+        className="field"
+        value={name}
+        disabled={busy}
+        placeholder="Category name"
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setName('')
+            setOpen(false)
+          }
+        }}
+      />
+      <button type="submit" className="btn-primary btn-compact" disabled={busy}>
+        Add
+      </button>
+    </form>
   )
 }
 
 function ItemCard({
   item,
+  bucketKey,
   memberName,
   onChange,
   onRequestDelete,
   onEdit,
   onRemind,
   onSetPriority,
+  onMove,
 }: {
   item: ItemView
+  bucketKey: string
   memberName: Map<string, string>
   onChange: () => Promise<void>
   onRequestDelete: () => void
   onEdit: () => void
   onRemind: () => void
   onSetPriority: () => void
+  onMove: () => void
 }) {
   const { status, error, run } = useHouseholdMutation()
+  const sortable = useSortable({
+    id: item.id,
+    data: { type: 'item', bucketKey },
+  })
 
   async function markBought() {
     await run(() =>
@@ -406,74 +872,143 @@ function ItemCard({
   const busy = status === 'pending' || status === 'retrying'
 
   return (
-    <ActionCard
-      onComplete={!busy ? markBought : undefined}
-      onNegative={onRequestDelete}
-      completeLabel="✓ Got it"
-      negativeLabel="Delete"
-      completeAriaLabel="Mark bought"
-      negativeAriaLabel="Delete item"
+    <div
+      ref={sortable.setNodeRef}
+      style={{
+        transform: CSS.Translate.toString(sortable.transform),
+        transition: sortable.transition,
+        opacity: sortable.isDragging ? 0.4 : undefined,
+      }}
     >
-      <div className="p-5">
-        <span className="flex items-center gap-1.5 text-lg text-ink">
-          {item.priority && (
-            <FlagIcon
-              className={`h-3.5 w-3.5 shrink-0 ${PRIORITY_TEXT_CLASS[item.priority]}`}
-              filled
-            />
-          )}
-          {item.name}
-        </span>
-        {(item.quantity != null || item.unit) && (
-          <span className="mt-1 block text-xs text-ink-dim">
-            {item.quantity ?? ''} {item.unit ?? ''}
-          </span>
-        )}
-        {item.note && <p className="mt-2 text-sm text-ink-dim">{item.note}</p>}
-        {item.addedBy && memberName.get(item.addedBy) && (
-          <p className="mt-3 text-[11px] text-ink-dim">
-            added by {memberName.get(item.addedBy)}
-          </p>
-        )}
-        <MutationStatus status={status} error={error} />
-      </div>
-      <IconRail
-        actions={[
-          {
-            key: 'remind',
-            icon: <BellIcon className="h-[18px] w-[18px]" />,
-            label: 'Item reminders',
-            onClick: onRemind,
-            badge: item.reminders.length,
-          },
-          {
-            key: 'priority',
-            icon: (
+      <ActionCard
+        onComplete={!busy ? markBought : undefined}
+        onNegative={onRequestDelete}
+        completeLabel="✓ Got it"
+        negativeLabel="Delete"
+        completeAriaLabel="Mark bought"
+        negativeAriaLabel="Delete item"
+      >
+        <div className="p-5">
+          <span className="flex items-center gap-1.5 text-lg text-ink">
+            {item.priority && (
               <FlagIcon
-                className={`h-[18px] w-[18px] ${item.priority ? PRIORITY_TEXT_CLASS[item.priority] : ''}`}
-                filled={item.priority != null}
+                className={`h-3.5 w-3.5 shrink-0 ${PRIORITY_TEXT_CLASS[item.priority]}`}
+                filled
               />
-            ),
-            label: item.priority
-              ? `Priority: ${item.priority}`
-              : 'Set priority',
-            onClick: onSetPriority,
-          },
-          {
-            key: 'edit',
-            icon: <EditIcon className="h-[18px] w-[18px]" />,
-            label: 'Edit item',
-            onClick: onEdit,
-          },
-          {
-            key: 'delete',
-            icon: <TrashIcon className="h-[18px] w-[18px]" />,
-            label: 'Delete item',
-            onClick: onRequestDelete,
-          },
-        ]}
-      />
-    </ActionCard>
+            )}
+            {item.name}
+          </span>
+          {(item.quantity != null || item.unit) && (
+            <span className="mt-1 block text-xs text-ink-dim">
+              {item.quantity ?? ''} {item.unit ?? ''}
+            </span>
+          )}
+          {item.note && (
+            <p className="mt-2 text-sm text-ink-dim">{item.note}</p>
+          )}
+          {item.addedBy && memberName.get(item.addedBy) && (
+            <p className="mt-3 text-[11px] text-ink-dim">
+              added by {memberName.get(item.addedBy)}
+            </p>
+          )}
+          <MutationStatus status={status} error={error} />
+        </div>
+        <IconRail
+          actions={[
+            {
+              key: 'drag',
+              icon: <GripIcon className="h-[18px] w-[18px]" />,
+              label: 'Reorder item',
+              handleProps: {
+                ref: sortable.setActivatorNodeRef,
+                ...sortable.attributes,
+                ...sortable.listeners,
+                className: 'cursor-grab touch-none',
+              },
+            },
+            {
+              key: 'remind',
+              icon: <BellIcon className="h-[18px] w-[18px]" />,
+              label: 'Item reminders',
+              onClick: onRemind,
+              badge: item.reminders.length,
+            },
+            {
+              key: 'priority',
+              icon: (
+                <FlagIcon
+                  className={`h-[18px] w-[18px] ${item.priority ? PRIORITY_TEXT_CLASS[item.priority] : ''}`}
+                  filled={item.priority != null}
+                />
+              ),
+              label: item.priority
+                ? `Priority: ${item.priority}`
+                : 'Set priority',
+              onClick: onSetPriority,
+            },
+            {
+              key: 'move',
+              icon: <FolderIcon className="h-[18px] w-[18px]" />,
+              label: 'Move to category',
+              onClick: onMove,
+            },
+            {
+              key: 'edit',
+              icon: <EditIcon className="h-[18px] w-[18px]" />,
+              label: 'Edit item',
+              onClick: onEdit,
+            },
+            {
+              key: 'delete',
+              icon: <TrashIcon className="h-[18px] w-[18px]" />,
+              label: 'Delete item',
+              onClick: onRequestDelete,
+            },
+          ]}
+        />
+      </ActionCard>
+    </div>
+  )
+}
+
+/**
+ * The non-pointer path for a cross-category move (§2.11) — opened from the
+ * rail's folder icon. Lists every category plus Uncategorized with the
+ * item's current bucket checked; a pick drops the item at the end of the
+ * chosen bucket via `moveItemAction`.
+ */
+function MoveToSheet({
+  categories,
+  currentCategoryId,
+  onSelect,
+}: {
+  categories: CategoryView[]
+  currentCategoryId: string | null
+  onSelect: (categoryId: string | null) => void
+}) {
+  const targets: { id: string | null; name: string }[] = [
+    { id: null, name: 'Uncategorized' },
+    ...categories.map((c) => ({ id: c.id, name: c.name })),
+  ]
+  return (
+    <div className="flex flex-col gap-1.5">
+      {targets.map((t) => {
+        const selected = t.id === currentCategoryId
+        return (
+          <button
+            key={t.id ?? UNCATEGORIZED}
+            type="button"
+            onClick={() => onSelect(t.id)}
+            className={`flex items-center gap-3 rounded-control px-[14px] py-[13px] text-left transition-colors ${
+              selected ? 'bg-inset' : 'hover:bg-inset'
+            }`}
+          >
+            <span className="flex-1 text-sm text-ink">{t.name}</span>
+            {selected && <CheckIcon className="h-4 w-4 text-accent" />}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -635,23 +1170,17 @@ function ItemReminderForm({
 
 function ItemEditForm({
   item,
-  categories,
-  currentCategoryName,
   onSaved,
   onCancel,
 }: {
   item: ItemView
-  categories: CategoryView[]
-  currentCategoryName: string | undefined
   onSaved: () => Promise<void>
   onCancel: () => void
 }) {
-  const categoryListId = useId()
   const [name, setName] = useState(item.name)
   const [quantity, setQuantity] = useState(item.quantity?.toString() ?? '')
   const [unit, setUnit] = useState(item.unit ?? '')
   const [note, setNote] = useState(item.note ?? '')
-  const [categoryName, setCategoryName] = useState(currentCategoryName ?? '')
   const [priority, setPriority] = useState<PriorityChoice>(
     item.priority ?? 'none',
   )
@@ -670,7 +1199,6 @@ function ItemEditForm({
           quantity: quantity ? Number(quantity) : undefined,
           unit: unit || undefined,
           note: note || undefined,
-          categoryName: categoryName || undefined,
           priority: priority === 'none' ? undefined : priority,
         },
       })
@@ -714,19 +1242,6 @@ function ItemEditForm({
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-      </Field>
-      <Field label="Category">
-        <input
-          className="field"
-          list={categoryListId}
-          value={categoryName}
-          onChange={(e) => setCategoryName(e.target.value)}
-        />
-        <datalist id={categoryListId}>
-          {categories.map((c) => (
-            <option key={c.id} value={c.name} />
-          ))}
-        </datalist>
       </Field>
       <Field label="Priority">
         <SegmentedControl
@@ -785,21 +1300,17 @@ function RecentlyBought({
 
 function NewItemForm({
   listId,
-  categories,
   onCreated,
   onCancel,
 }: {
   listId: string
-  categories: CategoryView[]
   onCreated: () => Promise<void>
   onCancel?: () => void
 }) {
-  const categoryListId = useId()
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState('')
   const [note, setNote] = useState('')
-  const [categoryName, setCategoryName] = useState('')
   const [priority, setPriority] = useState<PriorityChoice>('none')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -816,7 +1327,6 @@ function NewItemForm({
           quantity: quantity ? Number(quantity) : undefined,
           unit: unit || undefined,
           note: note || undefined,
-          categoryName: categoryName || undefined,
           priority: priority === 'none' ? undefined : priority,
         },
       })
@@ -824,7 +1334,6 @@ function NewItemForm({
       setQuantity('')
       setUnit('')
       setNote('')
-      setCategoryName('')
       setPriority('none')
       await onCreated()
     } catch {
@@ -867,19 +1376,6 @@ function NewItemForm({
           onChange={(e) => setNote(e.target.value)}
         />
       </Field>
-      <Field label="Category">
-        <input
-          className="field"
-          list={categoryListId}
-          value={categoryName}
-          onChange={(e) => setCategoryName(e.target.value)}
-        />
-        <datalist id={categoryListId}>
-          {categories.map((c) => (
-            <option key={c.id} value={c.name} />
-          ))}
-        </datalist>
-      </Field>
       <Field label="Priority">
         <SegmentedControl
           value={priority}
@@ -900,120 +1396,5 @@ function NewItemForm({
         )}
       </div>
     </form>
-  )
-}
-
-const CATEGORY_ROW_HEIGHT = 46
-
-/**
- * Category reordering — the visual half of #68 (§2.11). Drag swaps one
- * step at a time as the pointer crosses a neighbor's row height, then
- * resets its origin so a single gesture can move several positions —
- * built on the existing single-step reorderCategoryAction, no backend
- * change needed. Delete stays a small trailing icon rather than the
- * spec's long-press menu — keeping it always reachable by keyboard and
- * screen reader beat matching the gesture exactly.
- */
-function CategoryOrder({
-  categories,
-  itemCounts,
-  onChange,
-}: {
-  categories: CategoryView[]
-  itemCounts: Map<string, number>
-  onChange: () => Promise<void>
-}) {
-  const drag = useRef<{ id: string; y: number } | null>(null)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
-
-  if (categories.length === 0) return null
-
-  async function move(id: string, direction: 'up' | 'down') {
-    await reorderCategoryAction({ data: { categoryId: id, direction } })
-    await onChange()
-  }
-
-  function handlePointerDown(id: string, event: React.PointerEvent) {
-    drag.current = { id, y: event.clientY }
-    setDraggingId(id)
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-
-  function handlePointerMove(event: React.PointerEvent) {
-    if (!drag.current) return
-    const delta = event.clientY - drag.current.y
-    if (Math.abs(delta) > CATEGORY_ROW_HEIGHT) {
-      const direction = delta > 0 ? 'down' : 'up'
-      drag.current.y = event.clientY
-      void move(drag.current.id, direction)
-    }
-  }
-
-  function handlePointerUp() {
-    drag.current = null
-    setDraggingId(null)
-  }
-
-  return (
-    <section className="mt-10">
-      <h2 className="font-display text-2xl text-ink">Category order</h2>
-      <ul className="mt-3 flex flex-col gap-[7px]">
-        {categories.map((category) => {
-          const isDragging = draggingId === category.id
-          return (
-            <li
-              key={category.id}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              className={`flex touch-none items-center gap-3 rounded-control px-[14px] py-[13px] transition-[transform,box-shadow] ${
-                isDragging
-                  ? 'scale-[1.02] border border-accent bg-card shadow-lifted'
-                  : 'bg-inset'
-              }`}
-            >
-              <button
-                type="button"
-                aria-label={`Reorder ${category.name}`}
-                onPointerDown={(e) => handlePointerDown(category.id, e)}
-                onKeyDown={(e) => {
-                  if (e.key === 'ArrowUp') {
-                    e.preventDefault()
-                    void move(category.id, 'up')
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault()
-                    void move(category.id, 'down')
-                  }
-                }}
-                className={
-                  isDragging
-                    ? 'shrink-0 cursor-grabbing text-accent'
-                    : 'shrink-0 cursor-grab text-ink-ghost'
-                }
-              >
-                <GripIcon className="h-4 w-4" />
-              </button>
-              <span className="flex-1 text-sm text-ink">{category.name}</span>
-              <span className="text-xs text-ink-dim">
-                {itemCounts.get(category.id) ?? 0}
-              </span>
-              <button
-                type="button"
-                aria-label={`Delete ${category.name}`}
-                onClick={async () => {
-                  await deleteCategoryAction({
-                    data: { categoryId: category.id },
-                  })
-                  await onChange()
-                }}
-                className="shrink-0 text-ink-dim"
-              >
-                <TrashIcon className="h-3.5 w-3.5" />
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
   )
 }

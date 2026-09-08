@@ -70,6 +70,14 @@ export function TrashIcon({ className = 'h-4 w-4' }: IconProps) {
   )
 }
 
+export function FolderIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg {...BASE_PROPS} className={className}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+    </svg>
+  )
+}
+
 export function UndoIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg {...BASE_PROPS} className={className}>

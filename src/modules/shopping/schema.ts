@@ -58,6 +58,9 @@ export const shoppingItems = pgTable('shopping_items', {
   quantity: numeric('quantity', { mode: 'number' }),
   unit: text('unit'),
   note: text('note'),
+  // Dense per-bucket order (a bucket is one category_id value, or NULL).
+  // Rewritten in full by moveItemAction on every drop.
+  sort: integer('sort').notNull().default(0),
   categoryId: uuid('category_id').references(() => shoppingCategories.id, {
     onDelete: 'set null',
   }),

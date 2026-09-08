@@ -10,14 +10,17 @@ import { resolveReminderFireAt } from '#/modules/shopping/reminder-time'
 import { scheduleRemindersForItem } from '#/modules/shopping/reminders'
 import {
   addItem,
+  createCategory,
   deleteCategory,
   getItem,
   getOrCreateDefaultList,
   listCategories,
   listItems,
   listRecentlyBought,
+  moveItem,
   removeItem,
-  reorderCategory,
+  renameCategory,
+  reorderCategories,
   setItemChecked,
   setItemPriority,
   updateItem,
@@ -79,7 +82,6 @@ const addItemInput = z.object({
   quantity: z.number().positive().optional(),
   unit: z.string().max(50).optional(),
   note: z.string().max(500).optional(),
-  categoryName: z.string().min(1).max(100).optional(),
   priority: itemPriority.optional(),
 })
 
@@ -102,7 +104,6 @@ const updateItemInput = z.object({
   quantity: z.number().positive().optional(),
   unit: z.string().max(50).optional(),
   note: z.string().max(500).optional(),
-  categoryName: z.string().min(1).max(100).optional(),
   priority: itemPriority.optional(),
 })
 
@@ -111,6 +112,25 @@ export const updateItemAction = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { householdId } = await requireMember()
     await updateItem({ householdId, ...data })
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'item',
+      action: 'updated',
+    })
+    return { ok: true as const }
+  })
+
+const moveItemInput = z.object({
+  itemId: z.string().uuid(),
+  categoryId: z.string().uuid().nullable(),
+  orderedItemIds: z.array(z.string().uuid()).max(200),
+})
+
+export const moveItemAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => moveItemInput.parse(input))
+  .handler(async ({ data }) => {
+    const { householdId } = await requireMember()
+    await moveItem(householdId, data)
     publish(householdId, {
       module: 'shopping',
       entity: 'item',
@@ -214,16 +234,15 @@ export const removeItemAction = createServerFn({ method: 'POST' })
     return { ok: true as const }
   })
 
-const reorderCategoryInput = z.object({
-  categoryId: z.string().uuid(),
-  direction: z.enum(['up', 'down']),
+const reorderCategoriesInput = z.object({
+  orderedIds: z.array(z.string().uuid()).max(100),
 })
 
-export const reorderCategoryAction = createServerFn({ method: 'POST' })
-  .validator((input: unknown) => reorderCategoryInput.parse(input))
+export const reorderCategoriesAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => reorderCategoriesInput.parse(input))
   .handler(async ({ data }) => {
     const { householdId } = await requireMember()
-    await reorderCategory(householdId, data.categoryId, data.direction)
+    await reorderCategories(householdId, data.orderedIds)
     publish(householdId, {
       module: 'shopping',
       entity: 'category',
@@ -245,6 +264,41 @@ export const deleteCategoryAction = createServerFn({ method: 'POST' })
       module: 'shopping',
       entity: 'category',
       action: 'deleted',
+    })
+    return { ok: true as const }
+  })
+
+const createCategoryInput = z.object({
+  name: z.string().trim().min(1).max(100),
+})
+
+export const createCategoryAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => createCategoryInput.parse(input))
+  .handler(async ({ data }) => {
+    const { householdId } = await requireMember()
+    const result = await createCategory(householdId, data.name)
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'category',
+      action: 'created',
+    })
+    return result
+  })
+
+const renameCategoryInput = z.object({
+  categoryId: z.string().uuid(),
+  name: z.string().trim().min(1).max(100),
+})
+
+export const renameCategoryAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => renameCategoryInput.parse(input))
+  .handler(async ({ data }) => {
+    const { householdId } = await requireMember()
+    await renameCategory(householdId, data.categoryId, data.name)
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'category',
+      action: 'updated',
     })
     return { ok: true as const }
   })
