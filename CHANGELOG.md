@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/stevetosak/doma/compare/v0.3.0...v0.4.0) (2026-09-08)
+
+
+### Features
+
+* brand identity — new mark across app, browser, and PWA ([6051907](https://github.com/stevetosak/doma/commit/605190726c0d413069db765680feccffb8bf3ba2))
+* brand identity — new mark across app, browser, and PWA ([b59e976](https://github.com/stevetosak/doma/commit/b59e976a8b0d47c913fc179724e951bd2ee93e07))
+
 ## [0.3.0](https://github.com/stevetosak/doma/compare/v0.2.0...v0.3.0) (2026-09-08)
 
 
