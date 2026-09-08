@@ -32,6 +32,7 @@ const OFFLINE_HTML = `<!doctype html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>doma — offline</title></head>
 <body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#e9e4d8;color:#1d2320;font-family:system-ui,sans-serif">
 <div style="max-width:24rem;padding:2rem;text-align:center;background:#f6f3ec;border-top:4px solid #8c2f24;border-radius:18px;box-shadow:0 10px 26px -12px rgb(29 35 32 / 0.35)">
+<svg width="52" height="52" viewBox="0 0 64 64" style="margin-bottom:0.75rem" aria-hidden="true"><path d="M9 34 L32 13 L55 34" fill="none" stroke="#1d2320" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="47" r="9.5" fill="#1d2320"/><circle cx="39" cy="47" r="9.5" fill="#8c2f24"/></svg>
 <h1 style="margin:0;font-size:1.5rem">No connection</h1>
 <p style="margin-top:0.75rem;color:#6f6a5f">doma needs a connection to load this page. Reconnect and reload.</p>
 </div>

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useRouteContext } from '@tanstack/react-router'
-import { AppMark } from '#/core/ui/AppMark'
+import { AppLogo } from '#/core/ui/AppLogo'
 import { TabSpine } from '#/core/ui/TabSpine'
 import { useAmbientWash } from '#/core/ui/useAmbientWash'
 
@@ -26,10 +26,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       />
       <TabSpine />
       <main className="mx-auto max-w-3xl px-4 pt-8 pb-[calc(104px+env(safe-area-inset-bottom))] md:pt-10 md:pr-8 md:pb-10 md:pl-24">
-        <div className="mb-8 flex items-center gap-2 md:hidden">
-          <AppMark className="h-7 w-7" />
-          <span className="font-display text-xl text-ink">doma</span>
-        </div>
+        <AppLogo className="mb-8 md:hidden" />
         {children}
         <p className="mt-16 text-[11px] text-ink-dim">doma · {version}</p>
       </main>

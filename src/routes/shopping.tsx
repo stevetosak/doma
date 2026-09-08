@@ -21,6 +21,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { validateAddSearch } from '#/core/pwa/add-shortcut'
 import { ActionCard } from '#/core/ui/ActionCard'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
@@ -106,6 +107,9 @@ const PRIORITY_TEXT_CLASS: Record<ItemPriority, string> = {
 }
 
 export const Route = createFileRoute('/shopping')({
+  // `?add=1` opens the add-item sheet on load — the target of the
+  // "Add shopping item" home-screen shortcut (manifest.webmanifest).
+  validateSearch: validateAddSearch,
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
       throw redirect({
@@ -136,8 +140,16 @@ function itemLine(item: ItemView): string {
 function ShoppingPage() {
   const data = Route.useLoaderData()
   const router = useRouter()
+  const navigate = Route.useNavigate()
+  const { add } = Route.useSearch()
   useLiveSync()
   const [addOpen, setAddOpen] = useState(false)
+
+  useEffect(() => {
+    if (!add) return
+    setAddOpen(true)
+    void navigate({ search: {}, replace: true })
+  }, [add, navigate])
   // Edit / reminders / priority sheets are hosted here, once each, not
   // inside ItemCard. A Sheet is `fixed inset-0`; a card sits in a `.rise`
   // wrapper whose transform animation makes it the containing block for

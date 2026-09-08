@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { AppLogo } from '#/core/ui/AppLogo'
 import { Field } from '#/core/ui/Field'
 import { isBootstrapMode } from '#/core/auth/auth-context.functions'
 
@@ -54,6 +55,11 @@ function RegisterPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
+      <AppLogo
+        markClassName="h-9 w-9"
+        wordClassName="text-2xl"
+        className="mb-8"
+      />
       <h1 className="font-display text-4xl text-ink">
         {bootstrap ? 'Create the first account' : 'Join with an invite code'}
       </h1>

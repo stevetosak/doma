@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1290 2796" width="1290" height="2796" role="img" aria-label="doma"><title>doma splash screen</title>
+  <defs>
+    <clipPath id="doma-clip-splash"><circle cx="25" cy="47" r="9.5"></circle></clipPath>
+  </defs>
+  <rect width="1290" height="2796" fill="#e9e4d8"></rect>
+  <g transform="translate(465 1140) scale(5.625)">
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 34 L32 13 L55 34" stroke="#1d2320" stroke-width="6"></path>
+    </g>
+    <circle cx="25" cy="47" r="9.5" fill="#1d2320"></circle>
+    <circle cx="39" cy="47" r="9.5" fill="#8c2f24"></circle>
+    <g clip-path="url(#doma-clip-splash)"><circle cx="39" cy="47" r="9.5" fill="#120806"></circle></g>
+  </g>
+  <text x="645" y="1720" text-anchor="middle" font-family="Outfit, system-ui, sans-serif" font-weight="600" font-size="150" letter-spacing="-2.25" fill="#1d2320">doma</text>
+</svg>

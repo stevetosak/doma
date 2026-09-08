@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="doma"><title>doma mark, one colour (inherits currentColor)</title>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 34 L32 13 L55 34" stroke-width="6"></path>
+  </g>
+  <circle cx="25" cy="47" r="9.5" fill="currentColor"></circle>
+  <circle cx="39" cy="47" r="9.5" fill="currentColor" opacity="0.55"></circle>
+</svg>

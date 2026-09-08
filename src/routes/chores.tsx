@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { validateAddSearch } from '#/core/pwa/add-shortcut'
 import { ActionCard } from '#/core/ui/ActionCard'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
@@ -43,6 +44,9 @@ import type { ChoreOccurrenceView, ChoreView } from '#/modules/chores/repo'
 import type { HouseholdMember } from '#/core/household/members-repo'
 
 export const Route = createFileRoute('/chores')({
+  // `?add=1` opens the new-chore sheet on load — the target of the
+  // "Add chore" home-screen shortcut (manifest.webmanifest).
+  validateSearch: validateAddSearch,
   beforeLoad: ({ context }) => {
     if (!context.auth.user) {
       throw redirect({
@@ -117,8 +121,16 @@ function nextPendingOccurrence(
 function ChoresPage() {
   const data = Route.useLoaderData()
   const router = useRouter()
+  const navigate = Route.useNavigate()
+  const { add } = Route.useSearch()
   useLiveSync()
   const [addOpen, setAddOpen] = useState(false)
+
+  useEffect(() => {
+    if (!add) return
+    setAddOpen(true)
+    void navigate({ search: {}, replace: true })
+  }, [add, navigate])
   // Edit and reminders sheets are hosted here, once each, not inside
   // ChoreCard. A Sheet is `fixed inset-0`; a card sits in a `.rise`
   // wrapper whose transform animation makes it the containing block for

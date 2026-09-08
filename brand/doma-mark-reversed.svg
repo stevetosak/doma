@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="doma"><title>doma mark, reversed</title>
+  <defs>
+    <clipPath id="doma-clip-rev"><circle cx="25" cy="47" r="9.5"></circle></clipPath>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 34 L32 13 L55 34" stroke="#f6f3ec" stroke-width="6"></path>
+  </g>
+  <circle cx="25" cy="47" r="9.5" fill="#f6f3ec"></circle>
+  <circle cx="39" cy="47" r="9.5" fill="#8c2f24"></circle>
+  <g clip-path="url(#doma-clip-rev)"><circle cx="39" cy="47" r="9.5" fill="#f0dcd4"></circle></g>
+</svg>
