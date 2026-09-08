@@ -61,6 +61,7 @@ import {
   moveItemAction,
   reAddItemAction,
   removeItemAction,
+  renameCategoryAction,
   reorderCategoriesAction,
   setItemCheckedAction,
   setItemPriorityAction,
@@ -595,6 +596,29 @@ function CategoryGroup({
     id: bucketKey,
     data: { type: 'bucket', bucketKey },
   })
+  const [renaming, setRenaming] = useState(false)
+  const [draft, setDraft] = useState(category?.name ?? '')
+
+  useEffect(() => {
+    setDraft(category?.name ?? '')
+  }, [category?.name])
+
+  async function submitRename() {
+    setRenaming(false)
+    const trimmed = draft.trim()
+    if (!category || !trimmed || trimmed === category.name) {
+      setDraft(category?.name ?? '')
+      return
+    }
+    try {
+      await renameCategoryAction({
+        data: { categoryId: category.id, name: trimmed },
+      })
+      await onChange()
+    } catch {
+      setDraft(category.name)
+    }
+  }
 
   return (
     <section
@@ -618,9 +642,38 @@ function CategoryGroup({
             <GripIcon className="h-4 w-4" />
           </button>
         )}
-        <h2 className="flex-1 text-xs font-semibold tracking-wide text-ink-dim uppercase">
-          {category ? category.name : 'Uncategorized'}
-        </h2>
+        {renaming && category ? (
+          <form
+            className="flex-1"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void submitRename()
+            }}
+          >
+            <input
+              autoFocus
+              className="field h-8 w-full py-0 text-sm"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => void submitRename()}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setRenaming(false)
+                  setDraft(category.name)
+                }
+              }}
+            />
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => category && setRenaming(true)}
+            disabled={!category}
+            className="flex-1 text-left text-xs font-semibold tracking-wide text-ink-dim uppercase disabled:cursor-default"
+          >
+            {category ? category.name : 'Uncategorized'}
+          </button>
+        )}
         <span className="text-xs text-ink-dim">{itemIds.length}</span>
         {category && (
           <button
