@@ -38,7 +38,6 @@ import {
   MAX_ITEM_REMINDERS,
   reAddItemAction,
   removeItemAction,
-  reorderCategoryAction,
   setItemCheckedAction,
   setItemPriorityAction,
   setItemRemindersAction,
@@ -928,8 +927,9 @@ function CategoryOrder({
 
   if (categories.length === 0) return null
 
-  async function move(id: string, direction: 'up' | 'down') {
-    await reorderCategoryAction({ data: { categoryId: id, direction } })
+  // Temporary no-op: this whole CategoryOrder component is deleted in the
+  // next commit (drag moves onto the list headers). Kept compiling here.
+  async function move(_id: string, _direction: 'up' | 'down') {
     await onChange()
   }
 

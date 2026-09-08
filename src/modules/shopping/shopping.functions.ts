@@ -18,7 +18,7 @@ import {
   listRecentlyBought,
   moveItem,
   removeItem,
-  reorderCategory,
+  reorderCategories,
   setItemChecked,
   setItemPriority,
   updateItem,
@@ -234,16 +234,15 @@ export const removeItemAction = createServerFn({ method: 'POST' })
     return { ok: true as const }
   })
 
-const reorderCategoryInput = z.object({
-  categoryId: z.string().uuid(),
-  direction: z.enum(['up', 'down']),
+const reorderCategoriesInput = z.object({
+  orderedIds: z.array(z.string().uuid()).max(100),
 })
 
-export const reorderCategoryAction = createServerFn({ method: 'POST' })
-  .validator((input: unknown) => reorderCategoryInput.parse(input))
+export const reorderCategoriesAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => reorderCategoriesInput.parse(input))
   .handler(async ({ data }) => {
     const { householdId } = await requireMember()
-    await reorderCategory(householdId, data.categoryId, data.direction)
+    await reorderCategories(householdId, data.orderedIds)
     publish(householdId, {
       module: 'shopping',
       entity: 'category',

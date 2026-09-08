@@ -12,7 +12,7 @@ import { db } from '#/core/db/client'
 import { householdScope } from '#/core/db/household-scope'
 import { createItemRecord, deleteItemRecord } from '#/core/items/repo'
 import { reminders } from '#/core/items/schema'
-import { moveCategory, normalizeItemName } from './list-logic'
+import { normalizeItemName } from './list-logic'
 import {
   shoppingCategories,
   shoppingItemHistory,
@@ -118,26 +118,35 @@ export async function deleteCategory(
     )
 }
 
-export async function reorderCategory(
+export async function reorderCategories(
   householdId: string,
-  categoryId: string,
-  direction: 'up' | 'down',
+  orderedIds: string[],
 ): Promise<void> {
-  const categories = await listCategories(householdId)
-  const updates = moveCategory(categories, categoryId, direction)
-  if (!updates) return
-  for (const update of updates) {
-    await db
-      .update(shoppingCategories)
-      .set({ sort: update.sort })
-      .where(
-        householdScope(
-          shoppingCategories,
-          householdId,
-          eq(shoppingCategories.id, update.id),
-        ),
-      )
-  }
+  await db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ id: shoppingCategories.id })
+      .from(shoppingCategories)
+      .where(householdScope(shoppingCategories, householdId))
+    const existingIds = new Set(existing.map((c) => c.id))
+    if (
+      existingIds.size !== orderedIds.length ||
+      !orderedIds.every((id) => existingIds.has(id))
+    ) {
+      throw new Error('orderedIds does not match this household')
+    }
+    for (const [index, id] of orderedIds.entries()) {
+      await tx
+        .update(shoppingCategories)
+        .set({ sort: index })
+        .where(
+          householdScope(
+            shoppingCategories,
+            householdId,
+            eq(shoppingCategories.id, id),
+          ),
+        )
+    }
+  })
 }
 
 /**
