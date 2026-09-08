@@ -119,6 +119,20 @@ function ChoresPage() {
   const router = useRouter()
   useLiveSync()
   const [addOpen, setAddOpen] = useState(false)
+  // Edit and reminders sheets are hosted here, once each, not inside
+  // ChoreCard. A Sheet is `fixed inset-0`; a card sits in a `.rise`
+  // wrapper whose transform animation makes it the containing block for
+  // fixed descendants, which pinned a card-hosted sheet to the card and
+  // pushed it off the top of the screen. One shared bit of state, the
+  // target looked up against live loader data so the sheet closes itself
+  // if the chore disappears.
+  const [choreSheet, setChoreSheet] = useState<{
+    kind: 'edit' | 'reminders'
+    id: string
+  } | null>(null)
+  const activeChore = choreSheet
+    ? (data.chores.find((c) => c.id === choreSheet.id) ?? null)
+    : null
 
   async function refresh() {
     await router.invalidate({ sync: true })
@@ -156,10 +170,13 @@ function ChoresPage() {
             >
               <ChoreCard
                 chore={chore}
-                members={data.members}
                 memberName={memberName}
                 timezone={data.timezone}
                 onChange={refresh}
+                onEdit={() => setChoreSheet({ kind: 'edit', id: chore.id })}
+                onRemind={() =>
+                  setChoreSheet({ kind: 'reminders', id: chore.id })
+                }
               />
             </div>
           ))}
@@ -176,6 +193,42 @@ function ChoresPage() {
           }}
           onCancel={() => setAddOpen(false)}
         />
+      </Sheet>
+
+      <Sheet
+        open={choreSheet?.kind === 'edit' && activeChore != null}
+        onClose={() => setChoreSheet(null)}
+        title="Edit chore"
+      >
+        {activeChore && (
+          <ChoreForm
+            members={data.members}
+            timezone={data.timezone}
+            initial={activeChore}
+            onSaved={async () => {
+              setChoreSheet(null)
+              await refresh()
+            }}
+            onCancel={() => setChoreSheet(null)}
+          />
+        )}
+      </Sheet>
+
+      <Sheet
+        open={choreSheet?.kind === 'reminders' && activeChore != null}
+        onClose={() => setChoreSheet(null)}
+        title="Chore reminders"
+      >
+        {activeChore && (
+          <ChoreReminderForm
+            chore={activeChore}
+            onSaved={async () => {
+              setChoreSheet(null)
+              await refresh()
+            }}
+            onCancel={() => setChoreSheet(null)}
+          />
+        )}
       </Sheet>
     </AppShell>
   )
@@ -228,20 +281,20 @@ function OccurrenceStrip({
 
 function ChoreCard({
   chore,
-  members,
   memberName,
   timezone,
   onChange,
+  onEdit,
+  onRemind,
 }: {
   chore: ChoreView
-  members: HouseholdMember[]
   memberName: Map<string, string>
   timezone: string
   onChange: () => Promise<void>
+  onEdit: () => void
+  onRemind: () => void
 }) {
   const { status, error, run } = useHouseholdMutation()
-  const [editOpen, setEditOpen] = useState(false)
-  const [remindersOpen, setRemindersOpen] = useState(false)
   const { showToast } = useToast()
   const today = todayInZone(timezone)
   const filed = chore.occurrences.filter((o) => o.status !== 'pending')
@@ -355,14 +408,14 @@ function ChoreCard({
               key: 'remind',
               icon: <BellIcon className="h-[18px] w-[18px]" />,
               label: 'Chore reminders',
-              onClick: () => setRemindersOpen(true),
+              onClick: onRemind,
               badge: chore.reminders.length,
             },
             {
               key: 'edit',
               icon: <EditIcon className="h-[18px] w-[18px]" />,
               label: 'Edit chore',
-              onClick: () => setEditOpen(true),
+              onClick: onEdit,
             },
             {
               key: 'delete',
@@ -393,38 +446,6 @@ function ChoreCard({
           ],
         }))}
       />
-
-      <Sheet
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        title="Edit chore"
-      >
-        <ChoreForm
-          members={members}
-          timezone={timezone}
-          initial={chore}
-          onSaved={async () => {
-            setEditOpen(false)
-            await onChange()
-          }}
-          onCancel={() => setEditOpen(false)}
-        />
-      </Sheet>
-
-      <Sheet
-        open={remindersOpen}
-        onClose={() => setRemindersOpen(false)}
-        title="Chore reminders"
-      >
-        <ChoreReminderForm
-          chore={chore}
-          onSaved={async () => {
-            setRemindersOpen(false)
-            await onChange()
-          }}
-          onCancel={() => setRemindersOpen(false)}
-        />
-      </Sheet>
     </div>
   )
 }
