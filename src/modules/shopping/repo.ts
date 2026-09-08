@@ -1,4 +1,13 @@
-import { and, asc, desc, eq, inArray, notInArray, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  notInArray,
+  sql,
+} from 'drizzle-orm'
 import { db } from '#/core/db/client'
 import { householdScope } from '#/core/db/household-scope'
 import { createItemRecord, deleteItemRecord } from '#/core/items/repo'
@@ -129,6 +138,108 @@ export async function reorderCategory(
         ),
       )
   }
+}
+
+/**
+ * The one write path for a drag drop. Sets the moved item's category,
+ * rewrites the destination bucket's `sort` from `orderedItemIds`, and — if
+ * the item changed buckets — closes the gap it left in the source bucket.
+ * `orderedItemIds` is the full final order of the destination bucket's
+ * unchecked items and includes `itemId`.
+ */
+export async function moveItem(
+  householdId: string,
+  input: {
+    itemId: string
+    categoryId: string | null
+    orderedItemIds: string[]
+  },
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({
+        categoryId: shoppingItems.categoryId,
+        listId: shoppingItems.listId,
+      })
+      .from(shoppingItems)
+      .where(
+        householdScope(
+          shoppingItems,
+          householdId,
+          eq(shoppingItems.id, input.itemId),
+        ),
+      )
+    if (!current) throw new Error('Item not found')
+
+    const owned = await tx
+      .select({ id: shoppingItems.id })
+      .from(shoppingItems)
+      .where(
+        householdScope(
+          shoppingItems,
+          householdId,
+          and(
+            eq(shoppingItems.listId, current.listId),
+            inArray(shoppingItems.id, input.orderedItemIds),
+          ),
+        ),
+      )
+    if (owned.length !== input.orderedItemIds.length) {
+      throw new Error('orderedItemIds does not match this list')
+    }
+
+    await tx
+      .update(shoppingItems)
+      .set({ categoryId: input.categoryId })
+      .where(
+        householdScope(
+          shoppingItems,
+          householdId,
+          eq(shoppingItems.id, input.itemId),
+        ),
+      )
+
+    for (const [index, id] of input.orderedItemIds.entries()) {
+      await tx
+        .update(shoppingItems)
+        .set({ sort: index })
+        .where(
+          householdScope(shoppingItems, householdId, eq(shoppingItems.id, id)),
+        )
+    }
+
+    if (current.categoryId !== input.categoryId) {
+      const sourceRows = await tx
+        .select({ id: shoppingItems.id })
+        .from(shoppingItems)
+        .where(
+          householdScope(
+            shoppingItems,
+            householdId,
+            and(
+              eq(shoppingItems.listId, current.listId),
+              eq(shoppingItems.isChecked, false),
+              current.categoryId === null
+                ? isNull(shoppingItems.categoryId)
+                : eq(shoppingItems.categoryId, current.categoryId),
+            ),
+          ),
+        )
+        .orderBy(asc(shoppingItems.sort), asc(shoppingItems.createdAt))
+      for (const [index, row] of sourceRows.entries()) {
+        await tx
+          .update(shoppingItems)
+          .set({ sort: index })
+          .where(
+            householdScope(
+              shoppingItems,
+              householdId,
+              eq(shoppingItems.id, row.id),
+            ),
+          )
+      }
+    }
+  })
 }
 
 export interface ItemReminderView {

@@ -16,6 +16,7 @@ import {
   listCategories,
   listItems,
   listRecentlyBought,
+  moveItem,
   removeItem,
   reorderCategory,
   setItemChecked,
@@ -111,6 +112,25 @@ export const updateItemAction = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const { householdId } = await requireMember()
     await updateItem({ householdId, ...data })
+    publish(householdId, {
+      module: 'shopping',
+      entity: 'item',
+      action: 'updated',
+    })
+    return { ok: true as const }
+  })
+
+const moveItemInput = z.object({
+  itemId: z.string().uuid(),
+  categoryId: z.string().uuid().nullable(),
+  orderedItemIds: z.array(z.string().uuid()).max(200),
+})
+
+export const moveItemAction = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => moveItemInput.parse(input))
+  .handler(async ({ data }) => {
+    const { householdId } = await requireMember()
+    await moveItem(householdId, data)
     publish(householdId, {
       module: 'shopping',
       entity: 'item',
