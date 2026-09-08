@@ -23,6 +23,9 @@ todos.json
 *.swp
 .idea/
 
+# throwaway verification scripts (shopping drag-and-drop plan)
+scripts/_scratch.ts
+
 # impeccable design tooling — track config.json/DESIGN.md when present, ignore working state
 .impeccable/build/
 .impeccable/review/
