@@ -1,6 +1,25 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCorners,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { ActionCard } from '#/core/ui/ActionCard'
 import { AppShell } from '#/core/ui/AppShell'
 import { DoneStack } from '#/core/ui/DoneStack'
@@ -39,6 +58,7 @@ import {
   MAX_ITEM_REMINDERS,
   reAddItemAction,
   removeItemAction,
+  reorderCategoriesAction,
   setItemCheckedAction,
   setItemPriorityAction,
   setItemRemindersAction,
@@ -260,18 +280,6 @@ function ShoppingPage() {
         suggestions={data.recentlyBought}
         onChange={refresh}
       />
-      <CategoryOrder
-        categories={data.categories}
-        itemCounts={
-          new Map(
-            data.categories.map((c) => [
-              c.id,
-              visibleItems.filter((i) => i.categoryId === c.id).length,
-            ]),
-          )
-        }
-        onChange={refresh}
-      />
 
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Add item">
         <NewItemForm
@@ -374,11 +382,48 @@ function ShoppingList({
     setBoard(buildBoard({ categories, items }, hiddenIds))
   }, [categories, items, hiddenIds])
 
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
   const categoryById = new Map(categories.map((c) => [c.id, c]))
   const orderedKeys = [
     ...board.categoryOrder,
     ...(board.itemsByBucket[UNCATEGORIZED]?.length ? [UNCATEGORIZED] : []),
   ]
+  const activeCategory =
+    activeId && activeId.startsWith('cat:')
+      ? categoryById.get(activeId.slice(4))
+      : undefined
+
+  function persistCategoryOrder(orderedIds: string[]) {
+    void reorderCategoriesAction({ data: { orderedIds } }).then(() =>
+      onChange(),
+    )
+  }
+
+  function onDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id))
+  }
+
+  function onDragEnd(e: DragEndEvent) {
+    setActiveId(null)
+    const { active, over } = e
+    if (!over || active.data.current?.type !== 'category') return
+    const from = board.categoryOrder.indexOf(String(active.id).slice(4))
+    const to = board.categoryOrder.indexOf(String(over.id).slice(4))
+    if (from === -1 || to === -1 || from === to) return
+    const next = arrayMove(board.categoryOrder, from, to)
+    setBoard((b) => ({ ...b, categoryOrder: next }))
+    persistCategoryOrder(next)
+  }
 
   if (orderedKeys.length === 0) {
     return (
@@ -389,38 +434,141 @@ function ShoppingList({
   }
 
   return (
-    <div className="mt-8 flex flex-col gap-10">
-      {orderedKeys.map((key) => {
-        const category = key === UNCATEGORIZED ? null : categoryById.get(key)
-        const itemIds = board.itemsByBucket[key] ?? []
-        return (
-          <section key={key}>
-            <h2 className="text-xs font-semibold tracking-wide text-ink-dim uppercase">
-              {category ? category.name : 'Uncategorized'}
-            </h2>
-            <div className="mt-3 flex flex-col gap-4">
-              {itemIds.map((id) => {
-                const item = itemsById.get(id)
-                if (!item) return null
-                return (
-                  <ItemCard
-                    key={id}
-                    item={item}
-                    memberName={memberName}
-                    onChange={onChange}
-                    onRequestDelete={() => onRequestDelete(item.id, item.name)}
-                    onEdit={() => onEdit(item.id)}
-                    onRemind={() => onRemind(item.id)}
-                    onSetPriority={() => onSetPriority(item.id)}
-                    onMove={() => onMove(item.id)}
-                  />
-                )
-              })}
-            </div>
-          </section>
-        )
-      })}
-    </div>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
+      <div className="mt-8 flex flex-col gap-10">
+        <SortableContext
+          items={board.categoryOrder.map((id) => `cat:${id}`)}
+          strategy={verticalListSortingStrategy}
+        >
+          {orderedKeys.map((key) => {
+            const category =
+              key === UNCATEGORIZED ? null : categoryById.get(key)
+            return (
+              <CategoryGroup
+                key={key}
+                bucketKey={key}
+                category={category ?? null}
+                itemIds={board.itemsByBucket[key] ?? []}
+                itemsById={itemsById}
+                memberName={memberName}
+                onEdit={onEdit}
+                onRemind={onRemind}
+                onSetPriority={onSetPriority}
+                onMove={onMove}
+                onRequestDelete={onRequestDelete}
+                onChange={onChange}
+              />
+            )
+          })}
+        </SortableContext>
+      </div>
+      <DragOverlay>
+        {activeCategory ? (
+          <div className="rounded-control bg-card px-3 py-2 text-xs font-semibold tracking-wide text-ink-dim uppercase shadow-lifted">
+            {activeCategory.name}
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  )
+}
+
+function CategoryGroup({
+  bucketKey,
+  category,
+  itemIds,
+  itemsById,
+  memberName,
+  onEdit,
+  onRemind,
+  onSetPriority,
+  onMove,
+  onRequestDelete,
+  onChange,
+}: {
+  bucketKey: string
+  category: CategoryView | null
+  itemIds: string[]
+  itemsById: Map<string, ItemView>
+  memberName: Map<string, string>
+  onEdit: (id: string) => void
+  onRemind: (id: string) => void
+  onSetPriority: (id: string) => void
+  onMove: (id: string) => void
+  onRequestDelete: (id: string, name: string) => void
+  onChange: () => Promise<void>
+}) {
+  const sortable = useSortable({
+    id: `cat:${category?.id ?? bucketKey}`,
+    data: { type: 'category' },
+    disabled: category == null,
+  })
+
+  return (
+    <section
+      ref={sortable.setNodeRef}
+      style={{
+        transform: CSS.Translate.toString(sortable.transform),
+        transition: sortable.transition,
+      }}
+      className={sortable.isDragging ? 'relative z-10' : undefined}
+    >
+      <header className="flex items-center gap-2">
+        {category && (
+          <button
+            type="button"
+            ref={sortable.setActivatorNodeRef}
+            {...sortable.attributes}
+            {...sortable.listeners}
+            aria-label={`Reorder ${category.name}`}
+            className="-ml-1 flex h-7 w-7 shrink-0 cursor-grab touch-none items-center justify-center text-ink-ghost"
+          >
+            <GripIcon className="h-4 w-4" />
+          </button>
+        )}
+        <h2 className="flex-1 text-xs font-semibold tracking-wide text-ink-dim uppercase">
+          {category ? category.name : 'Uncategorized'}
+        </h2>
+        <span className="text-xs text-ink-dim">{itemIds.length}</span>
+        {category && (
+          <button
+            type="button"
+            aria-label={`Delete ${category.name}`}
+            onClick={async () => {
+              await deleteCategoryAction({ data: { categoryId: category.id } })
+              await onChange()
+            }}
+            className="shrink-0 text-ink-dim"
+          >
+            <TrashIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </header>
+      <div className="mt-3 flex flex-col gap-4">
+        {itemIds.map((id) => {
+          const item = itemsById.get(id)
+          if (!item) return null
+          return (
+            <ItemCard
+              key={id}
+              item={item}
+              memberName={memberName}
+              onChange={onChange}
+              onRequestDelete={() => onRequestDelete(item.id, item.name)}
+              onEdit={() => onEdit(item.id)}
+              onRemind={() => onRemind(item.id)}
+              onSetPriority={() => onSetPriority(item.id)}
+              onMove={() => onMove(item.id)}
+            />
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -916,121 +1064,5 @@ function NewItemForm({
         )}
       </div>
     </form>
-  )
-}
-
-const CATEGORY_ROW_HEIGHT = 46
-
-/**
- * Category reordering — the visual half of #68 (§2.11). Drag swaps one
- * step at a time as the pointer crosses a neighbor's row height, then
- * resets its origin so a single gesture can move several positions —
- * built on the existing single-step reorderCategoryAction, no backend
- * change needed. Delete stays a small trailing icon rather than the
- * spec's long-press menu — keeping it always reachable by keyboard and
- * screen reader beat matching the gesture exactly.
- */
-function CategoryOrder({
-  categories,
-  itemCounts,
-  onChange,
-}: {
-  categories: CategoryView[]
-  itemCounts: Map<string, number>
-  onChange: () => Promise<void>
-}) {
-  const drag = useRef<{ id: string; y: number } | null>(null)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
-
-  if (categories.length === 0) return null
-
-  // Temporary no-op: this whole CategoryOrder component is deleted in the
-  // next commit (drag moves onto the list headers). Kept compiling here.
-  async function move(_id: string, _direction: 'up' | 'down') {
-    await onChange()
-  }
-
-  function handlePointerDown(id: string, event: React.PointerEvent) {
-    drag.current = { id, y: event.clientY }
-    setDraggingId(id)
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-
-  function handlePointerMove(event: React.PointerEvent) {
-    if (!drag.current) return
-    const delta = event.clientY - drag.current.y
-    if (Math.abs(delta) > CATEGORY_ROW_HEIGHT) {
-      const direction = delta > 0 ? 'down' : 'up'
-      drag.current.y = event.clientY
-      void move(drag.current.id, direction)
-    }
-  }
-
-  function handlePointerUp() {
-    drag.current = null
-    setDraggingId(null)
-  }
-
-  return (
-    <section className="mt-10">
-      <h2 className="font-display text-2xl text-ink">Category order</h2>
-      <ul className="mt-3 flex flex-col gap-[7px]">
-        {categories.map((category) => {
-          const isDragging = draggingId === category.id
-          return (
-            <li
-              key={category.id}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              className={`flex touch-none items-center gap-3 rounded-control px-[14px] py-[13px] transition-[transform,box-shadow] ${
-                isDragging
-                  ? 'scale-[1.02] border border-accent bg-card shadow-lifted'
-                  : 'bg-inset'
-              }`}
-            >
-              <button
-                type="button"
-                aria-label={`Reorder ${category.name}`}
-                onPointerDown={(e) => handlePointerDown(category.id, e)}
-                onKeyDown={(e) => {
-                  if (e.key === 'ArrowUp') {
-                    e.preventDefault()
-                    void move(category.id, 'up')
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault()
-                    void move(category.id, 'down')
-                  }
-                }}
-                className={
-                  isDragging
-                    ? 'shrink-0 cursor-grabbing text-accent'
-                    : 'shrink-0 cursor-grab text-ink-ghost'
-                }
-              >
-                <GripIcon className="h-4 w-4" />
-              </button>
-              <span className="flex-1 text-sm text-ink">{category.name}</span>
-              <span className="text-xs text-ink-dim">
-                {itemCounts.get(category.id) ?? 0}
-              </span>
-              <button
-                type="button"
-                aria-label={`Delete ${category.name}`}
-                onClick={async () => {
-                  await deleteCategoryAction({
-                    data: { categoryId: category.id },
-                  })
-                  await onChange()
-                }}
-                className="shrink-0 text-ink-dim"
-              >
-                <TrashIcon className="h-3.5 w-3.5" />
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
   )
 }
