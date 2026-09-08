@@ -175,7 +175,7 @@ export async function listItems(
         eq(shoppingItems.listId, listId),
       ),
     )
-    .orderBy(asc(shoppingItems.createdAt))
+    .orderBy(asc(shoppingItems.sort), asc(shoppingItems.createdAt))
 
   const itemIds = itemRows.map((i) => i.id)
   const reminderRows =
