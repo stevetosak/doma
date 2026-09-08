@@ -433,9 +433,12 @@ function ShoppingList({
   )
 
   const categoryById = new Map(categories.map((c) => [c.id, c]))
+  const hasCategories = board.categoryOrder.length > 0
+  const uncatCount = board.itemsByBucket[UNCATEGORIZED]?.length ?? 0
+  const showUncat = hasCategories || uncatCount > 0
   const orderedKeys = [
     ...board.categoryOrder,
-    ...(board.itemsByBucket[UNCATEGORIZED]?.length ? [UNCATEGORIZED] : []),
+    ...(showUncat ? [UNCATEGORIZED] : []),
   ]
   const activeItem = activeId ? itemsById.get(activeId) : undefined
   const activeCategory =
@@ -551,6 +554,7 @@ function ShoppingList({
                 key={key}
                 bucketKey={key}
                 category={category ?? null}
+                hasCategories={hasCategories}
                 itemIds={board.itemsByBucket[key] ?? []}
                 itemsById={itemsById}
                 memberName={memberName}
@@ -594,6 +598,7 @@ function ShoppingList({
 function CategoryGroup({
   bucketKey,
   category,
+  hasCategories,
   itemIds,
   itemsById,
   memberName,
@@ -606,6 +611,7 @@ function CategoryGroup({
 }: {
   bucketKey: string
   category: CategoryView | null
+  hasCategories: boolean
   itemIds: string[]
   itemsById: Map<string, ItemView>
   memberName: Map<string, string>
@@ -658,72 +664,76 @@ function CategoryGroup({
       }}
       className={sortable.isDragging ? 'relative z-10' : undefined}
     >
-      <header className="flex items-center gap-2">
-        {category && (
-          <button
-            type="button"
-            ref={sortable.setActivatorNodeRef}
-            {...sortable.attributes}
-            {...sortable.listeners}
-            aria-label={`Reorder ${category.name}`}
-            className="-ml-1 flex h-7 w-7 shrink-0 cursor-grab touch-none items-center justify-center text-ink-ghost"
-          >
-            <GripIcon className="h-4 w-4" />
-          </button>
-        )}
-        {renaming && category ? (
-          <form
-            className="flex-1"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void submitRename()
-            }}
-          >
-            <input
-              autoFocus
-              className="field h-8 w-full py-0 text-sm"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={() => void submitRename()}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setRenaming(false)
-                  setDraft(category.name)
-                }
+      {(category || hasCategories) && (
+        <header className="flex items-center gap-2">
+          {category && (
+            <button
+              type="button"
+              ref={sortable.setActivatorNodeRef}
+              {...sortable.attributes}
+              {...sortable.listeners}
+              aria-label={`Reorder ${category.name}`}
+              className="-ml-1 flex h-7 w-7 shrink-0 cursor-grab touch-none items-center justify-center text-ink-ghost"
+            >
+              <GripIcon className="h-4 w-4" />
+            </button>
+          )}
+          {renaming && category ? (
+            <form
+              className="flex-1"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void submitRename()
               }}
-            />
-          </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => category && setRenaming(true)}
-            disabled={!category}
-            className="flex-1 text-left text-xs font-semibold tracking-wide text-ink-dim uppercase disabled:cursor-default"
-          >
-            {category ? category.name : 'Uncategorized'}
-          </button>
-        )}
-        <span className="text-xs text-ink-dim">{itemIds.length}</span>
-        {category && (
-          <button
-            type="button"
-            aria-label={`Delete ${category.name}`}
-            onClick={async () => {
-              await deleteCategoryAction({ data: { categoryId: category.id } })
-              await onChange()
-            }}
-            className="shrink-0 text-ink-dim"
-          >
-            <TrashIcon className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </header>
+            >
+              <input
+                autoFocus
+                className="field h-8 w-full py-0 text-sm"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => void submitRename()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setRenaming(false)
+                    setDraft(category.name)
+                  }
+                }}
+              />
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => category && setRenaming(true)}
+              disabled={!category}
+              className="flex-1 text-left text-xs font-semibold tracking-wide text-ink-dim uppercase disabled:cursor-default"
+            >
+              {category ? category.name : 'Uncategorized'}
+            </button>
+          )}
+          <span className="text-xs text-ink-dim">{itemIds.length}</span>
+          {category && (
+            <button
+              type="button"
+              aria-label={`Delete ${category.name}`}
+              onClick={async () => {
+                await deleteCategoryAction({
+                  data: { categoryId: category.id },
+                })
+                await onChange()
+              }}
+              className="shrink-0 text-ink-dim"
+            >
+              <TrashIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </header>
+      )}
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div
           ref={droppable.setNodeRef}
-          className={`mt-3 flex min-h-[44px] flex-col gap-4 rounded-card transition-colors ${
-            droppable.isOver ? 'bg-accent-tint ring-1 ring-accent' : ''
-          }`}
+          className={`flex min-h-[44px] flex-col gap-4 rounded-card transition-colors ${
+            category || hasCategories ? 'mt-3 ' : ''
+          }${droppable.isOver ? 'bg-accent-tint ring-1 ring-accent' : ''}`}
         >
           {itemIds.length === 0 ? (
             <p className="rounded-card border border-dashed border-line px-4 py-3 text-sm text-ink-dim">
