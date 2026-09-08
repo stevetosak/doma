@@ -147,7 +147,7 @@ Navigation is a fixed spine, not in-flow chrome: a 4rem-wide (`w-16`) vertical b
 
 The Today dashboard's card fan is the signature spatial pattern: on `md:` and up, secondary cards genuinely overlap (negative `-4.5rem` margin, descending scale 1 → 0.96 → 0.93 → 0.9, alternating small rotation, ascending z-index toward the front) rather than sitting in a same-plane row with a tilt effect; hovering a card lifts it to the front (`translateY(-6px) scale(1.02)`, z-index 10). Below `md:`, `.card-fan` drops to a plain vertical stack. The fan's wrapper carries `overflow-x-auto` with `pt-2 pb-10` reserved padding on `md:` so the transformed cards' translate/rotate/hover excursions have real box space.
 
-Grids elsewhere (occurrence cards, shopping items) use a plain 1-column mobile / 2-column (`sm:grid-cols-2`) desktop grid with `gap-4`; sections stack vertically with `gap-10` between them.
+Grids elsewhere (occurrence cards) use a plain 1-column mobile / 2-column (`sm:grid-cols-2`) desktop grid with `gap-4`; sections stack vertically with `gap-10` between them. The shopping item list is a single column at every width — a linear drag order needs one (see Reorderable Lists).
 
 ### Named Rules
 
@@ -216,11 +216,11 @@ Every actionable item — a chore, a shopping item — is an `ActionCard`: one f
 
 ### The Icon Rail (signature component)
 
-The action row that replaced the flip's back-face text links: a horizontal strip of icon-only buttons directly under a card's content, each a full 44px-tall touch target (The Forty-Four-Pixel Rule) separated by a hairline `line` divider, `ink-dim` at rest and `ink`-on-`bg-inset` on hover/press — no background until touched, so the row reads as part of the card rather than a separate toolbar. A chore's rail is remind → edit → delete; a shopping item's is remind → priority → edit → delete. The reminder button carries a small accent count badge (`IconRailAction.badge`) instead of the old "(N)" text suffix.
+The action row that replaced the flip's back-face text links: a horizontal strip of icon-only buttons directly under a card's content, each a full 44px-tall touch target (The Forty-Four-Pixel Rule) separated by a hairline `line` divider, `ink-dim` at rest and `ink`-on-`bg-inset` on hover/press — no background until touched, so the row reads as part of the card rather than a separate toolbar. A chore's rail is remind → edit → delete; a shopping item's is `drag handle · remind · priority · move to category · edit · delete` (up to six slots). The reminder button carries a small accent count badge (`IconRailAction.badge`) instead of the old "(N)" text suffix. One slot may be a drag-handle activator rather than a click action — it carries the `@dnd-kit` sortable ref and listeners (`IconRailAction.handleProps`), not an `onClick`.
 
 ### Named Rules
 
-**The Rail-Is-Actions Rule.** A card's padded content area is read-only — title, status, assignee, notes, metadata, `MutationStatus` — never a control past the swipe gesture and the hover-reveal buttons. Every named, individually-triggerable action (remind, priority, edit, delete) lives in the `IconRail`, not scattered across the card face.
+**The Rail-Is-Actions Rule.** A card's padded content area is read-only — title, status, assignee, notes, metadata, `MutationStatus` — never a control past the swipe gesture and the hover-reveal buttons. Every named, individually-triggerable action (drag handle, remind, priority, move to category, edit, delete) lives in the `IconRail`, not scattered across the card face.
 
 ### The Done Stack (signature component)
 
@@ -238,7 +238,7 @@ The one exception to the standing no-toast convention: a bottom-anchored pill (`
 
 Add/edit forms live in a `Sheet`, not inline in the resting list — a `bg-card` panel with a 38×4px grabber, `rounded-sheet` top corners only, `shadow-sheet`, docked to the bottom edge on every viewport (never a right-side drawer). It slides up (`translateY(100%)` → `0`, 0.38s `var(--ease-spring)`) over a blurred backdrop (`rgb(29 35 32 / 0.34)` + `blur(3px)`, fading in 0.3s), snapping into place under `prefers-reduced-motion`. The close control is a 30px circular `bg-inset` button with a literal `×`. `role="dialog"` `aria-modal="true"`, traps Tab/Shift+Tab focus inside the panel, closes on Escape or backdrop click, and returns focus to whatever opened it on close. Capped at `max-h-[85dvh]` (dynamic, not static, viewport height — a mobile browser's collapsing address bar makes a static `85vh` cap unreliable) with `min-h-0` on the scrollable body, so a long form (many reminder rows) scrolls inside the panel instead of growing it past the screen.
 
-A `Sheet` is mounted once per page, one instance per mode (add / edit / reminders / priority), at the top level of the route component — never inside a list row. A row carries a callback (`onEdit`, `onRemind`, …) that sets one shared piece of page state naming the target entity and mode; the page looks that entity up against live loader data so the sheet closes itself if the entity disappears. This is structural, not stylistic: the sheet is `fixed inset-0`, and a card sits inside a `.rise` wrapper whose transform-bearing entrance animation makes it the containing block for fixed descendants — a row-hosted sheet is positioned against its card, not the viewport, and rides off the top of the screen.
+A `Sheet` is mounted once per page, one instance per mode (add / edit / reminders / priority / move to category), at the top level of the route component — never inside a list row. A row carries a callback (`onEdit`, `onRemind`, …) that sets one shared piece of page state naming the target entity and mode; the page looks that entity up against live loader data so the sheet closes itself if the entity disappears. This is structural, not stylistic: the sheet is `fixed inset-0`, and a card sits inside a `.rise` wrapper whose transform-bearing entrance animation makes it the containing block for fixed descendants — a row-hosted sheet is positioned against its card, not the viewport, and rides off the top of the screen.
 
 ### The Occurrence Strip
 
@@ -254,7 +254,11 @@ A chore's day-offset stepper reads and writes a **positive "days before"** numbe
 
 ### Reorderable Lists
 
-Category order (shopping) and rotation order (chores) are drag-reorderable, not Up/Down buttons: an inset row with a grip handle (`GripIcon`, `ink-ghost`) on the left, dragging a row lifts it to `card` fill with an `accent` border and `shadow-lifted`. Drag swaps one step at a time as the pointer crosses a neighbor's row height, then resets its origin so a single gesture can move several positions — built on the existing single-step reorder action, no new backend endpoint. Both keep a keyboard path (focus the handle, arrow keys move the row).
+Shopping categories and their items reorder by drag, built on `@dnd-kit` (`@dnd-kit/core` + `/sortable` + `/utilities` — the project's first drag library). One `<DndContext>` on the shopping route holds a sortable list of category headers and, per category, a sortable list of item cards; an item drags within its category to reorder or onto another header to re-file. Every draggable carries a grip handle (`GripIcon`, `ink-ghost` — glyph-only per The Ghost Rule): on an item card the grip is the first `IconRail` slot, on a category it sits at the head of the header row. The grip is the only drag start point, so it never competes with `ActionCard`'s horizontal swipe. A dragged row drops to `opacity-40` in place, a `shadow-lifted` preview follows the pointer, and the hovered category tints `accent-tint` with an `accent` ring. Keyboard: focus a grip, Space to lift, arrow keys to move, Space to drop, Escape to cancel. For a cross-category move without a pointer, the item's `IconRail` carries a "Move to category" action (`FolderIcon`) that opens a sheet of every category plus Uncategorized — the same shape as the priority sheet. The shopping list is a single column (a linear order needs one), and its cards do not use the `.rise` entrance animation (its transform conflicts with `@dnd-kit`'s). Chores' rotation-order list still uses the older hand-rolled pointer drag (swap one step as the pointer crosses a row); migrating it to `@dnd-kit` is a follow-up.
+
+### Categories (shopping)
+
+Categories are managed on the list itself, not in a separate panel. A "+ New category" control at the end of the list reveals an inline input. A tap on a category's name turns it into an inline rename input (Enter saves, Escape cancels, a name clash is rejected). The header's trash icon deletes the category; its items fall to Uncategorized. An empty category stays visible with a "Drag items here" drop zone. Uncategorized shows whenever any category exists; with no categories at all the list is a flat, headerless column.
 
 ### Priority Marks
 
