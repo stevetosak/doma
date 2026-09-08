@@ -50,7 +50,11 @@ npm run generate:pwa-assets
 ```
 
 That produces the favicon, PWA icons, apple-touch-icon and the iOS splash set,
-and rewrites `src/core/pwa/apple-splash-links.ts`. `../public/favicon.svg`,
-`../public/doma-mark-mono.svg`, `../public/og.png` and the three
-`../public/shortcut-*.png` are committed directly (see git history for how the
-last four were cut).
+and rewrites `src/core/pwa/apple-splash-links.ts`. It runs
+`@vite-pwa/assets-generator` through `npx` — it is **not** a project
+dependency (old `sharp`/libvips, open CVEs, only ever needed here by hand);
+`pwa-assets.config.mjs` is self-contained so `npx` needs nothing installed.
+
+`../public/favicon.svg`, `../public/doma-mark-mono.svg`, `../public/og.png` and
+the three `../public/shortcut-*.png` are committed directly (see git history
+for how the last four were cut).

@@ -3,6 +3,12 @@
 //
 //   npm run generate:pwa-assets
 //
+// @vite-pwa/assets-generator is NOT a project dependency — it drags in an
+// old sharp/libvips with open CVEs and is only ever needed here, by hand,
+// when the logo changes. It runs through `npx` (cached under ~/.npm, never
+// touching this project's node_modules or lockfile). pwa-assets.config.mjs
+// is self-contained for the same reason — it imports nothing from the tool.
+//
 // Outputs, all into public/:
 //   favicon.ico, apple-touch-icon-180x180.png,
 //   pwa-64x64 / 192x192 / 512x512.png, maskable-icon-512x512.png,
@@ -10,8 +16,7 @@
 //
 // Portrait only: doma is a phone-first PWA held upright; a landscape cold
 // launch is rare and falls back to the manifest background_color, which is
-// the same colour the splash uses anyway. Light only: the splash ground is
-// identical in both themes, so a dark variant would be a byte-for-byte dupe.
+// the same colour the splash uses anyway.
 //
 // It also writes src/core/pwa/apple-splash-links.ts — the <link rel=
 // "apple-touch-startup-image"> list, consumed by __root.tsx. We build that
@@ -24,13 +29,14 @@ import { existsSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
+const GENERATOR = '@vite-pwa/assets-generator@1.0.2'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const publicDir = resolve(root, 'public')
 const linksFile = resolve(root, 'src/core/pwa/apple-splash-links.ts')
 
 const stdout = execFileSync(
   'npx',
-  ['pwa-assets-generator', '--config', 'pwa-assets.config.ts'],
+  ['--yes', GENERATOR, '--config', 'pwa-assets.config.mjs'],
   { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
 )
 

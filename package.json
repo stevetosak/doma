@@ -61,7 +61,6 @@
     "@types/pg": "^8.15.6",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-react": "^6.0.1",
     "dotenv": "^17.3.1",
     "eslint": "^9.20.0",

@@ -21,12 +21,6 @@ export const appleSplashLinks: ReadonlyArray<{
   {
     rel: 'apple-touch-startup-image',
     media:
-      'screen and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
-    href: '/apple-splash-portrait-1536x2048.png',
-  },
-  {
-    rel: 'apple-touch-startup-image',
-    media:
       'screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
     href: '/apple-splash-portrait-1640x2360.png',
   },
@@ -41,6 +35,12 @@ export const appleSplashLinks: ReadonlyArray<{
     media:
       'screen and (device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
     href: '/apple-splash-portrait-1620x2160.png',
+  },
+  {
+    rel: 'apple-touch-startup-image',
+    media:
+      'screen and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)',
+    href: '/apple-splash-portrait-1536x2048.png',
   },
   {
     rel: 'apple-touch-startup-image',
@@ -87,14 +87,14 @@ export const appleSplashLinks: ReadonlyArray<{
   {
     rel: 'apple-touch-startup-image',
     media:
-      'screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)',
-    href: '/apple-splash-portrait-1125x2436.png',
+      'screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)',
+    href: '/apple-splash-portrait-1242x2688.png',
   },
   {
     rel: 'apple-touch-startup-image',
     media:
-      'screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)',
-    href: '/apple-splash-portrait-1242x2688.png',
+      'screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)',
+    href: '/apple-splash-portrait-1125x2436.png',
   },
   {
     rel: 'apple-touch-startup-image',
