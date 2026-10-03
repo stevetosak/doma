@@ -33,3 +33,6 @@ scripts/_scratch.ts
 .impeccable/questions/
 .impeccable/live/
 /.worktrees/
+
+# Agent session notes, handoffs and local settings; never committed.
+.claude/
