@@ -36,3 +36,4 @@ scripts/_scratch.ts
 
 # Agent session notes, handoffs and local settings; never committed.
 .claude/
+.kalfa/
